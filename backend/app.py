@@ -102,6 +102,19 @@ def get_appointments():
 
     return jsonify(result)
 
+# Delete a booking/appointment and free up that slot
+@app.route("/appointments/<int:id>", methods=["DELETE"])
+def delete_appointment(id):
+    appointment = Appointment.query.get(id)
+    if not appointment:
+        return jsonify({"error": "Appointment not found"}), 404
+
+    # Free up the slot
+    appointment.slot.is_booked = False
+    db.session.delete(appointment)
+    db.session.commit()
+
+    return jsonify({"message": "Appointment cancelled"})
 
 # Start the server LAST
 if __name__ == "__main__":

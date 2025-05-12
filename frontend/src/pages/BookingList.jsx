@@ -15,15 +15,26 @@ export default function BookingList() {
 
   useEffect(() => {
     // Fetch all appointments from backend
-    axios.get("http://127.0.0.1:5000/appointments")
-      .then(res => {
+    axios
+      .get("http://127.0.0.1:5000/appointments")
+      .then((res) => {
         console.log("✅ Appointments fetched:", res.data);
         setAppointments(res.data);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error("❌ Failed to fetch appointments:", err);
       });
   }, []);
+
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`http://127.0.0.1:5000/appointments/${id}`);
+      setAppointments((prev) => prev.filter((app) => app.id !== id));
+      console.log("🗑️ Booking deleted:", id);
+    } catch (err) {
+      console.error("❌ Failed to delete booking", err);
+    }
+  };
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-4">
@@ -32,11 +43,27 @@ export default function BookingList() {
       {appointments.length === 0 ? (
         <p className="text-center">No bookings yet.</p>
       ) : (
-        appointments.map(app => (
-          <div key={app.id} className="p-4 border rounded-lg shadow-md bg-base-200">
-            <p><strong>Name:</strong> {app.name}</p>
-            <p><strong>Email:</strong> {app.email}</p>
-            <p><strong>Time Slot:</strong> {app.slot_time}</p>
+        appointments.map((app) => (
+          <div
+            key={app.id}
+            className="p-4 border rounded-lg shadow-md bg-base-200 space-y-2"
+          >
+            <p>
+              <strong>Name:</strong> {app.name}
+            </p>
+            <p>
+              <strong>Email:</strong> {app.email}
+            </p>
+            <p>
+              <strong>Time Slot:</strong> {app.slot_time}
+            </p>
+
+            <button
+              className="btn btn-sm btn-error"
+              onClick={() => handleDelete(app.id)}
+            >
+              Cancel
+            </button>
           </div>
         ))
       )}
