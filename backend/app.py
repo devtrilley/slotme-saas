@@ -86,6 +86,23 @@ def book_slot():
 
     return jsonify({"message": "Appointment booked successfully!"}), 200
 
+# GET: Appointment route which queries all Appointments from DB, pulls the name, email, and slot.time, then retusn them as a JSON list so frontend can display
+@app.route("/appointments", methods=["GET"])
+def get_appointments():
+    appointments = Appointment.query.all()
+    result = []
+
+    for a in appointments:
+        result.append({
+            "id": a.id,
+            "name": a.name,
+            "email": a.email,
+            "slot_time": a.slot.time  # Access related time from TimeSlot
+        })
+
+    return jsonify(result)
+
+
 # Start the server LAST
 if __name__ == "__main__":
     app.run(debug=True)

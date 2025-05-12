@@ -1,12 +1,12 @@
-import "./App.css";
+import { Routes, Route } from "react-router-dom";
 import BookingPage from "./pages/BookingPage";
+import BookingList from "./pages/BookingList";
 
-function App() {
+export default function App() {
   return (
-    <>
-      <BookingPage />
-    </>
+    <Routes>
+      <Route path="/" element={<BookingPage />} />
+      <Route path="/bookings" element={<BookingList />} />
+    </Routes>
   );
 }
-
-export default App;
