@@ -37,7 +37,7 @@ def seed_time_slots():
     if TimeSlot.query.first():  # If any time slot exists, skip
         return jsonify({"message": "Slots already seeded"}), 400
 
-    sample_times = ["10:00 AM", "11:30 AM", "1:00 PM", "2:30 PM", "4:00 PM"]
+    sample_times = ["10:00 AM", "11:30 AM", "1:00 PM", "2:30 PM", "4:00 PM", "3:16 PM"]
     for t in sample_times:
         db.session.add(TimeSlot(time=t, is_booked=False))
 

@@ -1,27 +1,44 @@
-import { useState } from "react";
-
-const fakeSlots = [
-  "10:00 AM",
-  "11:30 AM",
-  "1:00 PM",
-  "2:30 PM",
-  "4:00 PM",
-];
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 export default function BookingPage() {
-  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [slots, setSlots] = useState([]);
+  const [selectedSlotId, setSelectedSlotId] = useState(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  // Fetch available slots from backend on load
+  useEffect(() => {
+    axios
+      .get("http://127.0.0.1:5000/slots")
+      .then((res) => setSlots(res.data))
+      .catch((err) => console.error("Failed to fetch slots", err));
+  }, []);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Booking submitted:", { selectedSlot, name, email });
-    setSuccess(true);
-    setName("");
-    setEmail("");
-    setSelectedSlot(null);
-    setTimeout(() => setSuccess(false), 4000); // Hide message after 4 seconds
+    setError("");
+
+    try {
+      const res = await axios.post("http://127.0.0.1:5000/book", {
+        name,
+        email,
+        slot_id: selectedSlotId,
+      });
+
+      console.log("✅ Booked!", res.data);
+      setSuccess(true);
+      setName("");
+      setEmail("");
+      setSelectedSlotId(null);
+      setTimeout(() => setSuccess(false), 4000);
+    } catch (err) {
+      const msg = err.response?.data?.error || "Booking failed";
+      setError(msg);
+      console.error("❌", msg);
+    }
   };
 
   return (
@@ -34,17 +51,24 @@ export default function BookingPage() {
         </div>
       )}
 
+      {error && (
+        <div className="alert alert-error shadow-lg">
+          <span>{error}</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
-        {fakeSlots.map((slot) => (
+        {slots.map((slot) => (
           <button
-            key={slot}
+            key={slot.id}
             className={`btn ${
-              selectedSlot === slot ? "btn-primary" : "btn-outline"
+              selectedSlotId === slot.id ? "btn-primary" : "btn-outline"
             }`}
-            onClick={() => setSelectedSlot(slot)}
+            onClick={() => setSelectedSlotId(slot.id)}
+            disabled={slot.is_booked}
             type="button"
           >
-            {slot}
+            {slot.time}
           </button>
         ))}
       </div>
@@ -68,7 +92,7 @@ export default function BookingPage() {
           required
         />
 
-        <button className="btn btn-primary w-full" disabled={!selectedSlot}>
+        <button className="btn btn-primary w-full" disabled={!selectedSlotId}>
           Book Appointment
         </button>
       </form>
