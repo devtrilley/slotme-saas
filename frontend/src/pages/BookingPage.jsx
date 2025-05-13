@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
+function convertTo24Hr(time) {
+  const [t, mod] = time.split(" ");
+  let [h, m] = t.split(":").map(Number);
+  if (mod === "PM" && h !== 12) h += 12;
+  if (mod === "AM" && h === 12) h = 0;
+  return `${h.toString().padStart(2, "0")}:${m}:00`;
+}
+
 export default function BookingPage() {
   const [slots, setSlots] = useState([]);
   const [selectedSlotId, setSelectedSlotId] = useState(null);
@@ -8,13 +16,38 @@ export default function BookingPage() {
   const [email, setEmail] = useState("");
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
 
   // Fetch available slots from backend on load
   useEffect(() => {
+    setLoading(true);
     axios
       .get("http://127.0.0.1:5000/slots")
-      .then((res) => setSlots(res.data))
-      .catch((err) => console.error("Failed to fetch slots", err));
+      .then((res) => {
+        const sorted = [...res.data].sort((a, b) => {
+          const getDate = (timeStr) => {
+            const [hourMinute, ampm] = timeStr.split(" ");
+            let [hour, minute] = hourMinute.split(":").map(Number);
+
+            if (ampm === "PM" && hour !== 12) hour += 12;
+            if (ampm === "AM" && hour === 12) hour = 0;
+
+            const date = new Date();
+            date.setHours(hour, minute, 0, 0);
+            return date;
+          };
+
+          return getDate(a.time) - getDate(b.time);
+        });
+        setSlots(sorted);
+        setFetchError("");
+      })
+      .catch((err) => {
+        console.error("❌ Failed to fetch slots", err);
+        setFetchError("Could not load time slots. Try again later.");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const handleSubmit = async (e) => {
@@ -57,19 +90,33 @@ export default function BookingPage() {
         </div>
       )}
 
+      {loading && <p className="text-center">Loading slots...</p>}
+      {fetchError && <p className="text-center text-red-500">{fetchError}</p>}
+
       <div className="grid grid-cols-2 gap-4">
         {slots.map((slot) => (
-          <button
-            key={slot.id}
-            className={`btn ${
-              selectedSlotId === slot.id ? "btn-primary" : "btn-outline"
-            }`}
-            onClick={() => setSelectedSlotId(slot.id)}
-            disabled={slot.is_booked}
-            type="button"
-          >
-            {slot.time}
-          </button>
+          <div key={slot.id} className="flex flex-col items-center">
+            <button
+              className={`btn ${
+                slot.is_booked
+                  ? "bg-gray-800 text-gray-500 cursor-not-allowed"
+                  : selectedSlotId === slot.id
+                  ? "btn-primary text-white"
+                  : "btn-outline text-white border-white"
+              }`}
+              onClick={() =>
+                setSelectedSlotId((prev) => (prev === slot.id ? null : slot.id))
+              }
+              disabled={slot.is_booked}
+              type="button"
+            >
+              {slot.time}
+            </button>
+
+            {slot.is_booked && (
+              <span className="text-xs text-red-400 mt-1">Booked</span>
+            )}
+          </div>
         ))}
       </div>
 
@@ -92,7 +139,12 @@ export default function BookingPage() {
           required
         />
 
-        <button className="btn btn-primary w-full" disabled={!selectedSlotId}>
+        <button
+          className={`btn w-full btn-primary text-white ${
+            !selectedSlotId ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          disabled={!selectedSlotId}
+        >
           Book Appointment
         </button>
       </form>
