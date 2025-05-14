@@ -50,12 +50,23 @@ def seed_time_slots():
 def get_time_slots():
     slots = TimeSlot.query.all()
     result = []
+
     for slot in slots:
-        result.append({
+        slot_data = {
             "id": slot.id,
             "time": slot.time,
-            "is_booked": slot.is_booked
-        })
+            "is_booked": slot.is_booked,
+        }
+
+        # If booked, fetch the linked appointment
+        if slot.is_booked and slot.appointment:
+            slot_data["appointment"] = {
+                "name": slot.appointment.name,
+                "email": slot.appointment.email
+            }
+
+        result.append(slot_data)
+
     return jsonify(result)
 
 # Booking route: route that receives a POST request with a name, email, and slot ID, checks if the slot is free, books the appointment, and marks the slot as taken.
