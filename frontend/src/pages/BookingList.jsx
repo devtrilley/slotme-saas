@@ -1,20 +1,17 @@
-// This is a React component that fetches all booked appointments from the backend
-// and displays them in a simple card layout.
-
-/* WHAT IT DOES
-  1.	Makes a GET request to http://127.0.0.1:5000/appointments when the page loads.
-	2.	Stores the response in state (e.g., appointments).
-	3.	Maps through and displays each booking (showing name, email, and time). 
-*/
-
 import { useEffect, useState } from "react";
 import axios from "axios";
 
 export default function BookingList() {
   const [appointments, setAppointments] = useState([]);
+  const [slots, setSlots] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [newSlotId, setNewSlotId] = useState(null);
 
   useEffect(() => {
-    // Fetch all appointments from backend
+    fetchData();
+  }, []);
+
+  const fetchData = () => {
     axios
       .get("http://127.0.0.1:5000/appointments")
       .then((res) => {
@@ -24,7 +21,16 @@ export default function BookingList() {
       .catch((err) => {
         console.error("❌ Failed to fetch appointments:", err);
       });
-  }, []);
+
+    axios
+      .get("http://127.0.0.1:5000/slots")
+      .then((res) => {
+        setSlots(res.data.filter((s) => !s.is_booked)); // only free slots
+      })
+      .catch((err) => {
+        console.error("❌ Failed to fetch slots:", err);
+      });
+  };
 
   const handleDelete = async (id) => {
     try {
@@ -33,6 +39,23 @@ export default function BookingList() {
       console.log("🗑️ Booking deleted:", id);
     } catch (err) {
       console.error("❌ Failed to delete booking", err);
+    }
+  };
+
+  const handleReschedule = async (id) => {
+    if (!newSlotId) return;
+
+    try {
+      await axios.put(`http://127.0.0.1:5000/appointments/${id}`, {
+        slot_id: newSlotId,
+      });
+
+      setSelectedId(null);
+      setNewSlotId(null);
+      fetchData(); // Refresh
+      console.log("🔁 Booking rescheduled:", id);
+    } catch (err) {
+      console.error("❌ Failed to reschedule", err);
     }
   };
 
@@ -58,12 +81,49 @@ export default function BookingList() {
               <strong>Time Slot:</strong> {app.slot_time}
             </p>
 
-            <button
-              className="btn btn-sm btn-error"
-              onClick={() => handleDelete(app.id)}
-            >
-              Cancel
-            </button>
+            <div className="flex gap-2">
+              <button
+                className="btn btn-sm btn-error"
+                onClick={() => handleDelete(app.id)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-sm btn-outline"
+                onClick={() =>
+                  setSelectedId((prev) => (prev === app.id ? null : app.id))
+                }
+              >
+                Reschedule
+              </button>
+            </div>
+
+            {selectedId === app.id && (
+              <div className="space-y-2 pt-2">
+                <select
+                  className="select select-bordered w-full"
+                  value={newSlotId || ""}
+                  onChange={(e) => setNewSlotId(Number(e.target.value))}
+                >
+                  <option value="" disabled>
+                    Select new time
+                  </option>
+                  {slots.map((slot) => (
+                    <option key={slot.id} value={slot.id}>
+                      {slot.time}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  className="btn btn-sm btn-primary w-full"
+                  disabled={!newSlotId}
+                  onClick={() => handleReschedule(app.id)}
+                >
+                  Confirm Reschedule
+                </button>
+              </div>
+            )}
           </div>
         ))
       )}

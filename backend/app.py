@@ -127,6 +127,31 @@ def delete_appointment(id):
 
     return jsonify({"message": "Appointment cancelled"})
 
+# Reschedule an existing appointment at it's specific ID
+@app.route("/appointments/<int:id>", methods=["PUT"])
+def update_appointment(id):
+    data = request.get_json()
+    new_slot_id = data.get("slot_id")
+
+    appointment = Appointment.query.get(id)
+    if not appointment:
+        return jsonify({"error": "Appointment not found"}), 404
+
+    new_slot = TimeSlot.query.get(new_slot_id)
+    if not new_slot or new_slot.is_booked:
+        return jsonify({"error": "New slot is unavailable"}), 400
+
+    # Free old slot, assign new one
+    old_slot = appointment.slot
+    old_slot.is_booked = False
+
+    appointment.slot_id = new_slot_id
+    new_slot.is_booked = True
+
+    db.session.commit()
+
+    return jsonify({"message": "Appointment updated"})
+
 # Start the server LAST
 if __name__ == "__main__":
     app.run(debug=True)
