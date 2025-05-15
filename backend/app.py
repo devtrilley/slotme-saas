@@ -127,30 +127,42 @@ def delete_appointment(id):
 
     return jsonify({"message": "Appointment cancelled"})
 
-# Reschedule an existing appointment at it's specific ID
-@app.route("/appointments/<int:id>", methods=["PUT"])
+# This route lets you reschedule an existing appointment — meaning: it changes the slot_id tied to a specific appointment, but only if the new slot is available.
+#   1.	Check if the new slot exists.
+#	2.	Make sure it’s not already booked.
+#	3.	If valid, update the appointment’s slot_id.
+#	4.	Free up the old slot.
+#	5.	Mark the new slot as booked.
+@app.route("/appointments/<int:id>", methods=["PATCH"])
 def update_appointment(id):
     data = request.get_json()
     new_slot_id = data.get("slot_id")
+
+    if not new_slot_id:
+        return jsonify({"error": "Missing slot_id"}), 400
 
     appointment = Appointment.query.get(id)
     if not appointment:
         return jsonify({"error": "Appointment not found"}), 404
 
     new_slot = TimeSlot.query.get(new_slot_id)
-    if not new_slot or new_slot.is_booked:
-        return jsonify({"error": "New slot is unavailable"}), 400
+    if not new_slot:
+        return jsonify({"error": "New time slot not found"}), 404
 
-    # Free old slot, assign new one
+    if new_slot.is_booked:
+        return jsonify({"error": "Time slot is already booked"}), 400
+
+    # Free old slot
     old_slot = appointment.slot
     old_slot.is_booked = False
 
+    # Book new slot
     appointment.slot_id = new_slot_id
     new_slot.is_booked = True
 
     db.session.commit()
 
-    return jsonify({"message": "Appointment updated"})
+    return jsonify({"message": "Appointment updated successfully!"})
 
 # Start the server LAST
 if __name__ == "__main__":
