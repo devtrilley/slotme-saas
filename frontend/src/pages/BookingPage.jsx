@@ -74,7 +74,13 @@ export default function BookingPage() {
       fetchSlots(); // refresh list after booking
     } catch (err) {
       const msg = err.response?.data?.error || "Booking failed";
-      setError(msg);
+      if (msg === "Email already has an appointment.") {
+        setError(
+          "Looks like you've already booked! You can reschedule or cancel from the bookings page."
+        );
+      } else {
+        setError(msg);
+      }
       console.error("❌", msg);
     }
   };
