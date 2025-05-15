@@ -21,6 +21,10 @@ export default function BookingPage() {
 
   // Fetch available slots from backend on load
   useEffect(() => {
+    fetchSlots();
+  }, []);
+
+  const fetchSlots = () => {
     setLoading(true);
     axios
       .get("http://127.0.0.1:5000/slots")
@@ -48,7 +52,7 @@ export default function BookingPage() {
         setFetchError("Could not load time slots. Try again later.");
       })
       .finally(() => setLoading(false));
-  }, []);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -67,6 +71,7 @@ export default function BookingPage() {
       setEmail("");
       setSelectedSlotId(null);
       setTimeout(() => setSuccess(false), 4000);
+      fetchSlots(); // refresh list after booking
     } catch (err) {
       const msg = err.response?.data?.error || "Booking failed";
       setError(msg);
@@ -76,7 +81,16 @@ export default function BookingPage() {
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
-      <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>
+      <div className="flex flex-col items-center gap-2">
+        <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>
+        <button
+          className="btn btn-sm btn-outline"
+          onClick={fetchSlots}
+          disabled={loading}
+        >
+          🔁 Refresh
+        </button>
+      </div>
 
       {success && (
         <div className="alert alert-success shadow-lg">
