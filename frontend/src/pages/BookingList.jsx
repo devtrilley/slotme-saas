@@ -6,6 +6,9 @@ export default function BookingList() {
   const [slots, setSlots] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [newSlotId, setNewSlotId] = useState(null);
+  const [loadingId, setLoadingId] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [messageType, setMessageType] = useState("info");
 
   useEffect(() => {
     fetchData();
@@ -15,7 +18,6 @@ export default function BookingList() {
     axios
       .get("http://127.0.0.1:5000/appointments")
       .then((res) => {
-        console.log("✅ Appointments fetched:", res.data);
         setAppointments(res.data);
       })
       .catch((err) => {
@@ -25,7 +27,7 @@ export default function BookingList() {
     axios
       .get("http://127.0.0.1:5000/slots")
       .then((res) => {
-        setSlots(res.data.filter((s) => !s.is_booked)); // only free slots
+        setSlots(res.data.filter((s) => !s.is_booked)); // only show unbooked slots
       })
       .catch((err) => {
         console.error("❌ Failed to fetch slots:", err);
@@ -33,35 +35,61 @@ export default function BookingList() {
   };
 
   const handleDelete = async (id) => {
+    setLoadingId(id);
+    setMessage(null);
+
     try {
       await axios.delete(`http://127.0.0.1:5000/appointments/${id}`);
       setAppointments((prev) => prev.filter((app) => app.id !== id));
-      console.log("🗑️ Booking deleted:", id);
+      setMessage("✅ Appointment cancelled.");
+      setMessageType("success");
     } catch (err) {
       console.error("❌ Failed to delete booking", err);
+      setMessage("❌ Failed to cancel appointment.");
+      setMessageType("error");
+    } finally {
+      setLoadingId(null);
     }
   };
 
   const handleReschedule = async (id) => {
     if (!newSlotId) return;
 
+    setLoadingId(id);
+    setMessage(null);
+
     try {
-      await axios.put(`http://127.0.0.1:5000/appointments/${id}`, {
+      await axios.patch(`http://127.0.0.1:5000/appointments/${id}`, {
         slot_id: newSlotId,
       });
 
       setSelectedId(null);
       setNewSlotId(null);
-      fetchData(); // Refresh
-      console.log("🔁 Booking rescheduled:", id);
+      fetchData(); // refresh both lists
+      setMessage("✅ Appointment rescheduled.");
+      setMessageType("success");
     } catch (err) {
       console.error("❌ Failed to reschedule", err);
+      setMessage("❌ Failed to reschedule. Slot may be booked.");
+      setMessageType("error");
+    } finally {
+      setLoadingId(null);
     }
   };
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-4">
       <h2 className="text-2xl font-bold text-center">All Bookings</h2>
+
+      {message && (
+        <div
+          className={`alert ${
+            messageType === "success" ? "alert-success" : "alert-error"
+          } shadow-sm`}
+        >
+          <span>{message}</span>
+        </div>
+      )}
 
       {appointments.length === 0 ? (
         <p className="text-center">No bookings yet.</p>
@@ -85,8 +113,9 @@ export default function BookingList() {
               <button
                 className="btn btn-sm btn-error"
                 onClick={() => handleDelete(app.id)}
+                disabled={loadingId === app.id}
               >
-                Cancel
+                {loadingId === app.id ? "Cancelling..." : "Cancel"}
               </button>
               <button
                 className="btn btn-sm btn-outline"
@@ -117,10 +146,12 @@ export default function BookingList() {
 
                 <button
                   className="btn btn-sm btn-primary w-full"
-                  disabled={!newSlotId}
+                  disabled={!newSlotId || loadingId === app.id}
                   onClick={() => handleReschedule(app.id)}
                 >
-                  Confirm Reschedule
+                  {loadingId === app.id
+                    ? "Rescheduling..."
+                    : "Confirm Reschedule"}
                 </button>
               </div>
             )}
