@@ -74,21 +74,21 @@ def get_time_slots():
 def book_slot():
     data = request.get_json()
 
-    # Grab data from the request
     name = data.get("name")
     email = data.get("email")
     slot_id = data.get("slot_id")
 
-    # Basic validation
     if not name or not email or not slot_id:
         return jsonify({"error": "Missing required fields"}), 400
 
-    # Check if slot exists and is available
+    # NEW: Prevent duplicate email booking
+    if Appointment.query.filter_by(email=email).first():
+        return jsonify({"error": "Email already has an appointment."}), 400
+
     slot = TimeSlot.query.get(slot_id)
     if not slot or slot.is_booked:
         return jsonify({"error": "Slot is unavailable"}), 400
 
-    # Create appointment and mark slot as booked
     appointment = Appointment(name=name, email=email, slot_id=slot_id)
     slot.is_booked = True
 
