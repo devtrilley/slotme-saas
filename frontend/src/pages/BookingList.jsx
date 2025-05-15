@@ -14,11 +14,24 @@ export default function BookingList() {
     fetchData();
   }, []);
 
+  const getDateFromTimeStr = (timeStr) => {
+    const [hourMinute, ampm] = timeStr.split(" ");
+    let [hour, minute] = hourMinute.split(":").map(Number);
+    if (ampm === "PM" && hour !== 12) hour += 12;
+    if (ampm === "AM" && hour === 12) hour = 0;
+    const date = new Date();
+    date.setHours(hour, minute, 0, 0);
+    return date;
+  };
+
   const fetchData = () => {
     axios
       .get("http://127.0.0.1:5000/appointments")
       .then((res) => {
-        setAppointments(res.data);
+        const sorted = [...res.data].sort(
+          (a, b) => getDateFromTimeStr(a.slot_time) - getDateFromTimeStr(b.slot_time)
+        );
+        setAppointments(sorted);
       })
       .catch((err) => {
         console.error("❌ Failed to fetch appointments:", err);
