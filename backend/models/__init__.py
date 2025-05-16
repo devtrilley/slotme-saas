@@ -1,32 +1,42 @@
-#This is our models.py file
-
 from flask_sqlalchemy import SQLAlchemy
 
-# This will be used to initialize and access the database across files
 db = SQLAlchemy()
 
-# This model represents available time slots in the system
 class TimeSlot(db.Model):
-    id = db.Column(db.Integer, primary_key=True)      # Unique ID
-    time = db.Column(db.String(20), nullable=False)   # e.g., "10:00 AM"
-    is_booked = db.Column(db.Boolean, default=False)  # Whether this time is taken
+    __tablename__ = 'time_slots'
 
-    # ✅ New: backref to attached appointment (if any)
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
+    time = db.Column(db.String(20), nullable=False)
+    is_booked = db.Column(db.Boolean, default=False)
+
     appointment = db.relationship(
         'Appointment',
         back_populates='slot',
         uselist=False
     )
 
-# This model represents a user's appointment (booking)
 class Appointment(db.Model):
-    id = db.Column(db.Integer, primary_key=True)            # Unique ID
-    name = db.Column(db.String(100), nullable=False)        # User's name
-    email = db.Column(db.String(120), nullable=False)       # User's email
-    slot_id = db.Column(db.Integer, db.ForeignKey('time_slot.id'), nullable=False)  # Links to TimeSlot
+    __tablename__ = 'appointments'
 
-    # ✅ New: link back to slot (completes the two-way relationship)
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
+    slot_id = db.Column(db.Integer, db.ForeignKey('time_slots.id'), nullable=False)
+
     slot = db.relationship(
         'TimeSlot',
         back_populates='appointment'
     )
+
+class Client(db.Model):
+    __tablename__ = 'clients'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(128), nullable=False)
+
+    time_slots = db.relationship('TimeSlot', backref='client', lazy=True)
+    appointments = db.relationship('Appointment', backref='client', lazy=True)
