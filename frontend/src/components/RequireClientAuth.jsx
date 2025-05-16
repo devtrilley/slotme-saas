@@ -6,7 +6,9 @@ export default function RequireClientAuth({ children }) {
 
   useEffect(() => {
     const isClientLoggedIn = localStorage.getItem("client_logged_in");
-    if (!isClientLoggedIn) {
+    const clientId = localStorage.getItem("client_id");
+
+    if (!isClientLoggedIn || !clientId) {
       navigate("/client-login");
     }
   }, [navigate]);

@@ -1,17 +1,31 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import axios from "axios";
 
 export default function ClientLogin() {
-  const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (code === "client123") {
+    setError("");
+
+    try {
+      const res = await axios.post("http://127.0.0.1:5000/client-login", {
+        email,
+        password,
+      });
+
+      const clientId = res.data.client_id;
+      localStorage.setItem("client_id", res.data.client_id); // assuming successful login response
       localStorage.setItem("client_logged_in", "true");
+      localStorage.setItem("client_id", clientId);
       navigate("/client-admin");
-    } else {
-      alert("Invalid code");
+    } catch (err) {
+      const msg = err.response?.data?.error || "Login failed. Try again.";
+      setError(msg);
     }
   };
 
@@ -20,14 +34,29 @@ export default function ClientLogin() {
       <h2 className="text-2xl font-bold mb-4 text-center">Client Login</h2>
       <form onSubmit={handleLogin} className="space-y-4">
         <input
-          type="text"
+          type="email"
           className="input input-bordered w-full"
-          placeholder="Enter client access code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          className="input input-bordered w-full"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
         />
         <button className="btn btn-primary w-full">Login</button>
       </form>
+
+      {error && (
+        <div className="alert alert-error mt-4 shadow-sm">
+          <span>{error}</span>
+        </div>
+      )}
     </div>
   );
 }

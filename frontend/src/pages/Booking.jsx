@@ -27,7 +27,7 @@ export default function BookingPage() {
   const fetchSlots = () => {
     setLoading(true);
     axios
-      .get("http://127.0.0.1:5000/slots")
+      .get("http://127.0.0.1:5000/slots?client_id=1")
       .then((res) => {
         const sorted = [...res.data].sort((a, b) => {
           const getDate = (timeStr) => {

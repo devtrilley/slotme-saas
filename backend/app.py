@@ -1,6 +1,7 @@
 # This file is pretty much like a .app file in Express that holds all of our routes
 
 from flask import Flask, request, jsonify
+from flask import g
 from flask_cors import CORS
 from models import db, TimeSlot, Appointment, Client
 from dotenv import load_dotenv
@@ -19,6 +20,10 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
+
+@app.before_request
+def load_client():
+    g.client_id = 1 # ✅ temporary for dev
 
 @app.route("/")
 def index():
@@ -39,7 +44,7 @@ def index():
 
 @app.route("/slots", methods=["GET"])
 def get_time_slots():
-    client_id = 1
+    client_id = g.client_id
     slots = TimeSlot.query.filter_by(client_id=client_id).all()
     result = []
 
@@ -92,7 +97,7 @@ def book_slot():
 
 @app.route("/appointments", methods=["GET"])
 def get_appointments():
-    client_id = 1
+    client_id = g.client_id
     appointments = Appointment.query.filter_by(client_id=client_id).all()
     result = []
 
@@ -108,7 +113,7 @@ def get_appointments():
 
 @app.route("/appointments/<int:id>", methods=["DELETE"])
 def delete_appointment(id):
-    client_id = 1
+    client_id = g.client_id
     appointment = Appointment.query.get(id)
     if not appointment or appointment.client_id != client_id:
         return jsonify({"error": "Appointment not found or unauthorized"}), 404
@@ -120,7 +125,7 @@ def delete_appointment(id):
 
 @app.route("/appointments/<int:id>", methods=["PATCH"])
 def update_appointment(id):
-    client_id = 1
+    client_id = g.client_id
     data = request.get_json()
     new_slot_id = data.get("slot_id")
 
