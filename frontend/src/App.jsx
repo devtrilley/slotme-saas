@@ -2,9 +2,10 @@
 import { Routes, Route } from "react-router-dom";
 
 // Page Imports
-import BookingPage from "./pages/BookingPage";
-import BookingList from "./pages/BookingList";
-import AdminPage from "./pages/AdminPage";
+import BookingPage from "./pages/Booking";
+import ClientBookingList from "./pages/ClientBookingList";
+import ClientAdmin from "./pages/ClientAdmin";
+import ClientLogin from "./pages/ClientLogin";
 import DevLogin from "./pages/DevLogin";
 import DevAdmin from "./pages/DevAdmin";
 
@@ -12,7 +13,7 @@ import DevAdmin from "./pages/DevAdmin";
 import Navbar from "./components/Navbar";
 import DevProtectedRoute from "./components/DevProtectedRoute";
 import RequireDevAuth from "./components/RequireDevAuth";
-
+import RequireClientAuth from "./components/RequireClientAuth";
 
 export default function App() {
   return (
@@ -20,27 +21,32 @@ export default function App() {
       <Navbar />
       <div className="p-4">
         <Routes>
+          {/* Public booking page */}
           <Route path="/" element={<BookingPage />} />
+
+          {/* Login routes */}
+          <Route path="/client-login" element={<ClientLogin />} />
           <Route path="/dev-login" element={<DevLogin />} />
-          {/* Protected Routes */}
+
+          {/* Client Admin protected routes */}
           <Route
-            path="/admin"
+            path="/client-admin"
             element={
-              <DevProtectedRoute>
-                <AdminPage />
-              </DevProtectedRoute>
+              <RequireClientAuth>
+                <ClientAdmin />
+              </RequireClientAuth>
             }
           />
           <Route
-            path="/bookings"
+            path="/client-bookings"
             element={
-              <DevProtectedRoute>
-                <BookingList />
-              </DevProtectedRoute>
+              <RequireClientAuth>
+                <ClientBookingList />
+              </RequireClientAuth>
             }
           />
 
-          {/*  Inside Routes */}
+          {/* Dev Admin protected route */}
           <Route
             path="/dev-admin"
             element={

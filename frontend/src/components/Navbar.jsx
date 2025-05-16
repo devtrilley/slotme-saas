@@ -1,11 +1,59 @@
-// src/components/Navbar.jsx
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function Navbar() {
+  const navigate = useNavigate();
+  const isDevLoggedIn = localStorage.getItem("dev_logged_in");
+  const isClientLoggedIn = localStorage.getItem("client_logged_in");
+
+  const handleLogout = (type) => {
+    if (type === "dev") {
+      localStorage.removeItem("dev_logged_in");
+      navigate("/dev-login");
+    } else if (type === "client") {
+      localStorage.removeItem("client_logged_in");
+      navigate("/client-login");
+    }
+  };
+
+  const renderLinks = () => {
+    return (
+      <>
+        <li>
+          <Link to="/">Book</Link>
+        </li>
+
+        {isClientLoggedIn && (
+          <>
+            <li>
+              <Link to="/client-admin">All Time Slots</Link>
+            </li>
+            <li>
+              <Link to="/client-bookings">CRM</Link>
+            </li>
+            <li>
+              <button onClick={() => handleLogout("client")}>Logout as Client</button>
+            </li>
+          </>
+        )}
+
+        {isDevLoggedIn && (
+          <>
+            <li>
+              <Link to="/dev-admin">Dev Panel</Link>
+            </li>
+            <li>
+              <button onClick={() => handleLogout("dev")}>Logout as Dev</button>
+            </li>
+          </>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="navbar bg-base-100 shadow-md px-4">
-      {/* Start: Mobile hamburger */}
       <div className="navbar-start">
+        {/* Mobile Dropdown */}
         <div className="dropdown">
           <label tabIndex={0} className="btn btn-ghost lg:hidden">
             {/* Hamburger Icon */}
@@ -24,17 +72,12 @@ export default function Navbar() {
               />
             </svg>
           </label>
-          {/* Dropdown content */}
+          {/* Mobile Menu */}
           <ul
             tabIndex={0}
             className="menu menu-sm dropdown-content mt-3 p-2 shadow bg-base-100 rounded-box w-52"
           >
-            <li>
-              <Link to="/">Book</Link>
-            </li>
-            <li>
-              <Link to="/bookings">Bookings</Link>
-            </li>
+            {renderLinks()}
           </ul>
         </div>
         <Link to="/" className="btn btn-ghost text-xl">
@@ -42,16 +85,9 @@ export default function Navbar() {
         </Link>
       </div>
 
-      {/* End: Desktop links */}
+      {/* Desktop Menu */}
       <div className="navbar-end hidden lg:flex">
-        <ul className="menu menu-horizontal px-1">
-          <li>
-            <Link to="/">Book</Link>
-          </li>
-          <li>
-            <Link to="/bookings">Bookings</Link>
-          </li>
-        </ul>
+        <ul className="menu menu-horizontal px-1">{renderLinks()}</ul>
       </div>
     </div>
   );

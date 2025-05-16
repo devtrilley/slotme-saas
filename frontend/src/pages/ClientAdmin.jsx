@@ -42,8 +42,20 @@ export default function AdminPage() {
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
-      <h2 className="text-2xl font-bold text-center">Admin: All Time Slots</h2>
-
+      <div className="flex flex-col gap-2 items-center">
+        <h2 className="text-2xl font-bold text-center">
+          Client Admin: All Time Slots
+        </h2>
+        <button
+          onClick={() => {
+            localStorage.removeItem("client_logged_in");
+            window.location.href = "/client-login";
+          }}
+          className="btn btn-sm btn-outline"
+        >
+          Logout
+        </button>
+      </div>
       {loading && <p className="text-center">Loading...</p>}
       {fetchError && <p className="text-red-500 text-center">{fetchError}</p>}
 
@@ -56,7 +68,9 @@ export default function AdminPage() {
             <p className="font-semibold">{slot.time}</p>
 
             {slot.is_booked ? (
-              slot.appointment && slot.appointment.name && slot.appointment.email ? (
+              slot.appointment &&
+              slot.appointment.name &&
+              slot.appointment.email ? (
                 <>
                   <p className="text-sm">Booked by:</p>
                   <p className="text-sm text-primary">
