@@ -23,7 +23,7 @@ with app.app_context():
 
 @app.before_request
 def load_client():
-    g.client_id = 1 # ✅ temporary for dev
+    g.client_id = request.headers.get("X-Client-ID", type=int)
 
 @app.route("/")
 def index():
@@ -152,17 +152,22 @@ def update_appointment(id):
     return jsonify({"message": "Appointment updated successfully!"})
 
 # Testing route with full info. Use over old /seeds route
-@app.route("/seed-full", methods=["POST"])
+@app.route("/seed-full", methods=["POST", "OPTIONS"])
 def seed_with_client():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200  # preflight OK
+
     if Client.query.first():
         return jsonify({"message": "Already seeded"}), 400
 
-    # 1. Create a client
-    client = Client(name="Demo Client", email="demo@mail.com", password=generate_password_hash("demo123"))
+    client = Client(
+        name="Demo Client",
+        email="demo@mail.com",
+        password=generate_password_hash("demo123")
+    )
     db.session.add(client)
     db.session.commit()
 
-    # 2. Create sample time slots for that client
     sample_times = ["9:00 AM", "10:00 AM", "11:30 AM", "1:00 PM", "2:30 PM", "4:00 PM"]
     for time in sample_times:
         slot = TimeSlot(time=time, client_id=client.id)
@@ -170,6 +175,31 @@ def seed_with_client():
 
     db.session.commit()
     return jsonify({"message": "Seeded demo client and slots!"})
+
+# Testing route for 2nd client, to check if multitenancy works
+@app.route("/seed-client2", methods=["POST", "OPTIONS"])
+def seed_second_client():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+
+    if Client.query.count() >= 2:
+        return jsonify({"message": "Second client already seeded"}), 400
+
+    client = Client(
+        name="Night Owl Client",
+        email="night@mail.com",
+        password=generate_password_hash("night123")
+    )
+    db.session.add(client)
+    db.session.commit()
+
+    night_times = ["7:30 PM", "9:00 PM", "11:00 PM", "12:30 AM"]
+    for time in night_times:
+        slot = TimeSlot(time=time, client_id=client.id)
+        db.session.add(slot)
+
+    db.session.commit()
+    return jsonify({"message": "Seeded second client and night slots!"})
 
 @app.route("/client-login", methods=["POST"])
 def client_login():

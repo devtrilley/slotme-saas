@@ -8,10 +8,14 @@ export default function ClientBookingList() {
 
   useEffect(() => {
     axios
-      .get("http://127.0.0.1:5000/appointments")
+      .get("http://127.0.0.1:5000/appointments", {
+        headers: {
+          "X-Client-ID": localStorage.getItem("client_id"),
+        },
+      })
       .then((res) => {
-        const sorted = [...res.data].sort((a, b) =>
-          convertToDate(a.slot_time) - convertToDate(b.slot_time)
+        const sorted = [...res.data].sort(
+          (a, b) => convertToDate(a.slot_time) - convertToDate(b.slot_time)
         );
         setAppointments(sorted);
       })

@@ -25,9 +25,22 @@ export default function BookingPage() {
   }, []);
 
   const fetchSlots = () => {
+    const clientId = localStorage.getItem("client_id");
+
+    if (!clientId) {
+      setFetchError("Client not recognized. Please check your booking link.");
+      setSlots([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     axios
-      .get("http://127.0.0.1:5000/slots?client_id=1")
+      .get("http://127.0.0.1:5000/slots", {
+        headers: {
+          "X-Client-ID": clientId,
+        },
+      })
       .then((res) => {
         const sorted = [...res.data].sort((a, b) => {
           const getDate = (timeStr) => {
@@ -44,6 +57,7 @@ export default function BookingPage() {
 
           return getDate(a.time) - getDate(b.time);
         });
+
         setSlots(sorted);
         setFetchError("");
       })
@@ -59,11 +73,19 @@ export default function BookingPage() {
     setError("");
 
     try {
-      const res = await axios.post("http://127.0.0.1:5000/book", {
-        name,
-        email,
-        slot_id: selectedSlotId,
-      });
+      const res = await axios.post(
+        "http://127.0.0.1:5000/book",
+        {
+          name,
+          email,
+          slot_id: selectedSlotId,
+        },
+        {
+          headers: {
+            "X-Client-ID": localStorage.getItem("client_id"),
+          },
+        }
+      );
 
       console.log("✅ Booked!", res.data);
       setSuccess(true);

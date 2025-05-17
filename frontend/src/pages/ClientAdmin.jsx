@@ -25,7 +25,11 @@ export default function AdminPage() {
   useEffect(() => {
     setLoading(true);
     axios
-      .get("http://127.0.0.1:5000/slots")
+      .get("http://127.0.0.1:5000/slots", {
+        headers: {
+          "X-Client-ID": localStorage.getItem("client_id"),
+        },
+      })
       .then((res) => {
         const sorted = [...res.data].sort((a, b) => {
           return getDateFromTimeStr(a.time) - getDateFromTimeStr(b.time);
