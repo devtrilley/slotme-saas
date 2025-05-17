@@ -23,7 +23,10 @@ with app.app_context():
 
 @app.before_request
 def load_client():
-    g.client_id = request.headers.get("X-Client-ID", type=int)
+    client_id = request.headers.get("X-Client-ID", type=int)
+    if not client_id:
+        return jsonify({"error": "Missing client ID"}), 403
+    g.client_id = client_id
 
 @app.route("/")
 def index():
