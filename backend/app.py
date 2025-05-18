@@ -23,6 +23,12 @@ with app.app_context():
 
 @app.before_request
 def load_client():
+    if request.method == "OPTIONS":
+        return  # Let CORS preflight through
+
+    if request.path.startswith("/dev/") or request.path.startswith("/client-login"):
+        return  # Allow unauthenticated access to dev routes + login
+
     client_id = request.headers.get("X-Client-ID", type=int)
     if not client_id:
         return jsonify({"error": "Missing client ID"}), 403
@@ -218,6 +224,47 @@ def client_login():
         return jsonify({"error": "Invalid credentials"}), 401
 
     return jsonify({"client_id": client.id}), 200
+
+@app.route("/dev/clients", methods=["GET"])
+def get_all_clients():
+    auth = request.headers.get("X-Dev-Auth")
+    if auth != "secret123":
+        return jsonify({"error": "Forbidden"}), 403
+
+    clients = Client.query.all()
+    result = []
+    for c in clients:
+        result.append({
+            "id": c.id,
+            "name": c.name,
+            "email": c.email
+        })
+    return jsonify(result)
+
+@app.route("/dev/slots/<int:client_id>", methods=["GET"])
+def get_client_slots(client_id):
+    auth = request.headers.get("X-Dev-Auth")
+    if auth != "secret123":
+        return jsonify({"error": "Forbidden"}), 403
+
+    slots = TimeSlot.query.filter_by(client_id=client_id).all()
+    result = []
+    for slot in slots:
+        data = {
+            "id": slot.id,
+            "time": slot.time,
+            "is_booked": slot.is_booked
+        }
+
+        if slot.is_booked and slot.appointment:
+            data["appointment"] = {
+                "name": slot.appointment.name,
+                "email": slot.appointment.email
+            }
+
+        result.append(data)
+
+    return jsonify(result)
 
 if __name__ == "__main__":
     app.run(debug=True)
