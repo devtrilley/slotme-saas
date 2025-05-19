@@ -12,7 +12,7 @@ import os
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite:///scheduler.db")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -265,6 +265,91 @@ def get_client_slots(client_id):
         result.append(data)
 
     return jsonify(result)
+
+@app.route("/dev/clients/<int:client_id>", methods=["GET", "OPTIONS"])
+def get_single_client(client_id):
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+
+    auth = request.headers.get("X-Dev-Auth")
+    if auth != "secret123":
+        return jsonify({"error": "Forbidden"}), 403
+
+    client = Client.query.get(client_id)
+    if not client:
+        return jsonify({"error": "Client not found"}), 404
+
+    return jsonify({
+        "id": client.id,
+        "name": client.name,
+        "email": client.email
+    })
+
+@app.route("/dev/appointments/<int:client_id>", methods=["GET", "OPTIONS"])
+def get_dev_appointments_for_client(client_id):
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+
+    auth = request.headers.get("X-Dev-Auth")
+    if auth != "secret123":
+        return jsonify({"error": "Forbidden"}), 403
+
+    appointments = Appointment.query.filter_by(client_id=client_id).all()
+    result = []
+    for a in appointments:
+        result.append({
+            "id": a.id,
+            "name": a.name,
+            "email": a.email,
+            "slot_time": a.slot.time
+        })
+
+    return jsonify(result)
+
+@app.route("/dev/clients", methods=["POST"])
+def create_client():
+    auth = request.headers.get("X-Dev-Auth")
+    if auth != "secret123":
+        return jsonify({"error": "Forbidden"}), 403
+
+    data = request.get_json()
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+
+    if not name or not email or not password:
+        return jsonify({"error": "Missing required fields"}), 400
+
+    if Client.query.filter_by(email=email).first():
+        return jsonify({"error": "Email already exists"}), 400
+
+    new_client = Client(
+        name=name,
+        email=email,
+        password=generate_password_hash(password)
+    )
+    db.session.add(new_client)
+    db.session.commit()
+    return jsonify({"message": "Client created!"}), 201
+
+@app.route("/dev/clients/<int:client_id>", methods=["DELETE", "OPTIONS"])
+def delete_client(client_id):
+    if request.method == "OPTIONS":
+        return jsonify({}), 200  # Preflight OK
+
+    auth = request.headers.get("X-Dev-Auth")
+    if auth != "secret123":
+        return jsonify({"error": "Forbidden"}), 403
+
+    client = Client.query.get(client_id)
+    if not client:
+        return jsonify({"error": "Client not found"}), 404
+
+    Appointment.query.filter_by(client_id=client_id).delete()
+    TimeSlot.query.filter_by(client_id=client_id).delete()
+    db.session.delete(client)
+    db.session.commit()
+    return jsonify({"message": "Client deleted"})
 
 if __name__ == "__main__":
     app.run(debug=True)

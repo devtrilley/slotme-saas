@@ -9,12 +9,13 @@ import ClientLogin from "./pages/ClientLogin";
 import DevLogin from "./pages/DevLogin";
 import DevAdmin from "./pages/DevAdmin";
 import DevClientSlots from "./pages/DevClientSlots";
+import DevClientBookings from "./pages/DevClientBookings"; // at the top
+import NewClient from "./pages/NewClient";
 
 // Component Imports
 import Navbar from "./components/Navbar";
 import RequireDevAuth from "./components/RequireDevAuth";
 import RequireClientAuth from "./components/RequireClientAuth";
-
 
 export default function App() {
   return (
@@ -59,6 +60,20 @@ export default function App() {
 
           {/* DevClientSlots */}
           <Route path="/dev/slots/:clientId" element={<DevClientSlots />} />
+
+          <Route
+            path="/dev/appointments/:clientId"
+            element={<DevClientBookings />}
+          />
+
+          <Route
+            path="/dev/new-client"
+            element={
+              <RequireDevAuth>
+                <NewClient />
+              </RequireDevAuth>
+            }
+          />
         </Routes>
       </div>
     </div>

@@ -46,9 +46,42 @@ export default function DevAdmin() {
     });
   };
 
+  const handleDelete = (clientId) => {
+    if (
+      !window.confirm(
+        "Are you sure? This deletes all their slots and bookings."
+      )
+    )
+      return;
+    axios
+      .delete(`http://127.0.0.1:5000/dev/clients/${clientId}`, {
+        headers: {
+          "X-Dev-Auth": "secret123",
+        },
+      })
+      .then(() => {
+        // Re-fetch clients to stay in sync with DB
+        return axios.get("http://127.0.0.1:5000/dev/clients", {
+          headers: { "X-Dev-Auth": "secret123" },
+        });
+      })
+      .then((res) => setClients(res.data))
+      .catch((err) => {
+        console.error("❌ Failed to delete client", err);
+        alert("Failed to delete client. Try again.");
+      });
+  };
+
   return (
     <div className="max-w-md mx-auto p-6 space-y-4">
       <h2 className="text-2xl font-bold text-center">Developer Admin Panel</h2>
+
+      <button
+        className="btn btn-sm btn-primary w-full"
+        onClick={() => navigate("/dev/new-client")}
+      >
+        ➕ Add New Client
+      </button>
 
       {loading && <p className="text-center">Loading clients...</p>}
       {error && <p className="text-red-500 text-center">{error}</p>}
@@ -61,7 +94,7 @@ export default function DevAdmin() {
           >
             <p className="font-bold">{client.name}</p>
             <p className="text-sm text-gray-400">{client.email}</p>
-            <div className="flex gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-2">
               <button
                 className="btn btn-xs btn-outline"
                 onClick={() => handleViewSlots(client)}
@@ -73,6 +106,12 @@ export default function DevAdmin() {
                 onClick={() => handleViewBookings(client)}
               >
                 View Bookings
+              </button>
+              <button
+                className="btn btn-xs btn-error hover:scale-105 transition-transform"
+                onClick={() => handleDelete(client.id)}
+              >
+                🗑️ Delete
               </button>
             </div>
           </div>
