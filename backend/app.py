@@ -5,6 +5,7 @@ from flask import g
 from flask_cors import CORS
 from models import db, TimeSlot, Appointment, Client
 from dotenv import load_dotenv
+import re #Regular Expression
 from werkzeug.security import check_password_hash  # At top with imports
 from werkzeug.security import generate_password_hash
 import os
@@ -387,5 +388,28 @@ def update_client_branding():
     db.session.commit()
     return jsonify({"message": "Branding updated"})
 
+@app.route("/slots", methods=["POST"])
+def create_time_slot():
+    client_id = g.client_id
+    data = request.get_json()
+    time = data.get("time")
+
+    if not time:
+        return jsonify({"error": "Time is required"}), 400
+
+    # ✅ Strict format like "10:30 AM"
+    if not re.match(r"^(1[0-2]|0?[1-9]):[0-5][0-9] (AM|PM)$", time):
+        return jsonify({"error": "Invalid time format. Use HH:MM AM/PM."}), 400
+
+    existing = TimeSlot.query.filter_by(client_id=client_id, time=time).first()
+    if existing:
+        return jsonify({"error": "Time slot already exists"}), 400
+
+    slot = TimeSlot(time=time, client_id=client_id)
+    db.session.add(slot)
+    db.session.commit()
+
+    return jsonify({"message": "Time slot created", "slot_id": slot.id}), 201
+# -----------------------
 if __name__ == "__main__":
     app.run(debug=True)
