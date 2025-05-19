@@ -11,9 +11,31 @@ export default function BookingPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [branding, setBranding] = useState({
+    name: "",
+    logo_url: "",
+    tagline: "",
+    bio: "",
+  });
 
   useEffect(() => {
     fetchSlots();
+
+    axios
+      .get("http://127.0.0.1:5000/client-info", {
+        headers: { "X-Client-ID": clientId },
+      })
+      .then((res) => {
+        setBranding({
+          name: res.data.name || "",
+          logo_url: res.data.logo_url || "",
+          tagline: res.data.tagline || "",
+          bio: res.data.bio || "",
+        });
+      })
+      .catch((err) => {
+        console.error("❌ Failed to load branding", err);
+      });
   }, [clientId]);
 
   const fetchSlots = () => {
@@ -79,6 +101,26 @@ export default function BookingPage() {
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
+      <div className="flex items-center gap-4 p-4 border rounded shadow bg-base-200">
+        <img
+          src={
+            branding.logo_url?.trim()
+              ? branding.logo_url
+              : "https://placehold.co/64x64?text=Logo"
+          }
+          alt="Logo"
+          className="w-16 h-16 rounded-full object-cover"
+        />
+        <div>
+          <p className="font-bold text-lg">{branding.name}</p>
+          {branding.tagline && (
+            <p className="text-sm text-gray-400">{branding.tagline}</p>
+          )}
+          {branding.bio && (
+            <p className="text-xs text-gray-500">{branding.bio}</p>
+          )}
+        </div>
+      </div>
       <div className="flex flex-col items-center gap-2">
         <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>
         <button
