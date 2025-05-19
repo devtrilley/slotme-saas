@@ -26,8 +26,13 @@ def load_client():
     if request.method == "OPTIONS":
         return  # Let CORS preflight through
 
-    if request.path.startswith("/dev/") or request.path.startswith("/client-login"):
-        return  # Allow unauthenticated access to dev routes + login
+    # Allow unauthenticated access to dev routes, login, and seeding
+    if (
+        request.path.startswith("/dev/")
+        or request.path.startswith("/client-login")
+        or request.path.startswith("/seed")
+    ):
+        return
 
     client_id = request.headers.get("X-Client-ID", type=int)
     if not client_id:
@@ -350,6 +355,37 @@ def delete_client(client_id):
     db.session.delete(client)
     db.session.commit()
     return jsonify({"message": "Client deleted"})
+
+@app.route("/client-info", methods=["GET"])
+def get_client_info():
+    client_id = request.headers.get("X-Client-ID", type=int)
+    if not client_id:
+        return jsonify({"error": "Missing client ID"}), 403
+
+    client = Client.query.get(client_id)
+    if not client:
+        return jsonify({"error": "Client not found"}), 404
+
+    return jsonify({
+        "name": client.name,
+        "logo_url": getattr(client, "logo_url", None),  # future use
+    })
+
+@app.route("/client/branding", methods=["PATCH"])
+def update_client_branding():
+    client_id = g.client_id
+    data = request.get_json()
+    client = Client.query.get(client_id)
+
+    if not client:
+        return jsonify({"error": "Client not found"}), 404
+
+    client.logo_url = data.get("logo_url", client.logo_url)
+    client.bio = data.get("bio", client.bio)
+    client.tagline = data.get("tagline", client.tagline)
+
+    db.session.commit()
+    return jsonify({"message": "Branding updated"})
 
 if __name__ == "__main__":
     app.run(debug=True)

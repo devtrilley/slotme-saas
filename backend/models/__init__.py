@@ -32,11 +32,9 @@ class Appointment(db.Model):
 
 class Client(db.Model):
     __tablename__ = 'clients'
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(128), nullable=False)
-
-    time_slots = db.relationship('TimeSlot', backref='client', lazy=True)
-    appointments = db.relationship('Appointment', backref='client', lazy=True)
+    logo_url = db.Column(db.String(300), nullable=True)  # Keep for now
+    bio = db.Column(db.String(500), nullable=True)       # Add this

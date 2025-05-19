@@ -4,6 +4,9 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
+// Component for freelancers to brand themselves
+import ClientBranding from "../components/ClientBranding";
+
 // Helper to sort time strings properly
 function getDateFromTimeStr(timeStr) {
   const [hourMinute, ampm] = timeStr.split(" ");
@@ -48,7 +51,7 @@ export default function AdminPage() {
     <div className="max-w-md mx-auto p-6 space-y-6">
       <div className="flex flex-col gap-2 items-center">
         <h2 className="text-2xl font-bold text-center">
-          Client Admin: All Time Slots
+          Client Admin Dashboard
         </h2>
         <button
           onClick={() => {
@@ -60,6 +63,7 @@ export default function AdminPage() {
           Logout
         </button>
       </div>
+
       {loading && <p className="text-center">Loading...</p>}
       {fetchError && <p className="text-red-500 text-center">{fetchError}</p>}
 
@@ -90,6 +94,9 @@ export default function AdminPage() {
           </div>
         ))}
       </div>
+
+      {/* Branding Preferences Form */}
+      <ClientBranding />
     </div>
   );
 }
