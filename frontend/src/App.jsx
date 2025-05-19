@@ -1,8 +1,8 @@
 // React Router Dom imports
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useParams } from "react-router-dom";
 
 // Page Imports
-import BookingPage from "./pages/Booking";
+import BookingPage from "./pages/BookingPage";
 import ClientBookingList from "./pages/ClientBookingList";
 import ClientAdmin from "./pages/ClientAdmin";
 import ClientLogin from "./pages/ClientLogin";
@@ -74,6 +74,8 @@ export default function App() {
               </RequireDevAuth>
             }
           />
+
+          <Route path="/book/:clientId" element={<BookingPage />} />
         </Routes>
       </div>
     </div>
