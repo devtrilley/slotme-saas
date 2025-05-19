@@ -149,9 +149,9 @@ export default function BookingPage() {
       ) : (
         <div className="grid grid-cols-2 gap-4">
           {slots.map((slot) => (
-            <div key={slot.id} className="flex flex-col items-center">
+            <div key={slot.id} className="flex flex-col">
               <button
-                className={`btn ${
+                className={`btn w-full text-sm ${
                   slot.is_booked
                     ? "bg-gray-800 text-gray-500 cursor-not-allowed"
                     : selectedSlotId === slot.id
@@ -170,7 +170,9 @@ export default function BookingPage() {
                 {slot.time}
               </button>
               {slot.is_booked && (
-                <span className="text-xs text-red-400 mt-1">Booked</span>
+                <span className="text-xs text-red-400 mt-1 text-center">
+                  Booked
+                </span>
               )}
             </div>
           ))}
