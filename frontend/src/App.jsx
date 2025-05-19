@@ -21,6 +21,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-base-200">
       <Navbar />
+
+      <div
+        id="toast-container"
+        className="toast toast-top toast-center fixed z-50"
+      ></div>
+
       <div className="p-4">
         <Routes>
           {/* Public booking page */}
