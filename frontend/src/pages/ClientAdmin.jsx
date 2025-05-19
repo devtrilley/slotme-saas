@@ -47,6 +47,25 @@ export default function AdminPage() {
       .finally(() => setLoading(false));
   };
 
+  const handleDelete = (slotId) => {
+    if (!confirm("Are you sure you want to delete this time slot?")) return;
+
+    axios
+      .delete(`http://127.0.0.1:5000/slots/${slotId}`, {
+        headers: {
+          "X-Client-ID": localStorage.getItem("client_id"),
+        },
+      })
+      .then(() => {
+        showToast("Slot deleted");
+        fetchSlots();
+      })
+      .catch((err) => {
+        const msg = err.response?.data?.error || "Failed to delete slot";
+        showToast(msg, "error");
+      });
+  };
+
   useEffect(() => {
     fetchSlots();
     axios
@@ -161,6 +180,14 @@ export default function AdminPage() {
               )
             ) : (
               <p className="text-sm text-success">Available</p>
+            )}
+            {!slot.is_booked && (
+              <button
+                onClick={() => handleDelete(slot.id)}
+                className="btn btn-xs btn-error mt-2"
+              >
+                Delete
+              </button>
             )}
           </div>
         ))}

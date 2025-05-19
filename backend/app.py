@@ -410,6 +410,21 @@ def create_time_slot():
     db.session.commit()
 
     return jsonify({"message": "Time slot created", "slot_id": slot.id}), 201
+
+@app.route("/slots/<int:slot_id>", methods=["DELETE"])
+def delete_time_slot(slot_id):
+    client_id = g.client_id
+    slot = TimeSlot.query.get(slot_id)
+
+    if not slot or slot.client_id != client_id:
+        return jsonify({"error": "Slot not found or unauthorized"}), 404
+
+    if slot.is_booked:
+        return jsonify({"error": "Cannot delete a booked slot"}), 400
+
+    db.session.delete(slot)
+    db.session.commit()
+    return jsonify({"message": "Slot deleted"}), 200
 # -----------------------
 if __name__ == "__main__":
     app.run(debug=True)
