@@ -2,6 +2,7 @@
 import { Routes, Route, useParams } from "react-router-dom";
 
 // Page Imports
+import Home from "./pages/Home";
 import BookingPage from "./pages/BookingPage";
 import ClientBookingList from "./pages/ClientBookingList";
 import ClientAdmin from "./pages/ClientAdmin";
@@ -30,7 +31,7 @@ export default function App() {
       <div className="p-4">
         <Routes>
           {/* Public booking page */}
-          <Route path="/" element={<BookingPage />} />
+          <Route path="/" element={<Home />} />
 
           {/* Login routes */}
           <Route path="/client-login" element={<ClientLogin />} />
