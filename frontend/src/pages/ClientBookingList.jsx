@@ -82,7 +82,7 @@ export default function ClientBookingList() {
           value={timeFilter}
           onChange={(e) => setTimeFilter(e.target.value)}
         >
-          <option value="all">All Times</option>
+          <option value="all">All Bookings</option>
           <option value="morning">Morning (Before 12PM)</option>
           <option value="afternoon">Afternoon (12PM–4PM)</option>
           <option value="evening">Evening (After 4PM)</option>

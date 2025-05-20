@@ -6,26 +6,27 @@ export default function ClientLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-
+    setSubmitting(true);
     try {
       const res = await axios.post("http://127.0.0.1:5000/client-login", {
         email,
         password,
       });
-
-      const clientId = res.data.client_id;
-      localStorage.setItem("client_id", res.data.client_id); // assuming successful login response
+      localStorage.setItem("client_id", res.data.client_id);
       localStorage.setItem("client_logged_in", "true");
-      localStorage.setItem("client_id", clientId);
       navigate("/client-admin");
     } catch (err) {
       const msg = err.response?.data?.error || "Login failed. Try again.";
       setError(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -49,11 +50,13 @@ export default function ClientLogin() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <button className="btn btn-primary w-full">Login</button>
+        <button className="btn btn-primary w-full" disabled={submitting}>
+          {submitting ? "Logging in..." : "Login"}
+        </button>
       </form>
 
       {error && (
-        <div className="alert alert-error mt-4 shadow-sm">
+        <div className="alert alert-error mt-4 shadow-sm text-center">
           <span>{error}</span>
         </div>
       )}

@@ -180,6 +180,9 @@ export default function BookingPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        <h3 className="text-lg font-semibold text-center border-b pb-1">
+          Your Contact Info
+        </h3>
         <input
           type="text"
           placeholder="Your name"

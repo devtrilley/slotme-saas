@@ -15,7 +15,11 @@ export default function DevAdmin() {
           "X-Dev-Auth": "secret123",
         },
       })
-      .then((res) => setClients(res.data))
+      .then((res) =>
+        setClients(
+          res.data.sort((a, b) => a.name.localeCompare(b.name))
+        )
+      )
       .catch((err) => {
         console.error("❌ Failed to load clients", err);
         setError("Failed to load clients");
@@ -65,7 +69,11 @@ export default function DevAdmin() {
           headers: { "X-Dev-Auth": "secret123" },
         });
       })
-      .then((res) => setClients(res.data))
+      .then((res) =>
+        setClients(
+          res.data.sort((a, b) => a.name.localeCompare(b.name))
+        )
+      )
       .catch((err) => {
         console.error("❌ Failed to delete client", err);
         alert("Failed to delete client. Try again.");
@@ -75,6 +83,10 @@ export default function DevAdmin() {
   return (
     <div className="max-w-md mx-auto p-6 space-y-4">
       <h2 className="text-2xl font-bold text-center">Developer Admin Panel</h2>
+
+      <p className="text-sm text-center text-gray-400">
+        {clients.length} client{clients.length !== 1 && "s"} found
+      </p>
 
       <button
         className="btn btn-sm btn-primary w-full"
