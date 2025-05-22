@@ -1,5 +1,5 @@
- // AddSlotForm.jsx
-// This is a React component that lets clients add new time slots to their availability.
+// AddSlotForm.jsx
+// This is a React component that lets freelancers add new time slots to their availability.
 
 import { useState } from "react";
 import axios from "axios";
@@ -21,7 +21,7 @@ export default function AddSlotForm({ onAdd }) {
         { time },
         {
           headers: {
-            "X-Client-ID": localStorage.getItem("client_id"),
+            "X-Freelancer-ID": localStorage.getItem("freelancer_id"),
           },
         }
       )
@@ -29,7 +29,7 @@ export default function AddSlotForm({ onAdd }) {
         showToast("Time slot added!");
         setTime("");
         if (onAdd) onAdd();
-      
+
         // Optional: re-focus the input for fast re-entry
         document.querySelector("input[type='text']").focus();
       })

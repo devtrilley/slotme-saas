@@ -3,15 +3,15 @@ import { Link, useNavigate } from "react-router-dom";
 export default function Navbar() {
   const navigate = useNavigate();
   const isDevLoggedIn = localStorage.getItem("dev_logged_in");
-  const isClientLoggedIn = localStorage.getItem("client_logged_in");
+  const isFreelancerLoggedIn = localStorage.getItem("freelancer_logged_in");
 
   const handleLogout = (type) => {
     if (type === "dev") {
       localStorage.removeItem("dev_logged_in");
       navigate("/dev-login");
-    } else if (type === "client") {
-      localStorage.removeItem("client_logged_in");
-      navigate("/client-login");
+    } else if (type === "freelancer") {
+      localStorage.removeItem("freelancer_logged_in");
+      navigate("/");
     }
   };
 
@@ -19,19 +19,19 @@ export default function Navbar() {
     return (
       <>
         <li>
-          <Link to="/">Book</Link>
+          <Link to="/">Home</Link>
         </li>
 
-        {isClientLoggedIn && (
+        {isFreelancerLoggedIn && (
           <>
             <li>
-              <Link to="/client-admin">All Time Slots</Link>
+              <Link to="/freelancer-admin">Freelancer Dashboard</Link>
             </li>
             <li>
-              <Link to="/client-bookings">CRM</Link>
+              <Link to="/freelancer-bookings">CRM</Link>
             </li>
             <li>
-              <button onClick={() => handleLogout("client")}>Logout as Client</button>
+              <button onClick={() => handleLogout("freelancer")}>Logout as Freelancer</button>
             </li>
           </>
         )}
@@ -81,7 +81,7 @@ export default function Navbar() {
           </ul>
         </div>
         <Link to="/" className="btn btn-ghost text-xl">
-          Scheduler
+          SlotMe
         </Link>
       </div>
 

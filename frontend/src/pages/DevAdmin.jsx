@@ -3,26 +3,26 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 export default function DevAdmin() {
-  const [clients, setClients] = useState([]);
+  const [freelancers, setFreelancer] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
     axios
-      .get("http://127.0.0.1:5000/dev/clients", {
+      .get("http://127.0.0.1:5000/dev/freelancers", {
         headers: {
           "X-Dev-Auth": "secret123",
         },
       })
       .then((res) =>
-        setClients(
+        setFreelancer(
           res.data.sort((a, b) => a.name.localeCompare(b.name))
         )
       )
       .catch((err) => {
-        console.error("❌ Failed to load clients", err);
-        setError("Failed to load clients");
+        console.error("❌ Failed to load freelancers", err);
+        setError("Failed to load freelancers");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -32,25 +32,25 @@ export default function DevAdmin() {
     navigate("/dev-login");
   };
 
-  const handleViewSlots = (client) => {
-    navigate(`/dev/slots/${client.id}`, {
+  const handleViewSlots = (freelancer) => {
+    navigate(`/dev/slots/${freelancer.id}`, {
       state: {
-        name: client.name,
-        email: client.email,
+        name: freelancer.name,
+        email: freelancer.email,
       },
     });
   };
 
-  const handleViewBookings = (client) => {
-    navigate(`/dev/appointments/${client.id}`, {
+  const handleViewBookings = (freelancer) => {
+    navigate(`/dev/appointments/${freelancer.id}`, {
       state: {
-        name: client.name,
-        email: client.email,
+        name: freelancer.name,
+        email: freelancer.email,
       },
     });
   };
 
-  const handleDelete = (clientId) => {
+  const handleDelete = (freelancerId) => {
     if (
       !window.confirm(
         "Are you sure? This deletes all their slots and bookings."
@@ -58,25 +58,25 @@ export default function DevAdmin() {
     )
       return;
     axios
-      .delete(`http://127.0.0.1:5000/dev/clients/${clientId}`, {
+      .delete(`http://127.0.0.1:5000/dev/freelancers/${freelancerId}`, {
         headers: {
           "X-Dev-Auth": "secret123",
         },
       })
       .then(() => {
-        // Re-fetch clients to stay in sync with DB
-        return axios.get("http://127.0.0.1:5000/dev/clients", {
+        // Re-fetch freelancers to stay in sync with DB
+        return axios.get("http://127.0.0.1:5000/dev/freelancers", {
           headers: { "X-Dev-Auth": "secret123" },
         });
       })
       .then((res) =>
-        setClients(
+        setFreelancer(
           res.data.sort((a, b) => a.name.localeCompare(b.name))
         )
       )
       .catch((err) => {
-        console.error("❌ Failed to delete client", err);
-        alert("Failed to delete client. Try again.");
+        console.error("❌ Failed to delete freelancer", err);
+        alert("Failed to delete freelancer. Try again.");
       });
   };
 
@@ -85,43 +85,43 @@ export default function DevAdmin() {
       <h2 className="text-2xl font-bold text-center">Developer Admin Panel</h2>
 
       <p className="text-sm text-center text-gray-400">
-        {clients.length} client{clients.length !== 1 && "s"} found
+        {freelancers.length} freelancer{freelancers.length !== 1 && "s"} found
       </p>
 
       <button
         className="btn btn-sm btn-primary w-full"
-        onClick={() => navigate("/dev/new-client")}
+        onClick={() => navigate("/dev/new-freelancer")}
       >
-        ➕ Add New Client
+        ➕ Add New Freelancer
       </button>
 
-      {loading && <p className="text-center">Loading clients...</p>}
+      {loading && <p className="text-center">Loading freelancers...</p>}
       {error && <p className="text-red-500 text-center">{error}</p>}
 
       <div className="space-y-4">
-        {clients.map((client) => (
+        {freelancers.map((freelancer) => (
           <div
-            key={client.id}
+            key={freelancer.id}
             className="p-4 bg-base-200 border rounded shadow-sm"
           >
-            <p className="font-bold">{client.name}</p>
-            <p className="text-sm text-gray-400">{client.email}</p>
+            <p className="font-bold">{freelancer.name}</p>
+            <p className="text-sm text-gray-400">{freelancer.email}</p>
             <div className="flex flex-wrap gap-2 mt-2">
               <button
                 className="btn btn-xs btn-outline"
-                onClick={() => handleViewSlots(client)}
+                onClick={() => handleViewSlots(freelancer)}
               >
                 View Slots
               </button>
               <button
                 className="btn btn-xs btn-outline"
-                onClick={() => handleViewBookings(client)}
+                onClick={() => handleViewBookings(freelancer)}
               >
                 View Bookings
               </button>
               <button
                 className="btn btn-xs btn-error hover:scale-105 transition-transform"
-                onClick={() => handleDelete(client.id)}
+                onClick={() => handleDelete(freelancer.id)}
               >
                 🗑️ Delete
               </button>

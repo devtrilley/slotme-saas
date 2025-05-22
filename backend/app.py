@@ -3,12 +3,16 @@
 from flask import Flask, request, jsonify
 from flask import g
 from flask_cors import CORS
-from models import db, TimeSlot, Appointment, Client
+from models import db, TimeSlot, Appointment, Freelancer, User
 from dotenv import load_dotenv
 import re #Regular Expression
 from werkzeug.security import check_password_hash  # At top with imports
 from werkzeug.security import generate_password_hash
+from itsdangerous import URLSafeTimedSerializer
+
+
 import os
+import secrets
 
 load_dotenv()
 
@@ -22,45 +26,36 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+serializer = URLSafeTimedSerializer(os.getenv("SECRET_KEY", "super-secret"))
+
+
 @app.before_request
-def load_client():
+def load_freelancer():
     if request.method == "OPTIONS":
         return  # Let CORS preflight through
 
-    # Allow unauthenticated access to dev routes, login, and seeding
+    # Allow unauthenticated access to dev routes, login, seeding, and verify route
     if (
         request.path.startswith("/dev/")
-        or request.path.startswith("/client-login")
+        or request.path.startswith("/auth")
         or request.path.startswith("/seed")
+        or request.path.startswith("/verify")  # ✅ now allowed
     ):
         return
 
-    client_id = request.headers.get("X-Client-ID", type=int)
-    if not client_id:
-        return jsonify({"error": "Missing client ID"}), 403
-    g.client_id = client_id
+    freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
+    if not freelancer_id:
+        return jsonify({"error": "Missing freelancer ID"}), 403
+    g.freelancer_id = freelancer_id
 
 @app.route("/")
 def index():
     return jsonify({"message": "Server is running!"})
 
-# @app.route("/seed", methods=["POST"])
-# def seed_time_slots():
-#     client_id = 1  # 🔧 temporary hardcoded client for dev
-#     if TimeSlot.query.filter_by(client_id=client_id).first():
-#         return jsonify({"message": "Slots already seeded"}), 400
-
-#     sample_times = ["10:00 AM", "11:30 AM", "1:00 PM", "2:30 PM", "4:00 PM", "9:00 AM"]
-#     for t in sample_times:
-#         db.session.add(TimeSlot(time=t, is_booked=False, client_id=client_id))
-
-#     db.session.commit()
-#     return jsonify({"message": "Sample time slots added"})
-
 @app.route("/slots", methods=["GET"])
 def get_time_slots():
-    client_id = g.client_id
-    slots = TimeSlot.query.filter_by(client_id=client_id).all()
+    freelancer_id = g.freelancer_id
+    slots = TimeSlot.query.filter_by(freelancer_id=freelancer_id).all()
     result = []
 
     for slot in slots:
@@ -70,10 +65,10 @@ def get_time_slots():
             "is_booked": slot.is_booked,
         }
 
-        if slot.is_booked and slot.appointment:
+        if slot.is_booked and slot.appointment and slot.appointment.user:
             slot_data["appointment"] = {
-                "name": slot.appointment.name,
-                "email": slot.appointment.email
+                "name": slot.appointment.user.name,
+                "email": slot.appointment.user.email
             }
 
         result.append(slot_data)
@@ -85,42 +80,58 @@ def book_slot():
     data = request.get_json()
     name = data.get("name")
     email = data.get("email")
+    phone = data.get("phone")  # New
     slot_id = data.get("slot_id")
 
     if not name or not email or not slot_id:
         return jsonify({"error": "Missing required fields"}), 400
 
-    if Appointment.query.filter_by(email=email).first():
-        return jsonify({"error": "Email already has an appointment."}), 400
-
+    # Get and validate slot
     slot = TimeSlot.query.get(slot_id)
     if not slot or slot.is_booked:
         return jsonify({"error": "Slot is unavailable"}), 400
 
+    # Check or create user
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        user = User(name=name, email=email, phone=phone)
+        db.session.add(user)
+        db.session.commit()
+
+    # Check for duplicate appointment by user + slot
+    existing_appt = Appointment.query.filter_by(user_id=user.id, slot_id=slot_id).first()
+    if existing_appt:
+        return jsonify({"error": "You already booked this slot."}), 400
+
+    # Create appointment
     appointment = Appointment(
-        name=name,
-        email=email,
         slot_id=slot_id,
-        client_id=slot.client_id  # ✅ inherit ownership
+        freelancer_id=slot.freelancer_id,
+        user_id=user.id,
     )
     slot.is_booked = True
 
     db.session.add(appointment)
     db.session.commit()
 
-    return jsonify({"message": "Appointment booked successfully!"}), 200
+    token = serializer.dumps({"appointment_id": appointment.id})
+    link = f"http://localhost:5000/verify/{token}"
+
+    print(f"📧 Send this to the user: {link}")
+
+    return jsonify({"message": "Verification email sent."}), 200
 
 @app.route("/appointments", methods=["GET"])
 def get_appointments():
-    client_id = g.client_id
-    appointments = Appointment.query.filter_by(client_id=client_id).all()
+    freelancer_id = g.freelancer_id
+    appointments = Appointment.query.filter_by(freelancer_id=freelancer_id).all()
     result = []
 
     for a in appointments:
         result.append({
             "id": a.id,
-            "name": a.name,
-            "email": a.email,
+            "name": a.user.name if a.user else None,
+            "email": a.user.email if a.user else None,
             "slot_time": a.slot.time
         })
 
@@ -128,9 +139,9 @@ def get_appointments():
 
 @app.route("/appointments/<int:id>", methods=["DELETE"])
 def delete_appointment(id):
-    client_id = g.client_id
+    freelancer_id = g.freelancer_id
     appointment = Appointment.query.get(id)
-    if not appointment or appointment.client_id != client_id:
+    if not appointment or appointment.freelancer_id != freelancer_id:
         return jsonify({"error": "Appointment not found or unauthorized"}), 404
 
     appointment.slot.is_booked = False
@@ -140,7 +151,7 @@ def delete_appointment(id):
 
 @app.route("/appointments/<int:id>", methods=["PATCH"])
 def update_appointment(id):
-    client_id = g.client_id
+    freelancer_id = g.freelancer_id
     data = request.get_json()
     new_slot_id = data.get("slot_id")
 
@@ -148,11 +159,11 @@ def update_appointment(id):
         return jsonify({"error": "Missing slot_id"}), 400
 
     appointment = Appointment.query.get(id)
-    if not appointment or appointment.client_id != client_id:
+    if not appointment or appointment.freelancer_id != freelancer_id:
         return jsonify({"error": "Appointment not found or unauthorized"}), 404
 
     new_slot = TimeSlot.query.get(new_slot_id)
-    if not new_slot or new_slot.client_id != client_id:
+    if not new_slot or new_slot.freelancer_id != freelancer_id:
         return jsonify({"error": "Invalid new slot"}), 404
 
     if new_slot.is_booked:
@@ -168,56 +179,56 @@ def update_appointment(id):
 
 # Testing route with full info. Use over old /seeds route
 @app.route("/seed-full", methods=["POST", "OPTIONS"])
-def seed_with_client():
+def seed_with_freelancer():
     if request.method == "OPTIONS":
         return jsonify({}), 200  # preflight OK
 
-    if Client.query.first():
+    if Freelancer.query.first():
         return jsonify({"message": "Already seeded"}), 400
 
-    client = Client(
-        name="Demo Client",
+    freelancer = Freelancer(
+        name="Demo Freelancer",
         email="demo@mail.com",
         password=generate_password_hash("demo123")
     )
-    db.session.add(client)
+    db.session.add(freelancer)
     db.session.commit()
 
     sample_times = ["9:00 AM", "10:00 AM", "11:30 AM", "1:00 PM", "2:30 PM", "4:00 PM"]
     for time in sample_times:
-        slot = TimeSlot(time=time, client_id=client.id)
+        slot = TimeSlot(time=time, freelancer_id=freelancer.id)
         db.session.add(slot)
 
     db.session.commit()
-    return jsonify({"message": "Seeded demo client and slots!"})
+    return jsonify({"message": "Seeded demo freelancer and slots!"})
 
-# Testing route for 2nd client, to check if multitenancy works
-@app.route("/seed-client2", methods=["POST", "OPTIONS"])
-def seed_second_client():
+# Testing route for 2nd freelancer, to check if multitenancy works
+@app.route("/seed-freelancer2", methods=["POST", "OPTIONS"])
+def seed_second_freelancer():
     if request.method == "OPTIONS":
         return jsonify({}), 200
 
-    if Client.query.count() >= 2:
-        return jsonify({"message": "Second client already seeded"}), 400
+    if Freelancer.query.count() >= 2:
+        return jsonify({"message": "Second freelancer already seeded"}), 400
 
-    client = Client(
-        name="Night Owl Client",
+    freelancer = Freelancer(
+        name="Night Owl Freelancer",
         email="night@mail.com",
         password=generate_password_hash("night123")
     )
-    db.session.add(client)
+    db.session.add(freelancer)
     db.session.commit()
 
     night_times = ["7:30 PM", "9:00 PM", "11:00 PM", "12:30 AM"]
     for time in night_times:
-        slot = TimeSlot(time=time, client_id=client.id)
+        slot = TimeSlot(time=time, freelancer_id=freelancer.id)
         db.session.add(slot)
 
     db.session.commit()
-    return jsonify({"message": "Seeded second client and night slots!"})
+    return jsonify({"message": "Seeded second freelancer and night slots!"})
 
-@app.route("/client-login", methods=["POST"])
-def client_login():
+@app.route("/auth", methods=["POST"])
+def freelancer_login():
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
@@ -225,21 +236,21 @@ def client_login():
     if not email or not password:
         return jsonify({"error": "Missing email or password"}), 400
 
-    client = Client.query.filter_by(email=email).first()
-    if not client or not check_password_hash(client.password, password):
-        return jsonify({"error": "Invalid credentials"}), 401
+    freelancer = Freelancer.query.filter_by(email=email).first()
+    if not freelancer or not check_password_hash(freelancer.password, password):
+        return jsonify({"error": "Invalid login"}), 401
 
-    return jsonify({"client_id": client.id}), 200
+    return jsonify({"freelancer_id": freelancer.id}), 200
 
-@app.route("/dev/clients", methods=["GET"])
-def get_all_clients():
+@app.route("/dev/freelancers", methods=["GET"])
+def get_all_freelancers():
     auth = request.headers.get("X-Dev-Auth")
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
 
-    clients = Client.query.all()
+    freelancers = Freelancer.query.all()
     result = []
-    for c in clients:
+    for c in freelancers:
         result.append({
             "id": c.id,
             "name": c.name,
@@ -247,13 +258,13 @@ def get_all_clients():
         })
     return jsonify(result)
 
-@app.route("/dev/slots/<int:client_id>", methods=["GET"])
-def get_client_slots(client_id):
+@app.route("/dev/slots/<int:freelancer_id>", methods=["GET"])
+def get_freelancer_slots(freelancer_id):
     auth = request.headers.get("X-Dev-Auth")
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
 
-    slots = TimeSlot.query.filter_by(client_id=client_id).all()
+    slots = TimeSlot.query.filter_by(freelancer_id=freelancer_id).all()
     result = []
     for slot in slots:
         data = {
@@ -262,18 +273,18 @@ def get_client_slots(client_id):
             "is_booked": slot.is_booked
         }
 
-        if slot.is_booked and slot.appointment:
+        if slot.is_booked and slot.appointment and slot.appointment.user:
             data["appointment"] = {
-                "name": slot.appointment.name,
-                "email": slot.appointment.email
+                "name": slot.appointment.user.name,
+                "email": slot.appointment.user.email
             }
 
         result.append(data)
 
     return jsonify(result)
 
-@app.route("/dev/clients/<int:client_id>", methods=["GET", "OPTIONS"])
-def get_single_client(client_id):
+@app.route("/dev/freelancers/<int:freelancer_id>", methods=["GET", "OPTIONS"])
+def get_single_freelancer(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200
 
@@ -281,18 +292,18 @@ def get_single_client(client_id):
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
 
-    client = Client.query.get(client_id)
-    if not client:
-        return jsonify({"error": "Client not found"}), 404
+    freelancer = Freelancer.query.get(freelancer_id)
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
 
     return jsonify({
-        "id": client.id,
-        "name": client.name,
-        "email": client.email
+        "id": freelancer.id,
+        "name": freelancer.name,
+        "email": freelancer.email
     })
 
-@app.route("/dev/appointments/<int:client_id>", methods=["GET", "OPTIONS"])
-def get_dev_appointments_for_client(client_id):
+@app.route("/dev/appointments/<int:freelancer_id>", methods=["GET", "OPTIONS"])
+def get_dev_appointments_for_freelancer(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200
 
@@ -300,20 +311,20 @@ def get_dev_appointments_for_client(client_id):
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
 
-    appointments = Appointment.query.filter_by(client_id=client_id).all()
+    appointments = Appointment.query.filter_by(freelancer_id=freelancer_id).all()
     result = []
     for a in appointments:
         result.append({
             "id": a.id,
-            "name": a.name,
-            "email": a.email,
+            "name": a.user.name if a.user else None,
+            "email": a.user.email if a.user else None,
             "slot_time": a.slot.time
         })
 
     return jsonify(result)
 
-@app.route("/dev/clients", methods=["POST"])
-def create_client():
+@app.route("/dev/freelancers", methods=["POST"])
+def create_freelancer():
     auth = request.headers.get("X-Dev-Auth")
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
@@ -326,20 +337,20 @@ def create_client():
     if not name or not email or not password:
         return jsonify({"error": "Missing required fields"}), 400
 
-    if Client.query.filter_by(email=email).first():
+    if Freelancer.query.filter_by(email=email).first():
         return jsonify({"error": "Email already exists"}), 400
 
-    new_client = Client(
+    new_freelancer = Freelancer(
         name=name,
         email=email,
         password=generate_password_hash(password)
     )
-    db.session.add(new_client)
+    db.session.add(new_freelancer)
     db.session.commit()
-    return jsonify({"message": "Client created!"}), 201
+    return jsonify({"message": "Freelancer created!"}), 201
 
-@app.route("/dev/clients/<int:client_id>", methods=["DELETE", "OPTIONS"])
-def delete_client(client_id):
+@app.route("/dev/freelancers/<int:freelancer_id>", methods=["DELETE", "OPTIONS"])
+def delete_freelancer(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200  # Preflight OK
 
@@ -347,50 +358,52 @@ def delete_client(client_id):
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
 
-    client = Client.query.get(client_id)
-    if not client:
-        return jsonify({"error": "Client not found"}), 404
+    freelancer = Freelancer.query.get(freelancer_id)
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
 
-    Appointment.query.filter_by(client_id=client_id).delete()
-    TimeSlot.query.filter_by(client_id=client_id).delete()
-    db.session.delete(client)
+    Appointment.query.filter_by(freelancer_id=freelancer_id).delete()
+    TimeSlot.query.filter_by(freelancer_id=freelancer_id).delete()
+    db.session.delete(freelancer)
     db.session.commit()
-    return jsonify({"message": "Client deleted"})
+    return jsonify({"message": "Freelancer deleted"})
 
-@app.route("/client-info", methods=["GET"])
-def get_client_info():
-    client_id = request.headers.get("X-Client-ID", type=int)
-    if not client_id:
-        return jsonify({"error": "Missing client ID"}), 403
+@app.route("/freelancer-info", methods=["GET"])
+def get_freelancer_info():
+    freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
+    if not freelancer_id:
+        return jsonify({"error": "Missing freelancer ID"}), 403
 
-    client = Client.query.get(client_id)
-    if not client:
-        return jsonify({"error": "Client not found"}), 404
+    freelancer = Freelancer.query.get(freelancer_id)
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
 
     return jsonify({
-        "name": client.name,
-        "logo_url": getattr(client, "logo_url", None),  # future use
+        "name": freelancer.name,
+        "logo_url": getattr(freelancer, "logo_url", None),  # future use
     })
 
-@app.route("/client/branding", methods=["PATCH"])
-def update_client_branding():
-    client_id = g.client_id
+@app.route("/freelancer/branding", methods=["PATCH"])
+def update_freelancer_branding():
+    freelancer_id = g.freelancer_id
     data = request.get_json()
-    client = Client.query.get(client_id)
+    freelancer = Freelancer.query.get(freelancer_id)
 
-    if not client:
-        return jsonify({"error": "Client not found"}), 404
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
 
-    client.logo_url = data.get("logo_url", client.logo_url)
-    client.bio = data.get("bio", client.bio)
-    client.tagline = data.get("tagline", client.tagline)
+    # ✅ Now includes name
+    freelancer.name = data.get("name", freelancer.name)
+    freelancer.logo_url = data.get("logo_url", freelancer.logo_url)
+    freelancer.bio = data.get("bio", freelancer.bio)
+    freelancer.tagline = data.get("tagline", freelancer.tagline)
 
     db.session.commit()
     return jsonify({"message": "Branding updated"})
 
 @app.route("/slots", methods=["POST"])
 def create_time_slot():
-    client_id = g.client_id
+    freelancer_id = g.freelancer_id
     data = request.get_json()
     time = data.get("time")
 
@@ -401,11 +414,11 @@ def create_time_slot():
     if not re.match(r"^(1[0-2]|0?[1-9]):[0-5][0-9] (AM|PM)$", time):
         return jsonify({"error": "Invalid time format. Use HH:MM AM/PM."}), 400
 
-    existing = TimeSlot.query.filter_by(client_id=client_id, time=time).first()
+    existing = TimeSlot.query.filter_by(freelancer_id=freelancer_id, time=time).first()
     if existing:
         return jsonify({"error": "Time slot already exists"}), 400
 
-    slot = TimeSlot(time=time, client_id=client_id)
+    slot = TimeSlot(time=time, freelancer_id=freelancer_id)
     db.session.add(slot)
     db.session.commit()
 
@@ -413,10 +426,10 @@ def create_time_slot():
 
 @app.route("/slots/<int:slot_id>", methods=["DELETE"])
 def delete_time_slot(slot_id):
-    client_id = g.client_id
+    freelancer_id = g.freelancer_id
     slot = TimeSlot.query.get(slot_id)
 
-    if not slot or slot.client_id != client_id:
+    if not slot or slot.freelancer_id != freelancer_id:
         return jsonify({"error": "Slot not found or unauthorized"}), 404
 
     if slot.is_booked:
@@ -425,6 +438,22 @@ def delete_time_slot(slot_id):
     db.session.delete(slot)
     db.session.commit()
     return jsonify({"message": "Slot deleted"}), 200
+
+@app.route("/verify/<token>", methods=["GET"])
+def verify_booking(token):
+    try:
+        data = serializer.loads(token, max_age=3600)  # 1 hour expiry
+        appointment_id = data["appointment_id"]
+    except:
+        return jsonify({"error": "Invalid or expired token"}), 400
+
+    appt = Appointment.query.get(appointment_id)
+    if not appt:
+        return jsonify({"error": "Appointment not found"}), 404
+
+    appt.confirmed = True
+    db.session.commit()
+    return redirect("http://localhost:5173/thank-you")  # Adjust if hosted
 # -----------------------
 if __name__ == "__main__":
     app.run(debug=True)

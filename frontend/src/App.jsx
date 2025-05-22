@@ -3,20 +3,25 @@ import { Routes, Route, useParams } from "react-router-dom";
 
 // Page Imports
 import Home from "./pages/Home";
-import BookingPage from "./pages/BookingPage";
-import ClientBookingList from "./pages/ClientBookingList";
-import ClientAdmin from "./pages/ClientAdmin";
-import ClientLogin from "./pages/ClientLogin";
+import BookingPage from "./pages/Booking";
+import FreelancerBookingList from "./pages/FreelancerBookingList";
+import FreelancerAdmin from "./pages/FreelancerAdmin";
 import DevLogin from "./pages/DevLogin";
 import DevAdmin from "./pages/DevAdmin";
-import DevClientSlots from "./pages/DevClientSlots";
-import DevClientBookings from "./pages/DevClientBookings"; // at the top
-import NewClient from "./pages/NewClient";
+import DevFreelancerSlots from "./pages/DevFreelancerSlots";
+import DevFreelancerBookings from "./pages/DevFreelancerBookings"; // at the top
+import NewFreelancer from "./pages/NewFreelancer";
+import Auth from "./pages/Auth";
+import ThankYou from "./pages/ThankYou";
+import NotFound from "./pages/NotFound";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+import Upgrade from "./pages/Upgrade";
 
 // Component Imports
 import Navbar from "./components/Navbar";
 import RequireDevAuth from "./components/RequireDevAuth";
-import RequireClientAuth from "./components/RequireClientAuth";
+import RequireFreelancerAuth from "./components/RequireFreelancerAuth";
 
 export default function App() {
   return (
@@ -34,24 +39,24 @@ export default function App() {
           <Route path="/" element={<Home />} />
 
           {/* Login routes */}
-          <Route path="/client-login" element={<ClientLogin />} />
+          <Route path="/auth" element={<Auth />} />
           <Route path="/dev-login" element={<DevLogin />} />
 
-          {/* Client Admin protected routes */}
+          {/* Freelancer Admin protected routes */}
           <Route
-            path="/client-admin"
+            path="/freelancer-admin"
             element={
-              <RequireClientAuth>
-                <ClientAdmin />
-              </RequireClientAuth>
+              <RequireFreelancerAuth>
+                <FreelancerAdmin />
+              </RequireFreelancerAuth>
             }
           />
           <Route
-            path="/client-bookings"
+            path="/freelancer-bookings"
             element={
-              <RequireClientAuth>
-                <ClientBookingList />
-              </RequireClientAuth>
+              <RequireFreelancerAuth>
+                <FreelancerBookingList />
+              </RequireFreelancerAuth>
             }
           />
 
@@ -65,24 +70,37 @@ export default function App() {
             }
           />
 
-          {/* DevClientSlots */}
-          <Route path="/dev/slots/:clientId" element={<DevClientSlots />} />
-
+          {/* DevFreelancerSlots */}
           <Route
-            path="/dev/appointments/:clientId"
-            element={<DevClientBookings />}
+            path="/dev/slots/:freelancerId"
+            element={<DevFreelancerSlots />}
           />
 
           <Route
-            path="/dev/new-client"
+            path="/dev/appointments/:freelancerId"
+            element={<DevFreelancerBookings />}
+          />
+
+          <Route
+            path="/dev/new-freelancer"
             element={
               <RequireDevAuth>
-                <NewClient />
+                <NewFreelancer />
               </RequireDevAuth>
             }
           />
 
-          <Route path="/book/:clientId" element={<BookingPage />} />
+          <Route path="/book/:freelancerId" element={<BookingPage />} />
+
+          <Route path="/Auth" element={<Auth />} />
+
+          <Route path="/thank-you" element={<ThankYou />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/upgrade" element={<Upgrade />} />
+
+          {/* 404 fallback route — keep this last */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
     </div>

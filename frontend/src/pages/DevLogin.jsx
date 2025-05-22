@@ -1,11 +1,8 @@
-// This is a lightweight login screen that sets a flag in localStorage if your credentials match
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function DevLogin() {
-  const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
+  const [secret, setSecret] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
@@ -13,15 +10,13 @@ export default function DevLogin() {
     e.preventDefault();
     setError("");
 
-    // TODO: Change to your actual credentials
-    const validEmail = "admin@example.com";
-    const validPass = "password123";
+    const devSecret = "secret123"; // 🔐 Use whatever you want here
 
-    if (email === validEmail && pass === validPass) {
-      localStorage.setItem("isDevAdmin", "true");
-      navigate("/admin");
+    if (secret === devSecret) {
+      localStorage.setItem("dev_logged_in", "true");
+      navigate("/dev-admin");
     } else {
-      setError("Invalid credentials.");
+      setError("Invalid secret.");
     }
   };
 
@@ -33,23 +28,13 @@ export default function DevLogin() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
-          type="email"
-          placeholder="Email"
-          className="input input-bordered w-full"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-
-        <input
           type="password"
-          placeholder="Password"
+          placeholder="Enter Dev Secret"
           className="input input-bordered w-full"
-          value={pass}
-          onChange={(e) => setPass(e.target.value)}
+          value={secret}
+          onChange={(e) => setSecret(e.target.value)}
           required
         />
-
         <button className="btn btn-primary w-full">Login</button>
       </form>
     </div>

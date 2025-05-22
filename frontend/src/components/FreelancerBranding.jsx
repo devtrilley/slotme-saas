@@ -1,0 +1,117 @@
+import { useEffect, useState } from "react";
+import axios from "axios";
+
+export default function FreelancerBranding({ onUpdate }) {
+  const [form, setForm] = useState({
+    name: "",
+    logo_url: "",
+    bio: "",
+    tagline: "",
+  });
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const freelancerId = localStorage.getItem("freelancer_id");
+
+  const loadBranding = () => {
+    if (!freelancerId) return;
+
+    axios
+      .get("http://127.0.0.1:5000/freelancer-info", {
+        headers: { "X-Freelancer-ID": freelancerId },
+      })
+      .then((res) => {
+        const { name, logo_url, bio, tagline } = res.data;
+        setForm({
+          name: name || "",
+          logo_url: logo_url || "",
+          bio: bio || "",
+          tagline: tagline || "",
+        });
+
+        // Optional: notify AdminPage about branding changes here
+        localStorage.setItem("branding_updated", Date.now());
+      })
+      .catch((err) => {
+        console.error("❌ Failed to load freelancer info", err);
+        setError("Failed to load freelancer info");
+      });
+  };
+
+  useEffect(() => {
+    loadBranding();
+  }, [freelancerId]);
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+
+    axios
+      .patch("http://127.0.0.1:5000/freelancer/branding", form, {
+        headers: { "X-Freelancer-ID": freelancerId },
+      })
+      .then(() => {
+        setMessage("Branding updated!");
+        if (onUpdate) onUpdate(); // ✅ Trigger refresh in parent
+      })
+      .catch((err) => {
+        console.error("❌ Failed to update branding", err);
+        setError("Failed to update branding");
+      });
+  };
+
+  return (
+    <div className="max-w-md mx-auto p-6 space-y-4">
+      <h2 className="text-xl font-bold text-center">Branding Preferences</h2>
+
+      {message && <p className="text-green-500 text-center">{message}</p>}
+      {error && <p className="text-red-500 text-center">{error}</p>}
+
+      <form onSubmit={handleSave} className="space-y-4">
+        <input
+          type="text"
+          name="name"
+          value={form.name}
+          onChange={handleChange}
+          placeholder="Business Name"
+          className="input input-bordered w-full"
+        />
+
+        <input
+          type="url"
+          name="logo_url"
+          value={form.logo_url}
+          onChange={handleChange}
+          placeholder="Logo URL (optional)"
+          className="input input-bordered w-full"
+        />
+
+        <input
+          type="text"
+          name="tagline"
+          value={form.tagline}
+          onChange={handleChange}
+          placeholder="Tagline (optional)"
+          className="input input-bordered w-full"
+        />
+
+        <textarea
+          name="bio"
+          value={form.bio}
+          onChange={handleChange}
+          placeholder="Short bio or description"
+          className="textarea textarea-bordered w-full"
+        />
+
+        <button type="submit" className="btn btn-primary w-full">
+          Save Changes
+        </button>
+      </form>
+    </div>
+  );
+}
