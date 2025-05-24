@@ -5,6 +5,9 @@ export default function FreelancerBookingList() {
   const [appointments, setAppointments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
+  const [selectedDate, setSelectedDate] = useState(
+    () => new Date().toISOString().split("T")[0]
+  );
 
   const fetchAppointments = () => {
     axios
@@ -47,7 +50,9 @@ export default function FreelancerBookingList() {
   };
 
   const handleCancel = async (id) => {
-    const confirmCancel = confirm("Are you sure you want to cancel this appointment?");
+    const confirmCancel = confirm(
+      "Are you sure you want to cancel this appointment?"
+    );
     if (!confirmCancel) return;
 
     try {
@@ -66,7 +71,12 @@ export default function FreelancerBookingList() {
     const matchesSearch = `${a.name} ${a.email}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
-    return matchesSearch && isInTimeRange(a.slot_time);
+
+    const inTimeRange = isInTimeRange(a.slot_time);
+
+    const inDate = selectedDate ? a.slot_day === selectedDate : true;
+
+    return matchesSearch && inTimeRange && inDate;
   });
 
   const exportCSV = () => {
@@ -84,10 +94,18 @@ export default function FreelancerBookingList() {
     URL.revokeObjectURL(url);
   };
 
+  const formatDate = (isoDate) => {
+    const dateObj = new Date(isoDate);
+    const options = { year: "numeric", month: "long", day: "numeric" };
+    return dateObj.toLocaleDateString(undefined, options); // e.g. May 24, 2025
+  };
+
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
       <div className="flex flex-col gap-3">
-        <h2 className="text-2xl font-bold text-center">Freelancer CRM: Bookings</h2>
+        <h2 className="text-2xl font-bold text-center">
+          Freelancer CRM: Bookings
+        </h2>
 
         <input
           type="text"
@@ -107,6 +125,24 @@ export default function FreelancerBookingList() {
           <option value="afternoon">Afternoon (12PM–4PM)</option>
           <option value="evening">Evening (After 4PM)</option>
         </select>
+
+        <label className="text-sm text-gray-400 block text-center mt-2">
+          Filter by booking date:
+        </label>
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          className="input input-bordered w-full"
+        />
+        {selectedDate && (
+          <button
+            onClick={() => setSelectedDate("")}
+            className="btn btn-sm btn-outline w-full mt-2"
+          >
+            ❌ Clear Date Filter
+          </button>
+        )}
 
         <button onClick={exportCSV} className="btn btn-outline w-full">
           📄 Export to CSV
@@ -128,7 +164,17 @@ export default function FreelancerBookingList() {
               <strong>Email:</strong> {a.email}
             </p>
             <p>
+              <strong>Date:</strong> {formatDate(a.slot_day)}
+            </p>
+            <p>
               <strong>Time:</strong> {a.slot_time}
+            </p>
+            <p
+              className={`text-sm font-medium ${
+                a.confirmed ? "text-success" : "text-warning"
+              }`}
+            >
+              {a.confirmed ? "✔ Verified" : "⚠ Unverified"}
             </p>
             <button
               className="btn btn-error btn-sm"

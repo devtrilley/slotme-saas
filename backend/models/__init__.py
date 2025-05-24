@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
+
 db = SQLAlchemy()
 
 class Freelancer(db.Model):
@@ -29,14 +30,26 @@ class User(db.Model):  # Customer
     appointments = db.relationship('Appointment', backref='user', lazy=True)
 
 
+class MasterTimeSlot(db.Model):
+    __tablename__ = 'master_time_slots'
+
+    id = db.Column(db.Integer, primary_key=True)
+    time_24h = db.Column(db.String(5), nullable=False, unique=True)  # e.g., "13:15"
+    label = db.Column(db.String(10), nullable=False)                 # e.g., "1:15 PM"
+
+    slots = db.relationship('TimeSlot', back_populates='master_time')
+
+
 class TimeSlot(db.Model):
     __tablename__ = 'time_slots'
 
     id = db.Column(db.Integer, primary_key=True)
     freelancer_id = db.Column(db.Integer, db.ForeignKey('freelancers.id'), nullable=False)
-    time = db.Column(db.String(20), nullable=False)
+    day = db.Column(db.String(10), nullable=False)  # format: "YYYY-MM-DD"
+    master_time_id = db.Column(db.Integer, db.ForeignKey('master_time_slots.id'), nullable=False)
     is_booked = db.Column(db.Boolean, default=False)
 
+    master_time = db.relationship('MasterTimeSlot', back_populates='slots')
     appointment = db.relationship(
         'Appointment',
         back_populates='slot',

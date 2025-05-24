@@ -3,7 +3,7 @@
 from flask import Flask, request, jsonify
 from flask import g
 from flask_cors import CORS
-from models import db, TimeSlot, Appointment, Freelancer, User
+from models import db, TimeSlot, Appointment, Freelancer, User, MasterTimeSlot
 from dotenv import load_dotenv
 import re #Regular Expression
 from werkzeug.security import check_password_hash  # At top with imports
@@ -29,23 +29,45 @@ with app.app_context():
 serializer = URLSafeTimedSerializer(os.getenv("SECRET_KEY", "super-secret"))
 
 
+# @app.before_request
+# def load_freelancer():
+#     if request.method == "OPTIONS":
+#         return  # Let CORS preflight through
+
+#     # Allow unauthenticated access to dev routes, login, seeding, and verify route
+#     if (
+#         request.path.startswith("/dev/")
+#         or request.path.startswith("/auth")
+#         or request.path.startswith("/seed")
+#         or request.path.startswith("/verify")
+#         or request.path.startswith("/master-times")
+#     ):
+#         return
+
+#     freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
+#     if not freelancer_id:
+#         return jsonify({"error": "Missing freelancer ID"}), 403
+#     g.freelancer_id = freelancer_id
 @app.before_request
 def load_freelancer():
     if request.method == "OPTIONS":
-        return  # Let CORS preflight through
+        return
 
-    # Allow unauthenticated access to dev routes, login, seeding, and verify route
-    if (
-        request.path.startswith("/dev/")
-        or request.path.startswith("/auth")
-        or request.path.startswith("/seed")
-        or request.path.startswith("/verify")  # ✅ now allowed
-    ):
+    open_routes = (
+        "/dev/",
+        "/auth",
+        "/seed",
+        "/verify",
+        "/master-times"
+    )
+
+    if any(request.path.startswith(prefix) for prefix in open_routes):
         return
 
     freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
     if not freelancer_id:
         return jsonify({"error": "Missing freelancer ID"}), 403
+
     g.freelancer_id = freelancer_id
 
 @app.route("/")
@@ -61,7 +83,9 @@ def get_time_slots():
     for slot in slots:
         slot_data = {
             "id": slot.id,
-            "time": slot.time,
+            "time": slot.master_time.label,  # ✅ Use label from master_time
+            "time": slot.master_time.label,
+            "day": slot.day,  # Add this line
             "is_booked": slot.is_booked,
         }
 
@@ -132,7 +156,9 @@ def get_appointments():
             "id": a.id,
             "name": a.user.name if a.user else None,
             "email": a.user.email if a.user else None,
-            "slot_time": a.slot.time
+            "slot_day": a.slot.day,
+            "slot_time": a.slot.master_time.label,
+            "confirmed": a.confirmed  # ✅ Add this line
         })
 
     return jsonify(result)
@@ -178,10 +204,12 @@ def update_appointment(id):
     return jsonify({"message": "Appointment updated successfully!"})
 
 # Testing route with full info. Use over old /seeds route
+from datetime import datetime, timedelta
+
 @app.route("/seed-full", methods=["POST", "OPTIONS"])
 def seed_with_freelancer():
     if request.method == "OPTIONS":
-        return jsonify({}), 200  # preflight OK
+        return jsonify({}), 200
 
     if Freelancer.query.first():
         return jsonify({"message": "Already seeded"}), 400
@@ -194,15 +222,21 @@ def seed_with_freelancer():
     db.session.add(freelancer)
     db.session.commit()
 
-    sample_times = ["9:00 AM", "10:00 AM", "11:30 AM", "1:00 PM", "2:30 PM", "4:00 PM"]
-    for time in sample_times:
-        slot = TimeSlot(time=time, freelancer_id=freelancer.id)
-        db.session.add(slot)
+    # Manually assign 6 slots
+    today = datetime.now().date()
+    labels = ["09:00 AM", "09:15 AM", "09:30 AM", "10:00 AM", "10:15 AM", "10:30 AM"]
+    for label in labels:
+        master_time = MasterTimeSlot.query.filter_by(label=label).first()
+        if master_time:
+            db.session.add(TimeSlot(
+                day=today.isoformat(),
+                master_time_id=master_time.id,
+                freelancer_id=freelancer.id
+            ))
 
     db.session.commit()
-    return jsonify({"message": "Seeded demo freelancer and slots!"})
+    return jsonify({"message": "Seeded demo freelancer with 6 slots."})
 
-# Testing route for 2nd freelancer, to check if multitenancy works
 @app.route("/seed-freelancer2", methods=["POST", "OPTIONS"])
 def seed_second_freelancer():
     if request.method == "OPTIONS":
@@ -219,13 +253,20 @@ def seed_second_freelancer():
     db.session.add(freelancer)
     db.session.commit()
 
-    night_times = ["7:30 PM", "9:00 PM", "11:00 PM", "12:30 AM"]
-    for time in night_times:
-        slot = TimeSlot(time=time, freelancer_id=freelancer.id)
-        db.session.add(slot)
+    # Manually assign 4 night slots
+    tomorrow = datetime.now().date() + timedelta(days=1)
+    labels = ["06:30 PM", "06:45 PM", "07:00 PM", "07:15 PM"]
+    for label in labels:
+        master_time = MasterTimeSlot.query.filter_by(label=label).first()
+        if master_time:
+            db.session.add(TimeSlot(
+                day=tomorrow.isoformat(),
+                master_time_id=master_time.id,
+                freelancer_id=freelancer.id
+            ))
 
     db.session.commit()
-    return jsonify({"message": "Seeded second freelancer and night slots!"})
+    return jsonify({"message": "Second freelancer with 4 slots seeded."})
 
 @app.route("/auth", methods=["POST"])
 def freelancer_login():
@@ -405,20 +446,32 @@ def update_freelancer_branding():
 def create_time_slot():
     freelancer_id = g.freelancer_id
     data = request.get_json()
-    time = data.get("time")
 
-    if not time:
-        return jsonify({"error": "Time is required"}), 400
+    day = data.get("day")  # "YYYY-MM-DD"
+    master_time_id = data.get("master_time_id")
 
-    # ✅ Strict format like "10:30 AM"
-    if not re.match(r"^(1[0-2]|0?[1-9]):[0-5][0-9] (AM|PM)$", time):
-        return jsonify({"error": "Invalid time format. Use HH:MM AM/PM."}), 400
+    if not day or not master_time_id:
+        return jsonify({"error": "Missing day or master_time_id"}), 400
 
-    existing = TimeSlot.query.filter_by(freelancer_id=freelancer_id, time=time).first()
+    from models import MasterTimeSlot
+    master_time = MasterTimeSlot.query.get(master_time_id)
+    if not master_time:
+        return jsonify({"error": "Invalid master time ID"}), 400
+
+    existing = TimeSlot.query.filter_by(
+        freelancer_id=freelancer_id,
+        day=day,
+        master_time_id=master_time_id
+    ).first()
+
     if existing:
         return jsonify({"error": "Time slot already exists"}), 400
 
-    slot = TimeSlot(time=time, freelancer_id=freelancer_id)
+    slot = TimeSlot(
+        day=day,
+        master_time_id=master_time_id,
+        freelancer_id=freelancer_id
+    )
     db.session.add(slot)
     db.session.commit()
 
@@ -454,6 +507,36 @@ def verify_booking(token):
     appt.confirmed = True
     db.session.commit()
     return redirect("http://localhost:5173/thank-you")  # Adjust if hosted
+
+@app.route("/seed/master-times", methods=["POST"])
+def seed_master_time_slots():
+    from models import MasterTimeSlot  # ✅ Local import works inside route
+
+    db.session.query(MasterTimeSlot).delete()
+
+    start_time = datetime.strptime("00:00", "%H:%M")
+    delta = timedelta(minutes=15)
+
+    for i in range(96):
+        time_24h = (start_time + i * delta).strftime("%H:%M")            
+        label = (start_time + i * delta).strftime("%I:%M %p")           
+        db.session.add(MasterTimeSlot(time_24h=time_24h, label=label))
+
+    db.session.commit()
+    return jsonify({"message": "✅ 96 master time slots seeded."}), 200
+
+
+@app.route("/master-times", methods=["GET"])
+def get_master_time_slots():
+    from models import MasterTimeSlot
+
+    times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    result = [
+        {"id": t.id, "label": t.label, "time_24h": t.time_24h}
+        for t in times
+    ]
+    return jsonify(result)
+
 # -----------------------
 if __name__ == "__main__":
     app.run(debug=True)
