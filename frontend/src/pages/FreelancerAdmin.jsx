@@ -6,7 +6,7 @@ import AddSlotForm from "../components/AddSlotForm";
 
 function getDateFromTimeStr(timeStr) {
   const [hourMinute, ampm] = timeStr.split(" ");
-  let [hour, minute] = hourMinute.split(":").map(Number);
+  let [hour, minute] = hourMinute.split(":" ).map(Number);
   if (ampm === "PM" && hour !== 12) hour += 12;
   if (ampm === "AM" && hour === 12) hour = 0;
   const date = new Date();
@@ -186,7 +186,7 @@ export default function AdminPage() {
           type="date"
           value={selectedDate}
           onChange={(e) => {
-            setSelectedDate(e.target.value); // ✅ Use the raw value directly
+            setSelectedDate(e.target.value);
           }}
           className="input input-bordered w-full"
         />
@@ -204,7 +204,10 @@ export default function AdminPage() {
               <p className="text-xs text-gray-400 mb-1">
                 {formatDate(slot.day)}
               </p>
-              <p className="text-lg font-semibold">{slot.time}</p>
+              <p className="text-lg font-semibold">
+                {slot.time}{" "}
+                <span className="text-xs text-gray-400 align-middle">EST</span>
+              </p>
               {slot.is_booked ? (
                 slot.appointment?.name && slot.appointment?.email ? (
                   <>

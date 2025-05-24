@@ -1,2 +1,12 @@
 @import "tailwindcss";
 @plugin "daisyui";
+
+/* Mobile M - 375px screens specifically, makes slot time slightly larger than timezone (EST), which is more aesthetic */
+@layer utilities {
+  @media (min-width: 375px) {
+    .text-375 {
+      font-size: 0.875rem; /* Tailwind's text-sm */
+      line-height: 1.25rem; /* optional: line height for consistency */
+    }
+  }
+}

@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 
 export default function BookingPage() {
-  const { freelancerId } = useParams(); // 🔑 from /book/:freelancerId
+  const { freelancerId } = useParams();
   const [slots, setSlots] = useState([]);
   const [selectedSlotId, setSelectedSlotId] = useState(null);
   const [name, setName] = useState("");
@@ -18,6 +18,7 @@ export default function BookingPage() {
     tagline: "",
     bio: "",
   });
+  const [freelancerTimeZone, setFreelancerTimeZone] = useState("EST");
 
   useEffect(() => {
     fetchSlots();
@@ -33,6 +34,7 @@ export default function BookingPage() {
           tagline: res.data.tagline || "",
           bio: res.data.bio || "",
         });
+        setFreelancerTimeZone(res.data.timezone || "EST");
       })
       .catch((err) => {
         console.error("❌ Failed to load branding", err);
@@ -79,7 +81,7 @@ export default function BookingPage() {
         {
           name,
           email,
-          phone, // ✅ now included
+          phone,
           slot_id: selectedSlotId,
         },
         {
@@ -90,15 +92,33 @@ export default function BookingPage() {
         setSuccess(true);
         setName("");
         setEmail("");
+        setPhone("");
         setSelectedSlotId(null);
         setTimeout(() => setSuccess(false), 4000);
-        fetchSlots(); // Refresh
+        fetchSlots();
       })
       .catch((err) => {
         const msg = err.response?.data?.error || "Booking failed";
         setError(msg);
         console.error("❌", msg);
       });
+  };
+
+  const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const convertToUserTime = (time) => {
+    const date = new Date();
+    const [t, meridian] = time.split(" ");
+    let [h, m] = t.split(":").map(Number);
+    if (meridian === "PM" && h !== 12) h += 12;
+    if (meridian === "AM" && h === 12) h = 0;
+    date.setHours(h);
+    date.setMinutes(m);
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
   };
 
   return (
@@ -172,7 +192,12 @@ export default function BookingPage() {
                 disabled={slot.is_booked}
                 type="button"
               >
-                {slot.time}
+                <span className="text-xs text-375 flex items-center justify-center gap-1 w-full">
+                  {convertToUserTime(slot.time)}
+                  <span className="text-xs text-gray-400">
+                    {freelancerTimeZone}
+                  </span>
+                </span>
               </button>
               {slot.is_booked && (
                 <span className="text-xs text-red-400 mt-1 text-center">

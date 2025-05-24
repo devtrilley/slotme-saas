@@ -14,6 +14,7 @@ class Freelancer(db.Model):
     logo_url = db.Column(db.String(300), nullable=True)
     bio = db.Column(db.String(500), nullable=True)
     tagline = db.Column(db.String(200), nullable=True)
+    timezone = db.Column(db.String(50), default="America/New_York")  # Default to EST
 
     slots = db.relationship('TimeSlot', backref='freelancer', lazy=True)
     appointments = db.relationship('Appointment', backref='freelancer', lazy=True)

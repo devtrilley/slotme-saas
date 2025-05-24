@@ -438,6 +438,7 @@ def update_freelancer_branding():
     freelancer.logo_url = data.get("logo_url", freelancer.logo_url)
     freelancer.bio = data.get("bio", freelancer.bio)
     freelancer.tagline = data.get("tagline", freelancer.tagline)
+    freelancer.timezone = data.get("timezone", freelancer.timezone)
 
     db.session.commit()
     return jsonify({"message": "Branding updated"})
