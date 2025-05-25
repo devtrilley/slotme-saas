@@ -53,16 +53,17 @@ def load_freelancer():
     if request.method == "OPTIONS":
         return
 
-    open_routes = (
+    open_prefixes = (
         "/dev/",
         "/auth",
         "/seed",
         "/verify",
-        "/master-times"
+        "/master-times",
     )
 
-    if any(request.path.startswith(prefix) for prefix in open_routes):
-        return
+    # Allow all paths that match known open prefixes, OR start with /freelancers
+    if any(request.path.startswith(prefix) for prefix in open_prefixes) or request.path.startswith("/freelancers"):
+            return
 
     freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
     if not freelancer_id:
@@ -553,6 +554,21 @@ def get_master_time_slots():
     ]
     return jsonify(result)
 
+@app.route("/freelancers/<int:freelancer_id>", methods=["GET"])
+def public_freelancer_profile(freelancer_id):
+    freelancer = Freelancer.query.get(freelancer_id)
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
+
+    return jsonify({
+        "id": freelancer.id,
+        "name": freelancer.name,
+        "logo_url": freelancer.logo_url,
+        "tagline": freelancer.tagline,
+        "bio": freelancer.bio,
+        "is_verified": freelancer.is_verified,
+        "joined": freelancer.id  # or a created_at if you ever add one
+    })
 # -----------------------
 if __name__ == "__main__":
     app.run(debug=True)

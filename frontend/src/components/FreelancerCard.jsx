@@ -6,7 +6,6 @@ export default function FreelancerCard({
   logoUrl,
   isVerified,
   tagline,
-  bio,
   onClick = () => {},
 }) {
   const [tooltipVisible, setTooltipVisible] = useState(false);
@@ -28,11 +27,11 @@ export default function FreelancerCard({
       className="flex items-center gap-4 p-4 border rounded shadow bg-base-200 cursor-pointer"
       onClick={onClick}
     >
-      <div className="relative w-16 h-16">
+      <div className="relative w-17 h-17">
         <img
           src={logoUrl?.trim() ? logoUrl : "https://placehold.co/64x64?text=Logo"}
           alt="Freelancer Logo"
-          className="w-16 h-16 rounded-full object-cover"
+          className="w-17 h-17 rounded-full object-cover border-1 border-white" // ✅ white border
         />
         {isVerified && (
           <div
@@ -58,7 +57,6 @@ export default function FreelancerCard({
       <div className="flex-1">
         <p className="font-bold text-lg leading-tight">{name}</p>
         {tagline && <p className="text-sm text-gray-400">{tagline}</p>}
-        {bio && <p className="text-xs text-gray-500">{bio}</p>}
       </div>
     </div>
   );

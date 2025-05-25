@@ -7,6 +7,7 @@ export default function FreelancerBranding({ onUpdate }) {
     logo_url: "",
     bio: "",
     tagline: "",
+    timezone: "", // ✅ New
   });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -21,15 +22,15 @@ export default function FreelancerBranding({ onUpdate }) {
         headers: { "X-Freelancer-ID": freelancerId },
       })
       .then((res) => {
-        const { name, logo_url, bio, tagline } = res.data;
+        const { name, logo_url, bio, tagline, timezone } = res.data;
         setForm({
           name: name || "",
           logo_url: logo_url || "",
           bio: bio || "",
           tagline: tagline || "",
+          timezone: timezone || "America/New_York", // ✅ default fallback
         });
 
-        // Optional: notify AdminPage about branding changes here
         localStorage.setItem("branding_updated", Date.now());
       })
       .catch((err) => {
@@ -57,7 +58,7 @@ export default function FreelancerBranding({ onUpdate }) {
       })
       .then(() => {
         setMessage("Branding updated!");
-        if (onUpdate) onUpdate(); // ✅ Trigger refresh in parent
+        if (onUpdate) onUpdate();
       })
       .catch((err) => {
         console.error("❌ Failed to update branding", err);
@@ -108,6 +109,19 @@ export default function FreelancerBranding({ onUpdate }) {
           className="textarea textarea-bordered w-full"
         />
 
+        {/* ✅ Timezone Selector */}
+        <select
+          name="timezone"
+          value={form.timezone}
+          onChange={handleChange}
+          className="select select-bordered w-full"
+        >
+          <option value="America/New_York">Eastern (EST)</option>
+          <option value="America/Chicago">Central (CST)</option>
+          <option value="America/Denver">Mountain (MST)</option>
+          <option value="America/Los_Angeles">Pacific (PST)</option>
+        </select>
+
         <button type="submit" className="btn btn-primary w-full">
           Save Changes
         </button>
@@ -115,3 +129,5 @@ export default function FreelancerBranding({ onUpdate }) {
     </div>
   );
 }
+
+// https://m.media-amazon.com/images/M/MV5BMjA5Njg3NDkxNV5BMl5BanBnXkFtZTgwNDczMTgyODE@._V1_.jpg

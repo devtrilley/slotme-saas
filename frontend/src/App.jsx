@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Upgrade from "./pages/Upgrade";
+import FreelancerProfile from "./pages/FreelancerProfile";
 
 // Component Imports
 import Navbar from "./components/Navbar";
@@ -98,6 +99,11 @@ export default function App() {
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/upgrade" element={<Upgrade />} />
+
+          <Route
+            path="/freelancers/:freelancerId"
+            element={<FreelancerProfile />}
+          />
 
           {/* 404 fallback route — keep this last */}
           <Route path="*" element={<NotFound />} />
