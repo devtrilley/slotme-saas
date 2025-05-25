@@ -250,7 +250,8 @@ def seed_second_freelancer():
     freelancer = Freelancer(
         name="Night Owl Freelancer",
         email="night@mail.com",
-        password=generate_password_hash("night123")
+        password=generate_password_hash("night123"),
+        is_verified=True
     )
     db.session.add(freelancer)
     db.session.commit()
@@ -423,7 +424,11 @@ def get_freelancer_info():
 
     return jsonify({
         "name": freelancer.name,
-        "logo_url": getattr(freelancer, "logo_url", None),  # future use
+        "logo_url": getattr(freelancer, "logo_url", None),
+        "tagline": getattr(freelancer, "tagline", ""),
+        "bio": getattr(freelancer, "bio", ""),
+        "timezone": getattr(freelancer, "timezone", "America/New_York"),
+        "is_verified": freelancer.is_verified  # ✅ Include this
     })
 
 @app.route("/freelancer/branding", methods=["PATCH"])

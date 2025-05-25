@@ -4,6 +4,7 @@ import axios from "axios";
 import { DateTime } from "luxon";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import FreelancerCard from "../components/FreelancerCard";
 
 export default function BookingPage() {
   const { freelancerId } = useParams();
@@ -20,6 +21,7 @@ export default function BookingPage() {
     logo_url: "",
     tagline: "",
     bio: "",
+    is_verified: false,
   });
   const [freelancerTimeZone, setFreelancerTimeZone] = useState("EST");
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -52,6 +54,7 @@ export default function BookingPage() {
           logo_url: res.data.logo_url || "",
           tagline: res.data.tagline || "",
           bio: res.data.bio || "",
+          is_verified: res.data.is_verified || false,
         });
         setFreelancerTimeZone(res.data.timezone || "America/New_York");
       })
@@ -143,26 +146,13 @@ export default function BookingPage() {
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-4 p-4 border rounded shadow bg-base-200">
-        <img
-          src={
-            branding.logo_url?.trim()
-              ? branding.logo_url
-              : "https://placehold.co/64x64?text=Logo"
-          }
-          alt="Logo"
-          className="w-16 h-16 rounded-full object-cover"
-        />
-        <div>
-          <p className="font-bold text-lg">{branding.name}</p>
-          {branding.tagline && (
-            <p className="text-sm text-gray-400">{branding.tagline}</p>
-          )}
-          {branding.bio && (
-            <p className="text-xs text-gray-500">{branding.bio}</p>
-          )}
-        </div>
-      </div>
+      <FreelancerCard
+        name={branding.name}
+        logoUrl={branding.logo_url}
+        tagline={branding.tagline}
+        bio={branding.bio}
+        isVerified={branding.is_verified}
+      />
 
       <div className="flex flex-col items-center gap-2">
         <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>
@@ -184,7 +174,7 @@ export default function BookingPage() {
             selected={selectedDate}
             onChange={(date) => setSelectedDate(date)}
             className="input input-bordered w-full pl-10"
-            wrapperClassName="w-full" // ✅ Fixes width!
+            wrapperClassName="w-full"
             dateFormat="MMMM d, yyyy"
             placeholderText="Choose a date"
           />
@@ -232,7 +222,7 @@ export default function BookingPage() {
                 disabled={slot.is_booked}
                 type="button"
               >
-                <span className="text-xs text-375 flex items-center justify-center gap-1 w-full">
+                <span className="text-xs flex items-center justify-center gap-1 w-full">
                   {convertToUserTime(
                     slot.time,
                     freelancerTimeZone,

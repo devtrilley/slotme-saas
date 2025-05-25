@@ -5,6 +5,7 @@ import { showToast } from "../utils/toast";
 import AddSlotForm from "../components/AddSlotForm";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import FreelancerCard from "../components/FreelancerCard";
 
 function getDateFromTimeStr(timeStr) {
   const [hourMinute, ampm] = timeStr.split(" ");
@@ -26,6 +27,7 @@ export default function AdminPage() {
     logo_url: "",
     tagline: "",
     bio: "",
+    is_verified: false,
   });
 
   const fetchSlots = () => {
@@ -64,6 +66,7 @@ export default function AdminPage() {
           tagline: res.data.tagline || "",
           bio: res.data.bio || "",
           timezone: res.data.timezone || "America/New_York",
+          is_verified: res.data.is_verified || false,
         });
       })
       .catch((err) => {
@@ -97,9 +100,7 @@ export default function AdminPage() {
     fetchBranding();
   }, [brandingUpdated]);
 
-  const shareUrl = `http://localhost:5173/book/${localStorage.getItem(
-    "freelancer_id"
-  )}`;
+  const shareUrl = `http://localhost:5173/book/${localStorage.getItem("freelancer_id")}`;
 
   const filteredSlots = slots.filter(
     (slot) => slot.day === selectedDate.toISOString().split("T")[0]
@@ -118,9 +119,7 @@ export default function AdminPage() {
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
       <div className="flex flex-col gap-2 items-center">
-        <h2 className="text-2xl font-bold text-center">
-          Freelancer Admin Dashboard
-        </h2>
+        <h2 className="text-2xl font-bold text-center">Freelancer Admin Dashboard</h2>
         <button
           onClick={() => {
             localStorage.removeItem("freelancer_logged_in");
@@ -132,34 +131,17 @@ export default function AdminPage() {
         </button>
       </div>
 
-      <div className="flex items-center gap-4 p-4 border rounded bg-base-100 shadow">
-        <img
-          src={
-            branding.logo_url?.trim()
-              ? branding.logo_url
-              : "https://placehold.co/64x64?text=Logo"
-          }
-          alt="Logo"
-          className="w-16 h-16 rounded-full object-cover"
-        />
-        <div>
-          <p className="font-bold text-lg">{branding.name}</p>
-          {branding.tagline && (
-            <p className="text-sm text-gray-400">{branding.tagline}</p>
-          )}
-          {branding.bio && (
-            <p className="text-xs text-gray-500">{branding.bio}</p>
-          )}
-        </div>
-      </div>
+      <FreelancerCard
+        name={branding.name}
+        logoUrl={branding.logo_url}
+        tagline={branding.tagline}
+        bio={branding.bio}
+        isVerified={branding.is_verified}
+      />
 
       <div className="p-4 bg-base-200 border rounded-lg shadow space-y-2">
-        <p className="text-sm font-medium text-center">
-          Your Public Booking Link
-        </p>
-        <p className="text-sm text-primary text-center break-words">
-          {shareUrl}
-        </p>
+        <p className="text-sm font-medium text-center">Your Public Booking Link</p>
+        <p className="text-sm text-primary text-center break-words">{shareUrl}</p>
         <button
           className="btn btn-xs btn-outline block mx-auto"
           onClick={() => {
@@ -177,9 +159,7 @@ export default function AdminPage() {
       {fetchError && <p className="text-red-500 text-center">{fetchError}</p>}
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-center border-b pb-1 mt-12">
-          Your Time Slots
-        </h3>
+        <h3 className="text-lg font-semibold text-center border-b pb-1 mt-12">Your Time Slots</h3>
 
         <label className="text-sm text-gray-400 block text-center">
           Select a date to view / edit your time slots:
@@ -190,7 +170,7 @@ export default function AdminPage() {
             selected={selectedDate}
             onChange={(date) => setSelectedDate(date)}
             className="input input-bordered w-full pl-10"
-            wrapperClassName="w-full" // ✅ Fixes width!
+            wrapperClassName="w-full"
             dateFormat="MMMM d, yyyy"
             placeholderText="Choose a date"
           />
@@ -200,18 +180,11 @@ export default function AdminPage() {
         </div>
 
         {filteredSlots.length === 0 ? (
-          <p className="text-center text-sm text-gray-400">
-            No slots for this day.
-          </p>
+          <p className="text-center text-sm text-gray-400">No slots for this day.</p>
         ) : (
           filteredSlots.map((slot) => (
-            <div
-              key={slot.id}
-              className="p-4 border rounded-lg bg-base-100 shadow-sm"
-            >
-              <p className="text-xs text-gray-400 mb-1">
-                {formatDate(slot.day)}
-              </p>
+            <div key={slot.id} className="p-4 border rounded-lg bg-base-100 shadow-sm">
+              <p className="text-xs text-gray-400 mb-1">{formatDate(slot.day)}</p>
               <p className="text-lg font-semibold flex items-center gap-1">
                 {slot.time}
                 <span className="text-xs text-gray-400">
