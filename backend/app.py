@@ -148,6 +148,7 @@ def book_slot():
 @app.route("/appointments", methods=["GET"])
 def get_appointments():
     freelancer_id = g.freelancer_id
+    freelancer = Freelancer.query.get(freelancer_id)
     appointments = Appointment.query.filter_by(freelancer_id=freelancer_id).all()
     result = []
 
@@ -158,7 +159,8 @@ def get_appointments():
             "email": a.user.email if a.user else None,
             "slot_day": a.slot.day,
             "slot_time": a.slot.master_time.label,
-            "confirmed": a.confirmed  # ✅ Add this line
+            "confirmed": a.confirmed,
+            "freelancer_timezone": freelancer.timezone
         })
 
     return jsonify(result)
@@ -467,6 +469,14 @@ def create_time_slot():
 
     if existing:
         return jsonify({"error": "Time slot already exists"}), 400
+
+    # Optionally update freelancer's timezone if provided
+    timezone = data.get("timezone")
+    if timezone:
+        freelancer = Freelancer.query.get(freelancer_id)
+        if freelancer:
+            freelancer.timezone = timezone
+            db.session.commit()
 
     slot = TimeSlot(
         day=day,

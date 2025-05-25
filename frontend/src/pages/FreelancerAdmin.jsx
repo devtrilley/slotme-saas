@@ -6,7 +6,7 @@ import AddSlotForm from "../components/AddSlotForm";
 
 function getDateFromTimeStr(timeStr) {
   const [hourMinute, ampm] = timeStr.split(" ");
-  let [hour, minute] = hourMinute.split(":" ).map(Number);
+  let [hour, minute] = hourMinute.split(":").map(Number);
   if (ampm === "PM" && hour !== 12) hour += 12;
   if (ampm === "AM" && hour === 12) hour = 0;
   const date = new Date();
@@ -64,6 +64,7 @@ export default function AdminPage() {
           logo_url: res.data.logo_url || "",
           tagline: res.data.tagline || "",
           bio: res.data.bio || "",
+          timezone: res.data.timezone || "America/New_York", // ✅ make sure this line is included
         });
       })
       .catch((err) => {
@@ -175,7 +176,7 @@ export default function AdminPage() {
       {fetchError && <p className="text-red-500 text-center">{fetchError}</p>}
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-center border-b pb-1">
+        <h3 className="text-lg font-semibold text-center border-b pb-1 mt-12">
           Your Time Slots
         </h3>
 
@@ -204,9 +205,11 @@ export default function AdminPage() {
               <p className="text-xs text-gray-400 mb-1">
                 {formatDate(slot.day)}
               </p>
-              <p className="text-lg font-semibold">
-                {slot.time}{" "}
-                <span className="text-xs text-gray-400 align-middle">EST</span>
+              <p className="text-lg font-semibold flex items-center gap-1">
+                {slot.time}
+                <span className="text-xs text-gray-400">
+                  {branding.timezone?.split("/")[1]?.replace("_", " ") || "EST"}
+                </span>
               </p>
               {slot.is_booked ? (
                 slot.appointment?.name && slot.appointment?.email ? (

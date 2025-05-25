@@ -10,6 +10,9 @@ export default function AddSlotForm({ onAdd }) {
   const [hour, setHour] = useState("12");
   const [minute, setMinute] = useState("00");
   const [ampm, setAmpm] = useState("AM");
+  const [timezone, setTimezone] = useState(
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
   const [masterTimes, setMasterTimes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -77,6 +80,7 @@ export default function AddSlotForm({ onAdd }) {
         {
           day,
           master_time_id: match.id,
+          timezone,
         },
         {
           headers: {
@@ -100,7 +104,9 @@ export default function AddSlotForm({ onAdd }) {
   };
 
   if (timesLoading) {
-    return <p className="text-center text-sm">Loading available time options...</p>;
+    return (
+      <p className="text-center text-sm">Loading available time options...</p>
+    );
   }
 
   return (
@@ -147,7 +153,16 @@ export default function AddSlotForm({ onAdd }) {
       </div>
 
       {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-
+      <select
+        className="select select-bordered w-full"
+        value={timezone}
+        onChange={(e) => setTimezone(e.target.value)}
+      >
+        <option value="America/New_York">Eastern (EST)</option>
+        <option value="America/Chicago">Central (CST)</option>
+        <option value="America/Denver">Mountain (MST)</option>
+        <option value="America/Los_Angeles">Pacific (PST)</option>
+      </select>
       <button className="btn btn-primary w-full" disabled={loading}>
         {loading ? "Adding..." : "Add Slot"}
       </button>

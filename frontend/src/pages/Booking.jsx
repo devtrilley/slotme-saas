@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
+import { DateTime } from "luxon";
 
 export default function BookingPage() {
   const { freelancerId } = useParams();
@@ -20,9 +21,24 @@ export default function BookingPage() {
   });
   const [freelancerTimeZone, setFreelancerTimeZone] = useState("EST");
 
+  const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const getTZAbbreviation = (tz) => {
+    const map = {
+      "America/New_York": "EST",
+      "America/Detroit": "EST",
+      "America/Chicago": "CST",
+      "America/Denver": "MST",
+      "America/Phoenix": "MST",
+      "America/Los_Angeles": "PST",
+      "America/Anchorage": "AKST",
+      "America/Adak": "HST",
+    };
+    return map[tz] || "Local";
+  };
+
   useEffect(() => {
     fetchSlots();
-
     axios
       .get("http://127.0.0.1:5000/freelancer-info", {
         headers: { "X-Freelancer-ID": freelancerId },
@@ -34,7 +50,7 @@ export default function BookingPage() {
           tagline: res.data.tagline || "",
           bio: res.data.bio || "",
         });
-        setFreelancerTimeZone(res.data.timezone || "EST");
+        setFreelancerTimeZone(res.data.timezone || "America/New_York");
       })
       .catch((err) => {
         console.error("❌ Failed to load branding", err);
@@ -104,21 +120,18 @@ export default function BookingPage() {
       });
   };
 
-  const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const convertToUserTime = (time, sourceTZ, userTZ) => {
+    const [label, meridian] = time.split(" ");
+    let [hour, minute] = label.split(":").map(Number);
+    if (meridian === "PM" && hour !== 12) hour += 12;
+    if (meridian === "AM" && hour === 12) hour = 0;
 
-  const convertToUserTime = (time) => {
-    const date = new Date();
-    const [t, meridian] = time.split(" ");
-    let [h, m] = t.split(":").map(Number);
-    if (meridian === "PM" && h !== 12) h += 12;
-    if (meridian === "AM" && h === 12) h = 0;
-    date.setHours(h);
-    date.setMinutes(m);
-    return date.toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const dateInSourceTZ = DateTime.fromObject(
+      { hour, minute },
+      { zone: sourceTZ }
+    );
+
+    return dateInSourceTZ.setZone(userTZ).toLocaleString(DateTime.TIME_SIMPLE);
   };
 
   return (
@@ -143,6 +156,7 @@ export default function BookingPage() {
           )}
         </div>
       </div>
+
       <div className="flex flex-col items-center gap-2">
         <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>
         <button
@@ -193,9 +207,13 @@ export default function BookingPage() {
                 type="button"
               >
                 <span className="text-xs text-375 flex items-center justify-center gap-1 w-full">
-                  {convertToUserTime(slot.time)}
-                  <span className="text-xs text-gray-400">
-                    {freelancerTimeZone}
+                  {convertToUserTime(
+                    slot.time,
+                    freelancerTimeZone,
+                    userTimeZone
+                  )}
+                  <span className="text-[10px] text-gray-400">
+                    ({getTZAbbreviation(userTimeZone)})
                   </span>
                 </span>
               </button>

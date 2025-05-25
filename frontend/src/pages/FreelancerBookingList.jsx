@@ -167,9 +167,11 @@ export default function FreelancerBookingList() {
               <strong>Date:</strong> {formatDate(a.slot_day)}
             </p>
             <p>
-              <strong>Time:</strong>{" "}
-              {a.slot_time}
-              <span className="ml-1 text-xs text-gray-400">EST</span>
+              <strong>Time:</strong> {a.slot_time}
+              <span className="ml-1 text-xs text-gray-400">
+                {a.freelancer_timezone?.split("/")[1]?.replace("_", " ") ||
+                  "Time Zone"}
+              </span>
             </p>
             <p
               className={`text-sm font-medium ${
