@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 export default function FreelancerBookingList() {
   const [appointments, setAppointments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
-  const [selectedDate, setSelectedDate] = useState(
-    () => new Date().toISOString().split("T")[0]
-  );
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const fetchAppointments = () => {
     axios
@@ -60,7 +60,7 @@ export default function FreelancerBookingList() {
         headers: { "X-Freelancer-ID": localStorage.getItem("freelancer_id") },
       });
       alert("Appointment canceled.");
-      fetchAppointments(); // 🔄 Refresh list
+      fetchAppointments();
     } catch (err) {
       alert("Failed to cancel appointment.");
       console.error("Cancel error:", err);
@@ -74,7 +74,8 @@ export default function FreelancerBookingList() {
 
     const inTimeRange = isInTimeRange(a.slot_time);
 
-    const inDate = selectedDate ? a.slot_day === selectedDate : true;
+    const inDate =
+      selectedDate && a.slot_day === selectedDate.toISOString().split("T")[0];
 
     return matchesSearch && inTimeRange && inDate;
   });
@@ -97,7 +98,7 @@ export default function FreelancerBookingList() {
   const formatDate = (isoDate) => {
     const dateObj = new Date(isoDate);
     const options = { year: "numeric", month: "long", day: "numeric" };
-    return dateObj.toLocaleDateString(undefined, options); // e.g. May 24, 2025
+    return dateObj.toLocaleDateString(undefined, options);
   };
 
   return (
@@ -129,15 +130,24 @@ export default function FreelancerBookingList() {
         <label className="text-sm text-gray-400 block text-center mt-2">
           Filter by booking date:
         </label>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="input input-bordered w-full"
-        />
+
+        <div className="relative w-full">
+          <DatePicker
+            selected={selectedDate}
+            onChange={(date) => setSelectedDate(date)}
+            className="input input-bordered w-full pl-10"
+            wrapperClassName="w-full" // ✅ Fixes width!
+            dateFormat="MMMM d, yyyy"
+            placeholderText="Choose a date"
+          />
+          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+            📅
+          </span>
+        </div>
+
         {selectedDate && (
           <button
-            onClick={() => setSelectedDate("")}
+            onClick={() => setSelectedDate(new Date())}
             className="btn btn-sm btn-outline w-full mt-2"
           >
             ❌ Clear Date Filter

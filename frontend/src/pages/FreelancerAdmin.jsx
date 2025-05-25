@@ -3,6 +3,8 @@ import axios from "axios";
 import FreelancerBranding from "../components/FreelancerBranding";
 import { showToast } from "../utils/toast";
 import AddSlotForm from "../components/AddSlotForm";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 function getDateFromTimeStr(timeStr) {
   const [hourMinute, ampm] = timeStr.split(" ");
@@ -18,10 +20,7 @@ export default function AdminPage() {
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0]; // Default: YYYY-MM-DD
-  });
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [branding, setBranding] = useState({
     name: "",
     logo_url: "",
@@ -64,7 +63,7 @@ export default function AdminPage() {
           logo_url: res.data.logo_url || "",
           tagline: res.data.tagline || "",
           bio: res.data.bio || "",
-          timezone: res.data.timezone || "America/New_York", // ✅ make sure this line is included
+          timezone: res.data.timezone || "America/New_York",
         });
       })
       .catch((err) => {
@@ -102,7 +101,9 @@ export default function AdminPage() {
     "freelancer_id"
   )}`;
 
-  const filteredSlots = slots.filter((slot) => slot.day === selectedDate);
+  const filteredSlots = slots.filter(
+    (slot) => slot.day === selectedDate.toISOString().split("T")[0]
+  );
 
   function formatDate(dateString) {
     const [year, month, day] = dateString.split("-");
@@ -183,14 +184,20 @@ export default function AdminPage() {
         <label className="text-sm text-gray-400 block text-center">
           Select a date to view / edit your time slots:
         </label>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => {
-            setSelectedDate(e.target.value);
-          }}
-          className="input input-bordered w-full"
-        />
+
+        <div className="relative w-full">
+          <DatePicker
+            selected={selectedDate}
+            onChange={(date) => setSelectedDate(date)}
+            className="input input-bordered w-full pl-10"
+            wrapperClassName="w-full" // ✅ Fixes width!
+            dateFormat="MMMM d, yyyy"
+            placeholderText="Choose a date"
+          />
+          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+            📅
+          </span>
+        </div>
 
         {filteredSlots.length === 0 ? (
           <p className="text-center text-sm text-gray-400">

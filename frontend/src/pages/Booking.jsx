@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import { DateTime } from "luxon";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 export default function BookingPage() {
   const { freelancerId } = useParams();
@@ -20,6 +22,7 @@ export default function BookingPage() {
     bio: "",
   });
   const [freelancerTimeZone, setFreelancerTimeZone] = useState("EST");
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -134,6 +137,10 @@ export default function BookingPage() {
     return dateInSourceTZ.setZone(userTZ).toLocaleString(DateTime.TIME_SIMPLE);
   };
 
+  const filteredSlots = slots.filter(
+    (s) => s.day === selectedDate.toISOString().split("T")[0]
+  );
+
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
       <div className="flex items-center gap-4 p-4 border rounded shadow bg-base-200">
@@ -168,6 +175,25 @@ export default function BookingPage() {
         </button>
       </div>
 
+      <div className="space-y-2">
+        <label className="text-sm text-gray-400 block text-center">
+          Select a date:
+        </label>
+        <div className="relative w-full">
+          <DatePicker
+            selected={selectedDate}
+            onChange={(date) => setSelectedDate(date)}
+            className="input input-bordered w-full pl-10"
+            wrapperClassName="w-full" // ✅ Fixes width!
+            dateFormat="MMMM d, yyyy"
+            placeholderText="Choose a date"
+          />
+          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+            📅
+          </span>
+        </div>
+      </div>
+
       {success && (
         <div className="alert alert-info shadow-lg">
           <span>
@@ -187,7 +213,7 @@ export default function BookingPage() {
         <p className="text-center">Loading slots...</p>
       ) : (
         <div className="grid grid-cols-2 gap-4">
-          {slots.map((slot) => (
+          {filteredSlots.map((slot) => (
             <div key={slot.id} className="flex flex-col">
               <button
                 className={`btn w-full text-sm ${

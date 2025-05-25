@@ -4,9 +4,11 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { showToast } from "../utils/toast";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 export default function AddSlotForm({ onAdd }) {
-  const [day, setDay] = useState("");
+  const [selectedDate, setSelectedDate] = useState(new Date()); // ✅ renamed from `day`
   const [hour, setHour] = useState("12");
   const [minute, setMinute] = useState("00");
   const [ampm, setAmpm] = useState("AM");
@@ -18,7 +20,6 @@ export default function AddSlotForm({ onAdd }) {
   const [error, setError] = useState("");
   const [timesLoading, setTimesLoading] = useState(true);
 
-  // Fetch master time slots from backend
   useEffect(() => {
     axios
       .get("http://127.0.0.1:5000/master-times", {
@@ -36,7 +37,6 @@ export default function AddSlotForm({ onAdd }) {
       .finally(() => setTimesLoading(false));
   }, []);
 
-  // Auto-clear error messages after 3 seconds
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setError(""), 3000);
@@ -44,7 +44,6 @@ export default function AddSlotForm({ onAdd }) {
     }
   }, [error]);
 
-  // If initial selection doesn't match any master time, reset to the first valid one
   useEffect(() => {
     if (masterTimes.length > 0) {
       const label = `${hour}:${minute} ${ampm}`;
@@ -78,7 +77,7 @@ export default function AddSlotForm({ onAdd }) {
       .post(
         "http://127.0.0.1:5000/slots",
         {
-          day,
+          day: selectedDate.toISOString().split("T")[0],
           master_time_id: match.id,
           timezone,
         },
@@ -90,7 +89,7 @@ export default function AddSlotForm({ onAdd }) {
       )
       .then(() => {
         showToast("Time slot added!");
-        setDay("");
+        setSelectedDate(new Date());
         setHour("12");
         setMinute("00");
         setAmpm("AM");
@@ -113,13 +112,19 @@ export default function AddSlotForm({ onAdd }) {
     <form onSubmit={handleSubmit} className="space-y-3">
       <h3 className="text-md font-bold text-center">Add a New Time Slot</h3>
 
-      <input
-        type="date"
-        className="input input-bordered w-full"
-        value={day}
-        onChange={(e) => setDay(e.target.value)}
-        required
-      />
+      <div className="relative w-full">
+        <DatePicker
+          selected={selectedDate}
+          onChange={(date) => setSelectedDate(date)}
+          className="input input-bordered w-full pl-10"
+          wrapperClassName="w-full"
+          dateFormat="MMMM d, yyyy"
+          placeholderText="Choose a date"
+        />
+        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+          📅
+        </span>
+      </div>
 
       <div className="flex gap-2">
         <select
@@ -153,6 +158,7 @@ export default function AddSlotForm({ onAdd }) {
       </div>
 
       {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
       <select
         className="select select-bordered w-full"
         value={timezone}
@@ -163,6 +169,7 @@ export default function AddSlotForm({ onAdd }) {
         <option value="America/Denver">Mountain (MST)</option>
         <option value="America/Los_Angeles">Pacific (PST)</option>
       </select>
+
       <button className="btn btn-primary w-full" disabled={loading}>
         {loading ? "Adding..." : "Add Slot"}
       </button>
