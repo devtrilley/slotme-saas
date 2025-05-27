@@ -299,12 +299,19 @@ def get_all_freelancers():
         result.append({
             "id": c.id,
             "name": c.name,
-            "email": c.email
+            "email": c.email,
+            "logo_url": c.logo_url,
+            "tagline": c.tagline,
+            "bio": c.bio,
+            "is_verified": c.is_verified
         })
     return jsonify(result)
 
-@app.route("/dev/slots/<int:freelancer_id>", methods=["GET"])
+@app.route("/dev/slots/<int:freelancer_id>", methods=["GET", "OPTIONS"])
 def get_freelancer_slots(freelancer_id):
+    if request.method == "OPTIONS":
+        return jsonify({}), 200  # ✅ Allow CORS preflight
+
     auth = request.headers.get("X-Dev-Auth")
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
@@ -314,7 +321,8 @@ def get_freelancer_slots(freelancer_id):
     for slot in slots:
         data = {
             "id": slot.id,
-            "time": slot.time,
+            "time": slot.master_time.label,   # ✅ FIXED: Use master_time.label
+            "day": slot.day,
             "is_booked": slot.is_booked
         }
 
@@ -350,7 +358,7 @@ def get_single_freelancer(freelancer_id):
 @app.route("/dev/appointments/<int:freelancer_id>", methods=["GET", "OPTIONS"])
 def get_dev_appointments_for_freelancer(freelancer_id):
     if request.method == "OPTIONS":
-        return jsonify({}), 200
+        return jsonify({}), 200  # ✅ Allow CORS preflight
 
     auth = request.headers.get("X-Dev-Auth")
     if auth != "secret123":
@@ -363,7 +371,9 @@ def get_dev_appointments_for_freelancer(freelancer_id):
             "id": a.id,
             "name": a.user.name if a.user else None,
             "email": a.user.email if a.user else None,
-            "slot_time": a.slot.time
+            "slot_day": a.slot.day,
+            "slot_time": a.slot.master_time.label,  # ✅ FIXED: use master_time.label
+            "confirmed": a.confirmed,
         })
 
     return jsonify(result)

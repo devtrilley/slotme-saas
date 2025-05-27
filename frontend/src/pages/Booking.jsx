@@ -5,6 +5,7 @@ import { DateTime } from "luxon";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import FreelancerCard from "../components/FreelancerCard";
+import FreelancerModal from "../components/FreelancerModal";
 
 export default function BookingPage() {
   const { freelancerId } = useParams();
@@ -25,6 +26,7 @@ export default function BookingPage() {
   });
   const [freelancerTimeZone, setFreelancerTimeZone] = useState("EST");
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showModal, setShowModal] = useState(false);
 
   const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -152,7 +154,15 @@ export default function BookingPage() {
         tagline={branding.tagline}
         bio={branding.bio}
         isVerified={branding.is_verified}
+        onClick={() => setShowModal(true)}
       />
+
+      {showModal && (
+        <FreelancerModal
+          freelancer={{ ...branding, id: freelancerId }}
+          onClose={() => setShowModal(false)}
+        />
+      )}
 
       <div className="flex flex-col items-center gap-2">
         <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>

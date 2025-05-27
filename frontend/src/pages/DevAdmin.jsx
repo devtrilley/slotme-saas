@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import FreelancerCard from "../components/FreelancerCard";
+import FreelancerModal from "../components/FreelancerModal";
 
 export default function DevAdmin() {
   const [freelancers, setFreelancer] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [modalFreelancer, setModalFreelancer] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,9 +20,7 @@ export default function DevAdmin() {
         },
       })
       .then((res) =>
-        setFreelancer(
-          res.data.sort((a, b) => a.name.localeCompare(b.name))
-        )
+        setFreelancer(res.data.sort((a, b) => a.name.localeCompare(b.name)))
       )
       .catch((err) => {
         console.error("❌ Failed to load freelancers", err);
@@ -50,13 +52,7 @@ export default function DevAdmin() {
     });
   };
 
-  const handleDelete = (freelancerId) => {
-    if (
-      !window.confirm(
-        "Are you sure? This deletes all their slots and bookings."
-      )
-    )
-      return;
+  const confirmDelete = (freelancerId) => {
     axios
       .delete(`http://127.0.0.1:5000/dev/freelancers/${freelancerId}`, {
         headers: {
@@ -64,19 +60,18 @@ export default function DevAdmin() {
         },
       })
       .then(() => {
-        // Re-fetch freelancers to stay in sync with DB
         return axios.get("http://127.0.0.1:5000/dev/freelancers", {
           headers: { "X-Dev-Auth": "secret123" },
         });
       })
-      .then((res) =>
-        setFreelancer(
-          res.data.sort((a, b) => a.name.localeCompare(b.name))
-        )
-      )
+      .then((res) => {
+        setFreelancer(res.data.sort((a, b) => a.name.localeCompare(b.name)));
+        setShowDeleteModal(null);
+      })
       .catch((err) => {
         console.error("❌ Failed to delete freelancer", err);
         alert("Failed to delete freelancer. Try again.");
+        setShowDeleteModal(null);
       });
   };
 
@@ -98,30 +93,35 @@ export default function DevAdmin() {
       {loading && <p className="text-center">Loading freelancers...</p>}
       {error && <p className="text-red-500 text-center">{error}</p>}
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {freelancers.map((freelancer) => (
-          <div
-            key={freelancer.id}
-            className="p-4 bg-base-200 border rounded shadow-sm"
-          >
-            <p className="font-bold">{freelancer.name}</p>
-            <p className="text-sm text-gray-400">{freelancer.email}</p>
+          <div key={freelancer.id}>
+            <FreelancerCard
+              name={freelancer.name}
+              logoUrl={freelancer.logo_url}
+              tagline={freelancer.tagline}
+              bio={freelancer.bio}
+              isVerified={freelancer.is_verified}
+              onClick={() => setModalFreelancer(freelancer)}
+            />
             <div className="flex flex-wrap gap-2 mt-2">
               <button
-                className="btn btn-xs btn-outline"
+                className="btn btn-xs btn-outline grow"
                 onClick={() => handleViewSlots(freelancer)}
               >
                 View Slots
               </button>
               <button
-                className="btn btn-xs btn-outline"
+                className="btn btn-xs btn-outline grow"
                 onClick={() => handleViewBookings(freelancer)}
               >
                 View Bookings
               </button>
+            </div>
+            <div className="mt-2">
               <button
-                className="btn btn-xs btn-error hover:scale-105 transition-transform"
-                onClick={() => handleDelete(freelancer.id)}
+                className="btn btn-xs btn-error w-full"
+                onClick={() => setShowDeleteModal(freelancer)}
               >
                 🗑️ Delete
               </button>
@@ -130,9 +130,54 @@ export default function DevAdmin() {
         ))}
       </div>
 
-      <button onClick={handleLogout} className="btn btn-sm btn-error w-full">
+      <button onClick={handleLogout} className="mt-6 py-4 btn btn-sm btn-error w-full">
         Logout
       </button>
+
+      {modalFreelancer && (
+        <FreelancerModal
+          freelancer={modalFreelancer}
+          onClose={() => setModalFreelancer(null)}
+        />
+      )}
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-base-200 p-6 rounded-xl shadow-md w-[90%] max-w-md">
+            <h3 className="text-xl font-bold text-center mb-2">
+              Confirm Deletion
+            </h3>
+            <p className="text-center text-gray-400 mb-3">
+              Are you sure you want to delete{" "}
+              <strong className="underline">{showDeleteModal.name}</strong>?
+              This action will:
+            </p>
+            <ul className="text-gray-400 list-disc list-inside space-y-1 text-sm mb-4">
+              <li>Delete all time slots for this freelancer</li>
+              <li>Remove all customer bookings and appointment data</li>
+              <li>Erase profile information and branding</li>
+              <li>Remove them from the public booking page</li>
+            </ul>
+            <p className="text-center text-sm text-gray-400 italic mb-5">
+              This cannot be undone. Be sure you've exported any relevant data.
+            </p>
+            <div className="flex justify-between">
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setShowDeleteModal(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-error btn-sm text-white"
+                onClick={() => confirmDelete(showDeleteModal.id)}
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

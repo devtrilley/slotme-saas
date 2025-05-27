@@ -6,6 +6,7 @@ import AddSlotForm from "../components/AddSlotForm";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import FreelancerCard from "../components/FreelancerCard";
+import FreelancerModal from "../components/FreelancerModal";
 
 function getDateFromTimeStr(timeStr) {
   const [hourMinute, ampm] = timeStr.split(" ");
@@ -29,6 +30,7 @@ export default function AdminPage() {
     bio: "",
     is_verified: false,
   });
+  const [showModal, setShowModal] = useState(false);
 
   const fetchSlots = () => {
     setLoading(true);
@@ -137,7 +139,15 @@ export default function AdminPage() {
         tagline={branding.tagline}
         bio={branding.bio}
         isVerified={branding.is_verified}
+        onClick={() => setShowModal(true)}
       />
+
+      {showModal && (
+        <FreelancerModal
+          freelancer={{ ...branding, id: localStorage.getItem("freelancer_id") }}
+          onClose={() => setShowModal(false)}
+        />
+      )}
 
       <div className="p-4 bg-base-200 border rounded-lg shadow space-y-2">
         <p className="text-sm font-medium text-center">Your Public Booking Link</p>
