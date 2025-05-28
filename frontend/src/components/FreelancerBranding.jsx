@@ -8,6 +8,7 @@ export default function FreelancerBranding({ onUpdate }) {
     bio: "",
     tagline: "",
     timezone: "", // ✅ New
+    no_show_policy: "",
   });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -22,13 +23,15 @@ export default function FreelancerBranding({ onUpdate }) {
         headers: { "X-Freelancer-ID": freelancerId },
       })
       .then((res) => {
-        const { name, logo_url, bio, tagline, timezone } = res.data;
+        const { name, logo_url, bio, tagline, timezone, no_show_policy } =
+          res.data;
         setForm({
           name: name || "",
           logo_url: logo_url || "",
           bio: bio || "",
           tagline: tagline || "",
           timezone: timezone || "America/New_York", // ✅ default fallback
+          no_show_policy: no_show_policy || "",
         });
 
         localStorage.setItem("branding_updated", Date.now());
@@ -121,6 +124,14 @@ export default function FreelancerBranding({ onUpdate }) {
           <option value="America/Denver">Mountain (MST)</option>
           <option value="America/Los_Angeles">Pacific (PST)</option>
         </select>
+
+        <textarea
+          name="no_show_policy"
+          value={form.no_show_policy}
+          onChange={handleChange}
+          placeholder="No-show policy (e.g. late fees, cancellation terms)"
+          className="textarea textarea-bordered w-full"
+        />
 
         <button type="submit" className="btn btn-primary w-full">
           Save Changes

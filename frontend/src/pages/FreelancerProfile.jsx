@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { FaCheck } from "react-icons/fa";
 import ServiceCard from "../components/ServiceCard";
+import NoShowPolicy from "../components/NoShowPolicy";
 
 export default function FreelancerProfile() {
   const { freelancerId } = useParams();
@@ -10,14 +11,14 @@ export default function FreelancerProfile() {
   const [error, setError] = useState("");
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const badgeRef = useRef();
+  const [noShowPolicy, setNoShowPolicy] = useState("");
 
   useEffect(() => {
     axios
       .get(`http://127.0.0.1:5000/freelancers/${freelancerId}`)
-      .then((res) => setFreelancer(res.data))
-      .catch((err) => {
-        console.error("❌ Failed to load freelancer profile", err);
-        setError("Freelancer not found or unavailable.");
+      .then((res) => {
+        setFreelancer(res.data);
+        setNoShowPolicy(res.data.no_show_policy || "");
       });
   }, [freelancerId]);
 
@@ -163,6 +164,7 @@ export default function FreelancerProfile() {
               </p>
             </div>
           )}
+          <NoShowPolicy policy={noShowPolicy} />
           {freelancer.timezone && (
             <li>
               <strong>Timezone:</strong> {freelancer.timezone}

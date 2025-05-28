@@ -6,6 +6,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import FreelancerCard from "../components/FreelancerCard";
 import FreelancerModal from "../components/FreelancerModal";
+import NoShowPolicy from "../components/NoShowPolicy";
 
 export default function BookingPage() {
   const { freelancerId } = useParams();
@@ -29,6 +30,7 @@ export default function BookingPage() {
   const [showModal, setShowModal] = useState(false);
   const [services, setServices] = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
+  const [noShowPolicy, setNoShowPolicy] = useState("");
 
   const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -75,6 +77,7 @@ export default function BookingPage() {
           is_verified: res.data.is_verified || false,
         });
         setFreelancerTimeZone(res.data.timezone || "America/New_York");
+        setNoShowPolicy(res.data.no_show_policy || "");
       })
       .catch((err) => {
         console.error("❌ Failed to load branding", err);
@@ -292,6 +295,8 @@ export default function BookingPage() {
           </select>
         </div>
       )}
+
+      <NoShowPolicy policy={noShowPolicy} />
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <h3 className="text-lg font-semibold text-center border-b pb-1">

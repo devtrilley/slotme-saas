@@ -503,7 +503,8 @@ def get_freelancer_info():
         "tagline": getattr(freelancer, "tagline", ""),
         "bio": getattr(freelancer, "bio", ""),
         "timezone": getattr(freelancer, "timezone", "America/New_York"),
-        "is_verified": freelancer.is_verified  # ✅ Include this
+        "is_verified": freelancer.is_verified,  # ✅ Include this
+        "no_show_policy": getattr(freelancer, "no_show_policy", "")
     })
 
 @app.route("/freelancer/branding", methods=["PATCH"])
@@ -521,6 +522,7 @@ def update_freelancer_branding():
     freelancer.bio = data.get("bio", freelancer.bio)
     freelancer.tagline = data.get("tagline", freelancer.tagline)
     freelancer.timezone = data.get("timezone", freelancer.timezone)
+    freelancer.no_show_policy = data.get("no_show_policy", freelancer.no_show_policy)
 
     db.session.commit()
     return jsonify({"message": "Branding updated"})
