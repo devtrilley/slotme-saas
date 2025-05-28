@@ -17,9 +17,14 @@ class Freelancer(db.Model):
     timezone = db.Column(db.String(50), default="America/New_York")  # Default to EST
     is_verified = db.Column(db.Boolean, default=False)
 
+    # ✅ New contact fields
+    contact_email = db.Column(db.String(120), unique=True, nullable=False)
+    phone = db.Column(db.String(50), nullable=True)
+    instagram_url = db.Column(db.String(200), nullable=True)
+    twitter_url = db.Column(db.String(200), nullable=True)
+
     slots = db.relationship('TimeSlot', backref='freelancer', lazy=True)
     appointments = db.relationship('Appointment', backref='freelancer', lazy=True)
-
 
 class User(db.Model):  # Customer
     __tablename__ = 'users'
@@ -69,8 +74,24 @@ class Appointment(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     confirmed = db.Column(db.Boolean, default=False)
     confirmation_token = db.Column(db.String(64), unique=True, nullable=True)
+    service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=True)
 
     slot = db.relationship(
         'TimeSlot',
         back_populates='appointment'
     )
+
+    service = db.relationship('Service')
+
+class Service(db.Model):
+    __tablename__ = 'services'
+
+    id = db.Column(db.Integer, primary_key=True)
+    freelancer_id = db.Column(db.Integer, db.ForeignKey('freelancers.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(300), nullable=True)
+    duration_minutes = db.Column(db.Integer, nullable=False)
+    price_usd = db.Column(db.Float, nullable=True)
+    is_enabled = db.Column(db.Boolean, default=True, nullable=False)  # ✅ New column
+
+    freelancer = db.relationship('Freelancer', backref='services', lazy=True)

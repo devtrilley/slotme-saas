@@ -27,6 +27,8 @@ export default function BookingPage() {
   const [freelancerTimeZone, setFreelancerTimeZone] = useState("EST");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
+  const [services, setServices] = useState([]);
+  const [selectedServiceId, setSelectedServiceId] = useState(null);
 
   const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -46,6 +48,20 @@ export default function BookingPage() {
 
   useEffect(() => {
     fetchSlots();
+
+    axios
+      .get(`http://127.0.0.1:5000/freelancers/${freelancerId}`)
+      .then((res) => {
+        const enabled = res.data.services || [];
+        setServices(enabled);
+        if (enabled.length === 1) {
+          setSelectedServiceId(enabled[0].id); // auto-select if only one
+        }
+      })
+      .catch((err) => {
+        console.error("❌ Failed to load services", err);
+      });
+
     axios
       .get("http://127.0.0.1:5000/freelancer-info", {
         headers: { "X-Freelancer-ID": freelancerId },
@@ -107,6 +123,7 @@ export default function BookingPage() {
           email,
           phone,
           slot_id: selectedSlotId,
+          service_id: selectedServiceId,
         },
         {
           headers: { "X-Freelancer-ID": freelancerId },
@@ -250,6 +267,29 @@ export default function BookingPage() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {services.length > 0 && (
+        <div className="space-y-2">
+          <label className="text-sm text-gray-400 block text-center">
+            Select a service:
+          </label>
+          <select
+            className="select select-bordered w-full"
+            value={selectedServiceId || ""}
+            onChange={(e) => setSelectedServiceId(Number(e.target.value))}
+            required
+          >
+            <option value="" disabled>
+              -- Choose a service --
+            </option>
+            {services.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} (${s.price_usd?.toFixed(2) || "0.00"})
+              </option>
+            ))}
+          </select>
         </div>
       )}
 

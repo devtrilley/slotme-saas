@@ -130,7 +130,10 @@ export default function DevAdmin() {
         ))}
       </div>
 
-      <button onClick={handleLogout} className="mt-6 py-4 btn btn-sm btn-error w-full">
+      <button
+        onClick={handleLogout}
+        className="mt-6 py-4 btn btn-sm btn-error w-full"
+      >
         Logout
       </button>
 

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { FaCheck } from "react-icons/fa";
+import ServiceCard from "../components/ServiceCard";
 
 export default function FreelancerProfile() {
   const { freelancerId } = useParams();
@@ -66,7 +67,9 @@ export default function FreelancerProfile() {
 
       {/* Tagline */}
       {freelancer.tagline && (
-        <p className="text-sm italic text-gray-300 -mt-3">“{freelancer.tagline}”</p>
+        <p className="text-sm italic text-gray-300 -mt-3">
+          “{freelancer.tagline}”
+        </p>
       )}
 
       {/* Name and bullets */}
@@ -75,8 +78,90 @@ export default function FreelancerProfile() {
         <ul className="mt-4 text-left text-sm space-y-2">
           {freelancer.bio && (
             <li className="italic text-gray-300">
-              <strong className="not-italic text-white">Bio:</strong> {freelancer.bio}
+              <strong className="not-italic text-white">Bio:</strong>{" "}
+              {freelancer.bio}
             </li>
+          )}
+
+          <div className="border border-white/20 bg-white/5 rounded-lg p-4 text-left mt-4">
+            <h2 className="text-sm font-semibold text-white mb-2 uppercase tracking-wide text-center">
+              Contact Info
+            </h2>
+            <ul className="space-y-1 text-sm text-gray-300">
+              {freelancer.email && (
+                <li>
+                  <strong className="text-white">Email:</strong>{" "}
+                  <a
+                    className="text-primary"
+                    href={`mailto:${freelancer.email}`}
+                  >
+                    {freelancer.email}
+                  </a>
+                </li>
+              )}
+              {freelancer.phone && (
+                <li>
+                  <strong className="text-white">Phone:</strong>{" "}
+                  <a className="text-primary" href={`tel:${freelancer.phone}`}>
+                    {freelancer.phone}
+                  </a>
+                </li>
+              )}
+              {freelancer.instagram_url && (
+                <li>
+                  <strong className="text-white">Instagram:</strong>{" "}
+                  <a
+                    className="text-primary"
+                    href={freelancer.instagram_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    DM here
+                  </a>
+                </li>
+              )}
+              {freelancer.twitter_url && (
+                <li>
+                  <strong className="text-white">Twitter/X:</strong>{" "}
+                  <a
+                    className="text-primary"
+                    href={freelancer.twitter_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    DM here
+                  </a>
+                </li>
+              )}
+            </ul>
+          </div>
+
+          {freelancer.services?.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-lg font-semibold text-white text-center mb-2">
+                Services
+              </h2>
+              <ul className="space-y-2 px-4">
+                {freelancer.services.map((service) => (
+                  <ServiceCard
+                    key={service.id}
+                    {...service}
+                    isPublicView={true}
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
+          {freelancer.services?.length === 0 && (
+            <div className="mt-6 border border-white/20 bg-white/5 rounded-lg p-4 text-sm text-white text-center backdrop-blur-md shadow-md">
+              <strong className="block mb-1 text-white/90 tracking-wide text-xs uppercase">
+                No Services Listed
+              </strong>
+              <p className="text-white/80">
+                This freelancer currently does not have any services listed.
+                Please reach out to them directly for availability and options.
+              </p>
+            </div>
           )}
           {freelancer.timezone && (
             <li>

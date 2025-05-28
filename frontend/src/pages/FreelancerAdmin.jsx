@@ -7,6 +7,8 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import FreelancerCard from "../components/FreelancerCard";
 import FreelancerModal from "../components/FreelancerModal";
+import ServiceCard from "../components/ServiceCard";
+import ServiceForm from "../components/ServiceForm";
 
 function getDateFromTimeStr(timeStr) {
   const [hourMinute, ampm] = timeStr.split(" ");
@@ -31,6 +33,7 @@ export default function AdminPage() {
     is_verified: false,
   });
   const [showModal, setShowModal] = useState(false);
+  const [services, setServices] = useState([]);
 
   const fetchSlots = () => {
     setLoading(true);
@@ -54,6 +57,17 @@ export default function AdminPage() {
         setFetchError("Could not load time slots.");
       })
       .finally(() => setLoading(false));
+  };
+
+  const fetchServices = () => {
+    axios
+      .get("http://127.0.0.1:5000/freelancer/services", {
+        headers: {
+          "X-Freelancer-ID": localStorage.getItem("freelancer_id"),
+        },
+      })
+      .then((res) => setServices(res.data))
+      .catch((err) => console.error("❌ Failed to fetch services", err));
   };
 
   const fetchBranding = () => {
@@ -95,14 +109,53 @@ export default function AdminPage() {
       });
   };
 
+  const handleDeleteService = (serviceId) => {
+    axios
+      .delete(`http://127.0.0.1:5000/freelancer/services/${serviceId}`, {
+        headers: { "X-Freelancer-ID": localStorage.getItem("freelancer_id") },
+      })
+      .then(() => {
+        showToast("Service deleted");
+        fetchServices();
+      })
+      .catch((err) => {
+        console.error("❌ Failed to delete service", err);
+        showToast("Could not delete service", "error");
+      });
+  };
+
+  const handleUpdatePrice = (serviceId, newPrice) => {
+    axios
+      .patch(
+        `http://127.0.0.1:5000/freelancer/services/${serviceId}`,
+        {
+          price_usd: newPrice,
+        },
+        {
+          headers: { "X-Freelancer-ID": localStorage.getItem("freelancer_id") },
+        }
+      )
+      .then(() => {
+        showToast("Price updated");
+        fetchServices();
+      })
+      .catch((err) => {
+        console.error("❌ Failed to update price", err);
+        showToast("Could not update price", "error");
+      });
+  };
+
   const [brandingUpdated, setBrandingUpdated] = useState(0);
 
   useEffect(() => {
     fetchSlots();
     fetchBranding();
+    fetchServices();
   }, [brandingUpdated]);
 
-  const shareUrl = `http://localhost:5173/book/${localStorage.getItem("freelancer_id")}`;
+  const shareUrl = `http://localhost:5173/book/${localStorage.getItem(
+    "freelancer_id"
+  )}`;
 
   const filteredSlots = slots.filter(
     (slot) => slot.day === selectedDate.toISOString().split("T")[0]
@@ -121,7 +174,9 @@ export default function AdminPage() {
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
       <div className="flex flex-col gap-2 items-center">
-        <h2 className="text-2xl font-bold text-center">Freelancer Admin Dashboard</h2>
+        <h2 className="text-2xl font-bold text-center">
+          Freelancer Admin Dashboard
+        </h2>
         <button
           onClick={() => {
             localStorage.removeItem("freelancer_logged_in");
@@ -144,14 +199,21 @@ export default function AdminPage() {
 
       {showModal && (
         <FreelancerModal
-          freelancer={{ ...branding, id: localStorage.getItem("freelancer_id") }}
+          freelancer={{
+            ...branding,
+            id: localStorage.getItem("freelancer_id"),
+          }}
           onClose={() => setShowModal(false)}
         />
       )}
 
       <div className="p-4 bg-base-200 border rounded-lg shadow space-y-2">
-        <p className="text-sm font-medium text-center">Your Public Booking Link</p>
-        <p className="text-sm text-primary text-center break-words">{shareUrl}</p>
+        <p className="text-sm font-medium text-center">
+          Your Public Booking Link
+        </p>
+        <p className="text-sm text-primary text-center break-words">
+          {shareUrl}
+        </p>
         <button
           className="btn btn-xs btn-outline block mx-auto"
           onClick={() => {
@@ -169,7 +231,9 @@ export default function AdminPage() {
       {fetchError && <p className="text-red-500 text-center">{fetchError}</p>}
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-center border-b pb-1 mt-12">Your Time Slots</h3>
+        <h3 className="text-lg font-semibold text-center border-b pb-1 mt-12">
+          Your Time Slots
+        </h3>
 
         <label className="text-sm text-gray-400 block text-center">
           Select a date to view / edit your time slots:
@@ -190,11 +254,18 @@ export default function AdminPage() {
         </div>
 
         {filteredSlots.length === 0 ? (
-          <p className="text-center text-sm text-gray-400">No slots for this day.</p>
+          <p className="text-center text-sm text-gray-400">
+            No slots for this day.
+          </p>
         ) : (
           filteredSlots.map((slot) => (
-            <div key={slot.id} className="p-4 border rounded-lg bg-base-100 shadow-sm">
-              <p className="text-xs text-gray-400 mb-1">{formatDate(slot.day)}</p>
+            <div
+              key={slot.id}
+              className="p-4 border rounded-lg bg-base-100 shadow-sm"
+            >
+              <p className="text-xs text-gray-400 mb-1">
+                {formatDate(slot.day)}
+              </p>
               <p className="text-lg font-semibold flex items-center gap-1">
                 {slot.time}
                 <span className="text-xs text-gray-400">
@@ -227,6 +298,20 @@ export default function AdminPage() {
           ))
         )}
       </div>
+
+      <ServiceForm onServiceAdded={fetchServices} />
+      {services.map((s) => (
+        <ServiceCard
+          key={s.id}
+          id={s.id}
+          name={s.name}
+          description={s.description}
+          duration_minutes={s.duration_minutes}
+          price_usd={s.price_usd}
+          is_enabled={s.is_enabled}
+          onUpdate={fetchServices}
+        />
+      ))}
 
       <FreelancerBranding onUpdate={() => setBrandingUpdated((n) => n + 1)} />
     </div>
