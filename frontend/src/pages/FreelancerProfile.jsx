@@ -5,6 +5,16 @@ import { FaCheck } from "react-icons/fa";
 import ServiceCard from "../components/ServiceCard";
 import NoShowPolicy from "../components/NoShowPolicy";
 
+const mapTimeZone = (tz) => {
+  const zones = {
+    "America/New_York": "Eastern Standard Time (EST)",
+    "America/Chicago": "Central Standard Time (CST)",
+    "America/Denver": "Mountain Standard Time (MST)",
+    "America/Los_Angeles": "Pacific Standard Time (PST)",
+  };
+  return zones[tz] || tz;
+};
+
 export default function FreelancerProfile() {
   const { freelancerId } = useParams();
   const [freelancer, setFreelancer] = useState(null);
@@ -82,6 +92,13 @@ export default function FreelancerProfile() {
               <strong className="not-italic text-white">Bio:</strong>{" "}
               {freelancer.bio}
             </li>
+          )}
+
+          {freelancer.timezone && (
+            <p className="text-sm text-gray-400 text-center mb-2">
+              <strong>Current Time Zone:</strong>{" "}
+              {mapTimeZone(freelancer.timezone)}
+            </p>
           )}
 
           <div className="border border-white/20 bg-white/5 rounded-lg p-4 text-left mt-4">
@@ -165,11 +182,6 @@ export default function FreelancerProfile() {
             </div>
           )}
           <NoShowPolicy policy={noShowPolicy} />
-          {freelancer.timezone && (
-            <li>
-              <strong>Timezone:</strong> {freelancer.timezone}
-            </li>
-          )}
         </ul>
       </div>
 

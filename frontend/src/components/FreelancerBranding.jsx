@@ -77,6 +77,7 @@ export default function FreelancerBranding({ onUpdate }) {
       {error && <p className="text-red-500 text-center">{error}</p>}
 
       <form onSubmit={handleSave} className="space-y-4">
+        <label className="label text-sm text-white">Business Name:</label>
         <input
           type="text"
           name="name"
@@ -86,6 +87,7 @@ export default function FreelancerBranding({ onUpdate }) {
           className="input input-bordered w-full"
         />
 
+        <label className="label text-sm text-white">Logo URL: (optional)</label>
         <input
           type="url"
           name="logo_url"
@@ -95,6 +97,7 @@ export default function FreelancerBranding({ onUpdate }) {
           className="input input-bordered w-full"
         />
 
+        <label className="label text-sm text-white">Tagline: (optional)</label>
         <input
           type="text"
           name="tagline"
@@ -104,6 +107,7 @@ export default function FreelancerBranding({ onUpdate }) {
           className="input input-bordered w-full"
         />
 
+        <label className="label text-sm text-white">Bio / Description:</label>
         <textarea
           name="bio"
           value={form.bio}
@@ -112,6 +116,7 @@ export default function FreelancerBranding({ onUpdate }) {
           className="textarea textarea-bordered w-full"
         />
 
+        <label className="label text-sm text-white">Timezone:</label>
         {/* ✅ Timezone Selector */}
         <select
           name="timezone"
@@ -125,6 +130,7 @@ export default function FreelancerBranding({ onUpdate }) {
           <option value="America/Los_Angeles">Pacific (PST)</option>
         </select>
 
+        <label className="label text-sm text-white">No-Show Policy:</label>
         <textarea
           name="no_show_policy"
           value={form.no_show_policy}

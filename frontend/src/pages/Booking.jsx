@@ -195,6 +195,12 @@ export default function BookingPage() {
         </button>
       </div>
 
+      {freelancerTimeZone && (
+        <p className="text-sm text-gray-400 text-center mt-1 italic">
+          *All times shown in {getTZAbbreviation(freelancerTimeZone)}*
+        </p>
+      )}
+
       <div className="space-y-2">
         <label className="text-sm text-gray-400 block text-center">
           Select a date:
@@ -252,14 +258,14 @@ export default function BookingPage() {
                 disabled={slot.is_booked}
                 type="button"
               >
-                <span className="text-xs flex items-center justify-center gap-1 w-full">
+                <span className="text-xs w-full text-center">
                   {convertToUserTime(
                     slot.time,
                     freelancerTimeZone,
                     userTimeZone
-                  )}
+                  )}{" "}
                   <span className="text-[10px] text-gray-400">
-                    ({getTZAbbreviation(userTimeZone)})
+                    {getTZAbbreviation(userTimeZone)}
                   </span>
                 </span>
               </button>

@@ -656,6 +656,7 @@ def public_freelancer_profile(freelancer_id):
         "logo_url": freelancer.logo_url,
         "tagline": freelancer.tagline,
         "bio": freelancer.bio,
+        "timezone": freelancer.timezone,
         "email": freelancer.contact_email,  # <-- This one if you're using a separate public email
         "phone": freelancer.phone,
         "instagram_url": freelancer.instagram_url,
