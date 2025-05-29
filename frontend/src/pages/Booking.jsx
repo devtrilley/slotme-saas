@@ -25,7 +25,7 @@ export default function BookingPage() {
     tagline: "",
     bio: "",
     is_verified: false,
-    faq_text: ""
+    faq_text: "",
   });
   const [freelancerTimeZone, setFreelancerTimeZone] = useState("EST");
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -305,10 +305,6 @@ export default function BookingPage() {
         </div>
       )}
 
-      <NoShowPolicy policy={noShowPolicy} />
-
-      <FAQCard text={branding.faq_text} />
-
       <form onSubmit={handleSubmit} className="space-y-4">
         <h3 className="text-lg font-semibold text-center border-b pb-1">
           Your Contact Info
@@ -349,6 +345,10 @@ export default function BookingPage() {
           Book Appointment
         </button>
       </form>
+
+      <NoShowPolicy policy={noShowPolicy} />
+
+      <FAQCard text={branding.faq_text} />
     </div>
   );
 }

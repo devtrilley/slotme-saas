@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import FreelancerBranding from "../components/FreelancerBranding";
 import { showToast } from "../utils/toast";
@@ -34,6 +35,8 @@ export default function AdminPage() {
   });
   const [showModal, setShowModal] = useState(false);
   const [services, setServices] = useState([]);
+
+  const navigate = useNavigate();
 
   const fetchSlots = () => {
     setLoading(true);
@@ -177,6 +180,14 @@ export default function AdminPage() {
         <h2 className="text-2xl font-bold text-center">
           Freelancer Admin Dashboard
         </h2>
+
+        <button
+          onClick={() => navigate("/freelancer-analytics")}
+          className="btn btn-sm btn-outline"
+        >
+          📊 View Analytics
+        </button>
+
         <button
           onClick={() => {
             localStorage.removeItem("freelancer_logged_in");

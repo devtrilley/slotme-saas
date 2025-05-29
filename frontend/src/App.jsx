@@ -18,6 +18,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Upgrade from "./pages/Upgrade";
 import FreelancerProfile from "./pages/FreelancerProfile";
+import FreelancerAnalytics from "./pages/FreelancerAnalytics";
 
 // Component Imports
 import Navbar from "./components/Navbar";
@@ -65,8 +66,14 @@ export default function App() {
               </RequireDevAuth>
             }
           />
-          <Route path="/dev/slots/:freelancerId" element={<DevFreelancerSlots />} />
-          <Route path="/dev/appointments/:freelancerId" element={<DevFreelancerBookings />} />
+          <Route
+            path="/dev/slots/:freelancerId"
+            element={<DevFreelancerSlots />}
+          />
+          <Route
+            path="/dev/appointments/:freelancerId"
+            element={<DevFreelancerBookings />}
+          />
 
           <Route
             path="/dev/new-freelancer"
@@ -82,8 +89,20 @@ export default function App() {
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/upgrade" element={<Upgrade />} />
-          <Route path="/freelancers/:freelancerId" element={<FreelancerProfile />} />
+          <Route
+            path="/freelancers/:freelancerId"
+            element={<FreelancerProfile />}
+          />
           <Route path="*" element={<NotFound />} />
+
+          <Route
+            path="/freelancer-analytics"
+            element={
+              <RequireFreelancerAuth>
+                <FreelancerAnalytics />
+              </RequireFreelancerAuth>
+            }
+          />
         </Routes>
       </div>
     </div>

@@ -762,6 +762,32 @@ def update_service(service_id):
 
     db.session.commit()
     return jsonify({"message": "Service updated"})
+
+@app.route("/freelancer/analytics", methods=["GET"])
+def get_analytics():
+    freelancer_id = g.freelancer_id
+
+    total = Appointment.query.filter_by(freelancer_id=freelancer_id).count()
+    confirmed = Appointment.query.filter_by(freelancer_id=freelancer_id, confirmed=True).count()
+    cancelled = total - confirmed
+
+    from sqlalchemy import func
+
+    top_service = (
+        db.session.query(Service.name, func.count(Appointment.id))
+        .join(Appointment, Service.id == Appointment.service_id)
+        .filter(Service.freelancer_id == freelancer_id)
+        .group_by(Service.id)
+        .order_by(func.count(Appointment.id).desc())
+        .first()
+    )
+
+    return jsonify({
+        "total_bookings": total,
+        "confirmed": confirmed,
+        "cancelled": total - confirmed,
+        "top_service": top_service[0] if top_service else None,
+    })
 # -----------------------
 if __name__ == "__main__":
     app.run(debug=True)

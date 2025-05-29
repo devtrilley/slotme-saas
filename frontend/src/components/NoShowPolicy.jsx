@@ -1,7 +1,7 @@
 export default function NoShowPolicy({ policy }) {
   return (
     <div className="bg-white/5 border border-white/20 rounded-lg p-4 text-sm text-white shadow-sm">
-      <strong className="block text-xs text-white/60 uppercase tracking-wide mb-1">
+      <strong className="block text-xs text-white/60 uppercase tracking-wide mb-1 text-center">
         No-Show Policy
       </strong>
       {policy ? (
