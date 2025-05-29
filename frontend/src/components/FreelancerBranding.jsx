@@ -24,7 +24,7 @@ export default function FreelancerBranding({ onUpdate }) {
         headers: { "X-Freelancer-ID": freelancerId },
       })
       .then((res) => {
-        const { name, logo_url, bio, tagline, timezone, no_show_policy } =
+        const { name, logo_url, bio, tagline, timezone, no_show_policy, faq_text } =
           res.data;
         setForm({
           name: name || "",
