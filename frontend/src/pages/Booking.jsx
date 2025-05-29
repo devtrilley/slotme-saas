@@ -7,6 +7,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import FreelancerCard from "../components/FreelancerCard";
 import FreelancerModal from "../components/FreelancerModal";
 import NoShowPolicy from "../components/NoShowPolicy";
+import FAQCard from "../components/FAQCard";
 
 export default function BookingPage() {
   const { freelancerId } = useParams();
@@ -24,6 +25,7 @@ export default function BookingPage() {
     tagline: "",
     bio: "",
     is_verified: false,
+    faq_text: ""
   });
   const [freelancerTimeZone, setFreelancerTimeZone] = useState("EST");
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -75,6 +77,7 @@ export default function BookingPage() {
           tagline: res.data.tagline || "",
           bio: res.data.bio || "",
           is_verified: res.data.is_verified || false,
+          faq_text: res.data.faq_text || "",
         });
         setFreelancerTimeZone(res.data.timezone || "America/New_York");
         setNoShowPolicy(res.data.no_show_policy || "");
@@ -303,6 +306,8 @@ export default function BookingPage() {
       )}
 
       <NoShowPolicy policy={noShowPolicy} />
+
+      <FAQCard text={branding.faq_text} />
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <h3 className="text-lg font-semibold text-center border-b pb-1">

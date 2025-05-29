@@ -4,6 +4,7 @@ import axios from "axios";
 import { FaCheck } from "react-icons/fa";
 import ServiceCard from "../components/ServiceCard";
 import NoShowPolicy from "../components/NoShowPolicy";
+import FAQCard from "../components/FAQCard";
 
 const mapTimeZone = (tz) => {
   const zones = {
@@ -182,6 +183,8 @@ export default function FreelancerProfile() {
             </div>
           )}
           <NoShowPolicy policy={noShowPolicy} />
+
+          <FAQCard text={freelancer.faq_text} />
         </ul>
       </div>
 

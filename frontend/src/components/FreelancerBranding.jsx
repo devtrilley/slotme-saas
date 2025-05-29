@@ -9,6 +9,7 @@ export default function FreelancerBranding({ onUpdate }) {
     tagline: "",
     timezone: "", // ✅ New
     no_show_policy: "",
+    faq_text: "",
   });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -32,6 +33,7 @@ export default function FreelancerBranding({ onUpdate }) {
           tagline: tagline || "",
           timezone: timezone || "America/New_York", // ✅ default fallback
           no_show_policy: no_show_policy || "",
+          faq_text: faq_text || "",
         });
 
         localStorage.setItem("branding_updated", Date.now());
@@ -136,6 +138,17 @@ export default function FreelancerBranding({ onUpdate }) {
           value={form.no_show_policy}
           onChange={handleChange}
           placeholder="No-show policy (e.g. late fees, cancellation terms)"
+          className="textarea textarea-bordered w-full"
+        />
+
+        <label className="label text-sm text-white">
+          FAQ or Additional Info:
+        </label>
+        <textarea
+          name="faq_text"
+          value={form.faq_text}
+          onChange={handleChange}
+          placeholder="Any deposits, policies, common questions, etc."
           className="textarea textarea-bordered w-full"
         />
 

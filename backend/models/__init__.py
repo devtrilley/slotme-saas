@@ -17,6 +17,7 @@ class Freelancer(db.Model):
     timezone = db.Column(db.String(50), default="America/New_York")  # Default to EST
     is_verified = db.Column(db.Boolean, default=False)
     no_show_policy = db.Column(db.Text, nullable=True)
+    faq_text = db.Column(db.Text, nullable=True)
 
     # ✅ New contact fields
     contact_email = db.Column(db.String(120), unique=True, nullable=False)

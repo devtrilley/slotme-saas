@@ -234,7 +234,9 @@ def seed_with_freelancer():
         phone="555-123-4567",
         contact_email="booking@ambercafe.com",
         instagram_url="https://instagram.com/zuck",
-        twitter_url="https://twitter.com/elonmusk"
+        twitter_url="https://twitter.com/elonmusk",
+        no_show_policy="Please cancel at least 24 hours in advance.",
+        faq_text="• $10 deposit required.\n• Please arrive 10 minutes early.\n• No-shows forfeit deposit."
     )
     db.session.add(freelancer)
     db.session.commit()
@@ -290,7 +292,9 @@ def seed_second_freelancer():
         phone="555-987-6543",
         contact_email="contact@pingmassage.com",
         instagram_url="https://instagram.com/zuck",
-        twitter_url="https://twitter.com/elonmusk"
+        twitter_url="https://twitter.com/elonmusk",
+        no_show_policy="Reschedule at least 12 hours ahead to avoid penalty.",
+        faq_text="• Bridal trials available by request.\n• Travel fees apply for out-of-salon events."
     )
     db.session.add(freelancer)
     db.session.commit()
@@ -416,7 +420,8 @@ def get_single_freelancer(freelancer_id):
         "twitter_url": freelancer.twitter_url,      # ✅ add this
         "is_verified": freelancer.is_verified,
         "joined": freelancer.id,  # Replace with created_at if you add it later
-        "services": service_data
+        "services": service_data,
+        "faq_text": freelancer.faq_text,
 })
 
 @app.route("/dev/appointments/<int:freelancer_id>", methods=["GET", "OPTIONS"])
@@ -504,7 +509,8 @@ def get_freelancer_info():
         "bio": getattr(freelancer, "bio", ""),
         "timezone": getattr(freelancer, "timezone", "America/New_York"),
         "is_verified": freelancer.is_verified,  # ✅ Include this
-        "no_show_policy": getattr(freelancer, "no_show_policy", "")
+        "no_show_policy": getattr(freelancer, "no_show_policy", ""),
+        "faq_text": freelancer.faq_text,
     })
 
 @app.route("/freelancer/branding", methods=["PATCH"])
@@ -523,6 +529,7 @@ def update_freelancer_branding():
     freelancer.tagline = data.get("tagline", freelancer.tagline)
     freelancer.timezone = data.get("timezone", freelancer.timezone)
     freelancer.no_show_policy = data.get("no_show_policy", freelancer.no_show_policy)
+    freelancer.faq_text = data.get("faq_text", freelancer.faq_text)
 
     db.session.commit()
     return jsonify({"message": "Branding updated"})
@@ -663,7 +670,8 @@ def public_freelancer_profile(freelancer_id):
         "twitter_url": freelancer.twitter_url,
         "is_verified": freelancer.is_verified,
         "joined": freelancer.id,
-        "services": service_data
+        "services": service_data,
+        "faq_text": freelancer.faq_text,
     })
 
 @app.route("/freelancer/services", methods=["GET", "OPTIONS"])
