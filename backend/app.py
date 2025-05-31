@@ -19,9 +19,9 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app,
-     resources={r"/*": {"origins": "http://localhost:5173"}},
+     resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}},
      supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization", "X-Freelancer-ID"])
+     allow_headers=["Content-Type", "Authorization", "X-Freelancer-ID", "X-Dev-Auth"])
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite:///scheduler.db")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -33,47 +33,33 @@ with app.app_context():
 serializer = URLSafeTimedSerializer(os.getenv("SECRET_KEY", "super-secret"))
 
 
-# @app.before_request
-# def load_freelancer():
-#     if request.method == "OPTIONS":
-#         return  # Let CORS preflight through
-
-#     # Allow unauthenticated access to dev routes, login, seeding, and verify route
-#     if (
-#         request.path.startswith("/dev/")
-#         or request.path.startswith("/auth")
-#         or request.path.startswith("/seed")
-#         or request.path.startswith("/verify")
-#         or request.path.startswith("/master-times")
-#     ):
-#         return
-
-#     freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
-#     if not freelancer_id:
-#         return jsonify({"error": "Missing freelancer ID"}), 403
-#     g.freelancer_id = freelancer_id
 @app.before_request
 def load_freelancer():
+    print("🔥 Path:", request.path)
+    print("🔥 Headers:", dict(request.headers))
+
     if request.method == "OPTIONS":
         return
 
     open_prefixes = (
-        "/dev/",
+        "/dev",
         "/auth",
         "/seed",
         "/verify",
         "/master-times",
     )
 
-    # Allow all paths that match known open prefixes, OR start with /freelancers
     if any(request.path.startswith(prefix) for prefix in open_prefixes) or request.path.startswith("/freelancers"):
-            return
+        print("✅ Skipping auth for dev or open path.")
+        return
 
     freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
     if not freelancer_id:
+        print("❌ Missing freelancer ID")
         return jsonify({"error": "Missing freelancer ID"}), 403
 
     g.freelancer_id = freelancer_id
+    print("✅ Authenticated as freelancer:", g.freelancer_id)
 
 @app.route("/")
 def index():
@@ -138,7 +124,8 @@ def book_slot():
         slot_id=slot_id,
         freelancer_id=slot.freelancer_id,
         user_id=user.id,
-        service_id=service_id
+        service_id=service_id,
+        status='pending'  # 👈 or 'confirmed' if you’re skipping email flow
     )
     slot.is_booked = True
 
@@ -166,7 +153,7 @@ def get_appointments():
             "email": a.user.email if a.user else None,
             "slot_day": a.slot.day,
             "slot_time": a.slot.master_time.label,
-            "confirmed": a.confirmed,
+            "status": a.status,
             "freelancer_timezone": freelancer.timezone
         })
 
@@ -348,7 +335,7 @@ def freelancer_login():
 
 @app.route("/dev/freelancers", methods=["GET"])
 def get_all_freelancers():
-    auth = request.headers.get("X-Dev-Auth")
+    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
 
@@ -371,7 +358,7 @@ def get_freelancer_slots(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200  # ✅ Allow CORS preflight
 
-    auth = request.headers.get("X-Dev-Auth")
+    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
 
@@ -400,7 +387,7 @@ def get_single_freelancer(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200
 
-    auth = request.headers.get("X-Dev-Auth")
+    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
 
@@ -408,28 +395,41 @@ def get_single_freelancer(freelancer_id):
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
 
+    services = Service.query.filter_by(freelancer_id=freelancer.id).all()
+    service_data = [
+        {
+            "id": s.id,
+            "name": s.name,
+            "description": s.description,
+            "duration_minutes": s.duration_minutes,
+            "price_usd": s.price_usd or 0.0,
+            "is_enabled": s.is_enabled,
+        }
+        for s in services
+    ]
+
     return jsonify({
         "id": freelancer.id,
         "name": freelancer.name,
-        "email": freelancer.email,  # ✅ add this
-        "phone": freelancer.phone,  # ✅ add this
+        "email": freelancer.email,
+        "phone": freelancer.phone,
         "logo_url": freelancer.logo_url,
         "tagline": freelancer.tagline,
         "bio": freelancer.bio,
-        "instagram_url": freelancer.instagram_url,  # ✅ add this
-        "twitter_url": freelancer.twitter_url,      # ✅ add this
+        "instagram_url": freelancer.instagram_url,
+        "twitter_url": freelancer.twitter_url,
         "is_verified": freelancer.is_verified,
-        "joined": freelancer.id,  # Replace with created_at if you add it later
+        "joined": freelancer.id,  # Replace with created_at if desired
         "services": service_data,
         "faq_text": freelancer.faq_text,
-})
+    })
 
 @app.route("/dev/appointments/<int:freelancer_id>", methods=["GET", "OPTIONS"])
 def get_dev_appointments_for_freelancer(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200  # ✅ Allow CORS preflight
 
-    auth = request.headers.get("X-Dev-Auth")
+    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
 
@@ -441,15 +441,15 @@ def get_dev_appointments_for_freelancer(freelancer_id):
             "name": a.user.name if a.user else None,
             "email": a.user.email if a.user else None,
             "slot_day": a.slot.day,
-            "slot_time": a.slot.master_time.label,  # ✅ FIXED: use master_time.label
-            "confirmed": a.confirmed,
+            "slot_time": a.slot.master_time.label, # ✅ FIXED: use master_time.label
+            "status": a.status,
         })
 
     return jsonify(result)
 
 @app.route("/dev/freelancers", methods=["POST"])
 def create_freelancer():
-    auth = request.headers.get("X-Dev-Auth")
+    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
 
@@ -478,7 +478,7 @@ def delete_freelancer(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200  # Preflight OK
 
-    auth = request.headers.get("X-Dev-Auth")
+    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
 
@@ -604,7 +604,7 @@ def verify_booking(token):
     if not appt:
         return jsonify({"error": "Appointment not found"}), 404
 
-    appt.confirmed = True
+    appt.status = 'confirmed'
     db.session.commit()
     return redirect("http://localhost:5173/thank-you")  # Adjust if hosted
 
@@ -766,28 +766,139 @@ def update_service(service_id):
 @app.route("/freelancer/analytics", methods=["GET"])
 def get_analytics():
     freelancer_id = g.freelancer_id
-
-    total = Appointment.query.filter_by(freelancer_id=freelancer_id).count()
-    confirmed = Appointment.query.filter_by(freelancer_id=freelancer_id, confirmed=True).count()
-    cancelled = total - confirmed
-
     from sqlalchemy import func
 
-    top_service = (
-        db.session.query(Service.name, func.count(Appointment.id))
+    # Count totals by status
+    total = Appointment.query.filter(
+        Appointment.freelancer_id == freelancer_id,
+        Appointment.status != 'cancelled'
+    ).count()
+    confirmed = Appointment.query.filter_by(freelancer_id=freelancer_id, status='confirmed').count()
+    cancelled = Appointment.query.filter_by(freelancer_id=freelancer_id, status='cancelled').count()
+
+    # Top service
+    # Returns all tied top services
+    top_services = (
+        db.session.query(Service.name, func.count(Appointment.id).label("count"))
         .join(Appointment, Service.id == Appointment.service_id)
         .filter(Service.freelancer_id == freelancer_id)
         .group_by(Service.id)
         .order_by(func.count(Appointment.id).desc())
-        .first()
+        .all()
     )
+
+    # Take all tied top names
+    max_count = top_services[0][1] if top_services else 0
+    top_names = [name for name, count in top_services if count == max_count]
+
+    # Pie chart: bookings per service
+    service_counts = (
+        db.session.query(Service.name, func.count(Appointment.id))
+        .join(Appointment, Service.id == Appointment.service_id)
+        .filter(Service.freelancer_id == freelancer_id)
+        .group_by(Service.name)
+        .all()
+    )
+    service_chart_data = [{"id": name, "value": count} for name, count in service_counts]
+
+    # Line chart: booking trend by scheduled day (regardless of status)
+    trend_counts = (
+        db.session.query(TimeSlot.day, func.count(Appointment.id))
+        .join(TimeSlot, Appointment.slot_id == TimeSlot.id)
+        .filter(Appointment.freelancer_id == freelancer_id, Appointment.status != 'cancelled')
+        .group_by(TimeSlot.day)
+        .order_by(TimeSlot.day)
+        .all()
+    )
+    trend_data = [{"x": day, "y": count} for day, count in trend_counts]
+
+    # Bar chart: revenue per service (only confirmed)
+    revenue_per_service = (
+        db.session.query(Service.name, func.sum(Service.price_usd))
+        .join(Appointment, Service.id == Appointment.service_id)
+        .filter(Appointment.freelancer_id == freelancer_id, Appointment.status != "cancelled")
+        .group_by(Service.name)
+        .all()
+    )
+    revenue_chart_data = [{"service": name, "revenue": round(revenue or 0, 2)} for name, revenue in revenue_per_service]
 
     return jsonify({
         "total_bookings": total,
         "confirmed": confirmed,
-        "cancelled": total - confirmed,
-        "top_service": top_service[0] if top_service else None,
+        "cancelled": cancelled,
+        "top_service": ", ".join(top_names) if top_names else None,
+        "bookings_per_service": service_chart_data,
+        "booking_trend": trend_data,
+        "service_revenue": revenue_chart_data,
+        "signup_date": Freelancer.query.get(freelancer_id).created_at.strftime("%-m/%-d/%y")
     })
+
+@app.route("/dev/seed-demo-history", methods=["POST"])
+def seed_demo_history():
+    print("🔥 Hit /dev/seed-demo-history")
+    print("🔥 Headers:", dict(request.headers))
+
+    auth = request.headers.get("X-Dev-Auth")
+    if auth != "secret123":
+        return jsonify({"error": "Forbidden"}), 403
+
+    freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
+    freelancer = Freelancer.query.get(freelancer_id)
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 400
+
+    services = Service.query.filter_by(freelancer_id=freelancer.id).all()
+    if not services:
+        return jsonify({"error": "Seed services first"}), 400
+
+    from random import choice
+
+    labels = ["09:00 AM", "09:15 AM", "09:30 AM", "10:00 AM", "10:15 AM", "10:30 AM"]
+    
+    # Define 5 dates and how many bookings on each
+    bookings_by_day = {
+        (datetime.now().date() + timedelta(days=i)).isoformat(): count
+        for i, count in enumerate([1, 2, 3, 3, 3])  # total = 12
+    }
+
+    for day_str, count in bookings_by_day.items():
+        label_cycle = (label for label in labels * 2)
+
+        for i in range(count):
+            label = next(label_cycle)
+            master_time = MasterTimeSlot.query.filter_by(label=label).first()
+            if not master_time:
+                continue
+
+            slot = TimeSlot(
+                day=day_str,
+                freelancer_id=freelancer.id,
+                master_time_id=master_time.id,
+                is_booked=True
+            )
+            db.session.add(slot)
+            db.session.commit()
+
+            name = f"user_{day_str.replace('-', '')}_{i}"
+            email = f"{name}@mail.com"
+            user = User(name=name, email=email)
+            db.session.add(user)
+            db.session.commit()
+
+            appt = Appointment(
+                freelancer_id=freelancer.id,
+                user_id=user.id,
+                slot_id=slot.id,
+                status="confirmed",
+                service_id=choice(services).id,
+                timestamp=datetime.now()  # Doesn't affect trend data
+            )
+            db.session.add(appt)
+
+    db.session.commit()
+    print(f"🌱 Seeded {freelancer.name}'s demo slots and bookings.")
+
+    return jsonify({"message": "Seeded demo slots and bookings."}), 200
 # -----------------------
 if __name__ == "__main__":
     app.run(debug=True)

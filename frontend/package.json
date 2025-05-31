@@ -10,10 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@nivo/bar": "^0.99.0",
+    "@nivo/line": "^0.99.0",
+    "@nivo/pie": "^0.99.0",
     "@tailwindcss/vite": "^4.1.6",
     "axios": "^1.9.0",
     "daisyui": "^5.0.35",
     "date-fns": "^4.1.0",
+    "lucide-react": "^0.511.0",
     "luxon": "^3.6.1",
     "react": "^19.1.0",
     "react-datepicker": "^8.3.0",

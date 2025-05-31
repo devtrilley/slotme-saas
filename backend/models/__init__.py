@@ -18,6 +18,7 @@ class Freelancer(db.Model):
     is_verified = db.Column(db.Boolean, default=False)
     no_show_policy = db.Column(db.Text, nullable=True)
     faq_text = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # ✅ New contact fields
     contact_email = db.Column(db.String(120), unique=True, nullable=False)
@@ -74,7 +75,10 @@ class Appointment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     slot_id = db.Column(db.Integer, db.ForeignKey('time_slots.id'), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    confirmed = db.Column(db.Boolean, default=False)
+
+    # ⬇️ New status field replaces need for confirmed/cancelled booleans
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'confirmed', 'cancelled'
+
     confirmation_token = db.Column(db.String(64), unique=True, nullable=True)
     service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=True)
 
