@@ -20,6 +20,9 @@ class Freelancer(db.Model):
     faq_text = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # ✅ Tier field added here
+    tier = db.Column(db.String(20), default="free")  # "free", "pro", "elite"
+
     # ✅ New contact fields
     contact_email = db.Column(db.String(120), unique=True, nullable=False)
     phone = db.Column(db.String(50), nullable=True)

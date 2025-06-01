@@ -5,11 +5,17 @@ from flask import g
 from flask_cors import CORS, cross_origin
 from models import db, TimeSlot, Appointment, Freelancer, User, MasterTimeSlot, Service
 from dotenv import load_dotenv
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import re #Regular Expression
 from werkzeug.security import check_password_hash  # At top with imports
 from werkzeug.security import generate_password_hash
 from itsdangerous import URLSafeTimedSerializer
 from datetime import datetime, timedelta
+
+from email_utils import send_support_email
+from email_utils import send_reply_email
 
 
 import os
@@ -899,6 +905,72 @@ def seed_demo_history():
     print(f"🌱 Seeded {freelancer.name}'s demo slots and bookings.")
 
     return jsonify({"message": "Seeded demo slots and bookings."}), 200
+
+@app.route("/freelancer/support", methods=["POST"])
+def send_support_request():
+    freelancer_id = g.freelancer_id
+    data = request.get_json()
+    subject = data.get("subject", "No Subject")
+    message = data.get("message", "")
+
+    freelancer = Freelancer.query.get(freelancer_id)
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
+    if freelancer.tier != "elite":
+        return jsonify({"error": "Only elite tier can access support"}), 403
+
+    try:
+        smtp_server = os.getenv("BREVO_SMTP_SERVER")
+        smtp_port = int(os.getenv("BREVO_SMTP_PORT", 587))
+        smtp_login = os.getenv("BREVO_SMTP_LOGIN")
+        smtp_password = os.getenv("BREVO_SMTP_PASSWORD")
+        support_email = os.getenv("SUPPORT_EMAIL")
+
+        msg = MIMEMultipart()
+        msg["From"] = smtp_login
+        msg["To"] = support_email
+        msg["Subject"] = f"[SlotMe Support] {subject}"
+
+        body = f"""
+        Tier: {freelancer.tier}
+        Name: {freelancer.name}
+        Email: {freelancer.email}
+
+        Message:
+        {message}
+        """
+
+        msg.attach(MIMEText(body, "plain"))
+
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_login, smtp_password)
+            server.sendmail(smtp_login, support_email, msg.as_string())
+
+        return jsonify({"message": "Support request sent!"}), 200
+
+    except Exception as e:
+        print("❌ Support email failed:", str(e))
+        return jsonify({"error": "Failed to send support email"}), 500
+    
+@app.route("/freelancer/reply", methods=["POST"])
+def reply_to_customer():
+    freelancer_id = g.freelancer_id
+    data = request.get_json()
+    customer_email = data.get("to")
+    subject = data.get("subject", "Reply from SlotMe Support")
+    message = data.get("message", "")
+
+    freelancer = Freelancer.query.get(freelancer_id)
+    if not freelancer or freelancer.tier != "elite":
+        return jsonify({"error": "Unauthorized"}), 403
+
+    try:
+        send_reply_email(subject, message, customer_email)
+        return jsonify({"message": "Reply sent successfully!"}), 200
+    except Exception as e:
+        print("❌ Reply failed:", str(e))
+        return jsonify({"error": "Failed to send reply"}), 500
 # -----------------------
 if __name__ == "__main__":
     app.run(debug=True)

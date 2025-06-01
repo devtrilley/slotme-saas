@@ -19,6 +19,7 @@ import Privacy from "./pages/Privacy";
 import Upgrade from "./pages/Upgrade";
 import FreelancerProfile from "./pages/FreelancerProfile";
 import FreelancerAnalytics from "./pages/FreelancerAnalytics";
+import PrioritySupport from "./pages/PrioritySupport";
 
 // Component Imports
 import Navbar from "./components/Navbar";
@@ -103,6 +104,8 @@ export default function App() {
               </RequireFreelancerAuth>
             }
           />
+
+          <Route path="/priority-support" element={<PrioritySupport />} />
         </Routes>
       </div>
     </div>
