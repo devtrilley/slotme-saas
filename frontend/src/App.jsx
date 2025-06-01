@@ -25,6 +25,7 @@ import PrioritySupport from "./pages/PrioritySupport";
 import Navbar from "./components/Navbar";
 import RequireDevAuth from "./components/RequireDevAuth";
 import RequireFreelancerAuth from "./components/RequireFreelancerAuth";
+import CustomUrlRouter from "./components/CustomUrlRouter";
 
 export default function App() {
   return (
@@ -94,7 +95,6 @@ export default function App() {
             path="/freelancers/:freelancerId"
             element={<FreelancerProfile />}
           />
-          <Route path="*" element={<NotFound />} />
 
           <Route
             path="/freelancer-analytics"
@@ -106,6 +106,10 @@ export default function App() {
           />
 
           <Route path="/priority-support" element={<PrioritySupport />} />
+
+          <Route path="/404" element={<NotFound />} />
+          <Route path="/:custom_url" element={<CustomUrlRouter />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
     </div>

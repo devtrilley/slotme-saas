@@ -23,6 +23,8 @@ class Freelancer(db.Model):
     # ✅ Tier field added here
     tier = db.Column(db.String(20), default="free")  # "free", "pro", "elite"
 
+    custom_url = db.Column(db.String(50), unique=True, nullable=True)
+
     # ✅ New contact fields
     contact_email = db.Column(db.String(120), unique=True, nullable=False)
     phone = db.Column(db.String(50), nullable=True)

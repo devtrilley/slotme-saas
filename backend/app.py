@@ -38,6 +38,15 @@ with app.app_context():
 
 serializer = URLSafeTimedSerializer(os.getenv("SECRET_KEY", "super-secret"))
 
+def is_valid_public_slug(path):
+    """
+    Only match slugs like '/ambercafe' if they exist in DB.
+    """
+    if not re.fullmatch(r"/[a-z0-9_-]{3,30}", path):
+        return False
+
+    slug = path.lstrip("/")
+    return Freelancer.query.filter_by(custom_url=slug).first() is not None
 
 @app.before_request
 def load_freelancer():
@@ -47,18 +56,20 @@ def load_freelancer():
     if request.method == "OPTIONS":
         return
 
-    open_prefixes = (
-        "/dev",
-        "/auth",
-        "/seed",
-        "/verify",
-        "/master-times",
-    )
+    open_prefixes = ("/dev", "/auth", "/seed", "/verify", "/master-times", "/404")
 
-    if any(request.path.startswith(prefix) for prefix in open_prefixes) or request.path.startswith("/freelancers"):
-        print("✅ Skipping auth for dev or open path.")
+    # ✅ Check if the route exists in Flask OR it's a known public custom_url
+    if (
+        any(request.path.startswith(prefix) for prefix in open_prefixes)
+        or request.path.startswith("/freelancers")
+        or request.endpoint == "public_profile_by_url"
+        or is_valid_public_slug(request.path)
+        or request.path == "/404"
+    ):
+        print("✅ Skipping auth for open or public path.")
         return
 
+    # ❌ Block unauthorized access to protected routes
     freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
     if not freelancer_id:
         print("❌ Missing freelancer ID")
@@ -72,6 +83,7 @@ def index():
     return jsonify({"message": "Server is running!"})
 
 @app.route("/slots", methods=["GET"])
+@cross_origin(origins=["http://localhost:5173", "http://127.0.0.1:5173"], allow_headers=["X-Freelancer-ID"])
 def get_time_slots():
     freelancer_id = g.freelancer_id
     slots = TimeSlot.query.filter_by(freelancer_id=freelancer_id).all()
@@ -205,9 +217,6 @@ def update_appointment(id):
     db.session.commit()
     return jsonify({"message": "Appointment updated successfully!"})
 
-# Testing route with full info. Use over old /seeds route
-from datetime import datetime, timedelta
-
 @app.route("/seed-full", methods=["POST", "OPTIONS"])
 def seed_with_freelancer():
     if request.method == "OPTIONS":
@@ -287,7 +296,8 @@ def seed_second_freelancer():
         instagram_url="https://instagram.com/zuck",
         twitter_url="https://twitter.com/elonmusk",
         no_show_policy="Reschedule at least 12 hours ahead to avoid penalty.",
-        faq_text="• Bridal trials available by request.\n• Travel fees apply for out-of-salon events."
+        faq_text="• Bridal trials available by request.\n• Travel fees apply for out-of-salon events.",
+        tier="elite",  # ✅ Make sure support works
     )
     db.session.add(freelancer)
     db.session.commit()
@@ -518,27 +528,6 @@ def get_freelancer_info():
         "no_show_policy": getattr(freelancer, "no_show_policy", ""),
         "faq_text": freelancer.faq_text,
     })
-
-@app.route("/freelancer/branding", methods=["PATCH"])
-def update_freelancer_branding():
-    freelancer_id = g.freelancer_id
-    data = request.get_json()
-    freelancer = Freelancer.query.get(freelancer_id)
-
-    if not freelancer:
-        return jsonify({"error": "Freelancer not found"}), 404
-
-    # ✅ Now includes name
-    freelancer.name = data.get("name", freelancer.name)
-    freelancer.logo_url = data.get("logo_url", freelancer.logo_url)
-    freelancer.bio = data.get("bio", freelancer.bio)
-    freelancer.tagline = data.get("tagline", freelancer.tagline)
-    freelancer.timezone = data.get("timezone", freelancer.timezone)
-    freelancer.no_show_policy = data.get("no_show_policy", freelancer.no_show_policy)
-    freelancer.faq_text = data.get("faq_text", freelancer.faq_text)
-
-    db.session.commit()
-    return jsonify({"message": "Branding updated"})
 
 @app.route("/slots", methods=["POST"])
 def create_time_slot():
@@ -971,6 +960,93 @@ def reply_to_customer():
     except Exception as e:
         print("❌ Reply failed:", str(e))
         return jsonify({"error": "Failed to send reply"}), 500
+    
+@app.route("/<string:custom_url>", methods=["GET"])
+def public_profile_by_url(custom_url):
+    # 👇 Prevent conflict with real routes like /404
+    reserved_routes = {"404", "slots", "book", "auth", "seed", "verify", "master-times", "freelancer", "freelancers", "dev"}
+
+    if custom_url in reserved_routes:
+        return handle_404(None)
+
+    freelancer = Freelancer.query.filter_by(custom_url=custom_url).first()
+    if not freelancer:
+        return handle_404(None)
+
+    services = Service.query.filter_by(freelancer_id=freelancer.id, is_enabled=True).all()
+    service_data = [
+        {
+            "id": s.id,
+            "name": s.name,
+            "description": s.description,
+            "duration_minutes": s.duration_minutes,
+            "price_usd": s.price_usd or 0.0,
+            "is_enabled": s.is_enabled,
+        }
+        for s in services
+    ]
+
+    return jsonify({
+        "id": freelancer.id,
+        "name": freelancer.name,
+        "email": freelancer.contact_email,
+        "phone": freelancer.phone,
+        "logo_url": freelancer.logo_url,
+        "tagline": freelancer.tagline,
+        "bio": freelancer.bio,
+        "instagram_url": freelancer.instagram_url,
+        "twitter_url": freelancer.twitter_url,
+        "is_verified": freelancer.is_verified,
+        "joined": freelancer.created_at.strftime("%-m/%-d/%y"),
+        "services": service_data,
+        "faq_text": freelancer.faq_text,
+    })
+
+@app.route("/freelancer/branding", methods=["PATCH"])
+def update_freelancer_branding():
+    freelancer_id = g.freelancer_id
+    data = request.get_json()
+    freelancer = Freelancer.query.get(freelancer_id)
+
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
+
+    freelancer.name = data.get("name", freelancer.name)
+    freelancer.logo_url = data.get("logo_url", freelancer.logo_url)
+    freelancer.bio = data.get("bio", freelancer.bio)
+    freelancer.tagline = data.get("tagline", freelancer.tagline)
+    freelancer.timezone = data.get("timezone", freelancer.timezone)
+    freelancer.no_show_policy = data.get("no_show_policy", freelancer.no_show_policy)
+    freelancer.faq_text = data.get("faq_text", freelancer.faq_text)
+
+    # ✅ Handle custom URL update
+    if "custom_url" in data:
+        new_url = data["custom_url"].strip().lower()
+
+        if not re.match(r"^[a-z0-9_-]{3,30}$", new_url):
+            return jsonify({"error": "Custom URL must be 3-30 characters, letters/numbers/dashes only."}), 400
+
+        if Freelancer.query.filter(Freelancer.custom_url == new_url, Freelancer.id != freelancer.id).first():
+            return jsonify({"error": "Custom URL is already taken."}), 400
+
+        freelancer.custom_url = new_url
+
+    db.session.commit()
+    return jsonify({"message": "Branding updated"})
+
+@app.errorhandler(404)
+def handle_404(e):
+    origin = request.headers.get("Origin", "*")
+    response = jsonify({"error": "Not found"})
+    response.status_code = 404
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Freelancer-ID, X-Dev-Auth"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
+    return response
+
+@app.route("/404")
+def hardcoded_404():
+    return jsonify({"error": "Not found"}), 404
 # -----------------------
 if __name__ == "__main__":
     app.run(debug=True)

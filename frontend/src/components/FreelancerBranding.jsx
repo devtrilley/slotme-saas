@@ -10,6 +10,7 @@ export default function FreelancerBranding({ onUpdate }) {
     timezone: "", // ✅ New
     no_show_policy: "",
     faq_text: "",
+    custom_url: "", // ✅ Add this line
   });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -24,8 +25,15 @@ export default function FreelancerBranding({ onUpdate }) {
         headers: { "X-Freelancer-ID": freelancerId },
       })
       .then((res) => {
-        const { name, logo_url, bio, tagline, timezone, no_show_policy, faq_text } =
-          res.data;
+        const {
+          name,
+          logo_url,
+          bio,
+          tagline,
+          timezone,
+          no_show_policy,
+          faq_text,
+        } = res.data;
         setForm({
           name: name || "",
           logo_url: logo_url || "",
@@ -34,6 +42,7 @@ export default function FreelancerBranding({ onUpdate }) {
           timezone: timezone || "America/New_York", // ✅ default fallback
           no_show_policy: no_show_policy || "",
           faq_text: faq_text || "",
+          custom_url: "", // ✅ Add this line
         });
 
         localStorage.setItem("branding_updated", Date.now());
@@ -88,6 +97,20 @@ export default function FreelancerBranding({ onUpdate }) {
           placeholder="Business Name"
           className="input input-bordered w-full"
         />
+
+        <label className="label text-sm text-white">Custom Booking URL:</label>
+        <input
+          type="text"
+          name="custom_url"
+          value={form.custom_url}
+          onChange={handleChange}
+          placeholder="e.g. ambercutz"
+          className="input input-bordered w-full"
+        />
+        <p className="text-xs text-white mt-1">
+          Your booking page will be available at:{" "}
+          <strong>slotme.com/&lt;custom_url&gt;</strong>
+        </p>
 
         <label className="label text-sm text-white">Logo URL: (optional)</label>
         <input
