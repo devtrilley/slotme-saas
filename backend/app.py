@@ -238,7 +238,8 @@ def seed_with_freelancer():
         instagram_url="https://instagram.com/zuck",
         twitter_url="https://twitter.com/elonmusk",
         no_show_policy="Please cancel at least 24 hours in advance.",
-        faq_text="• $10 deposit required.\n• Please arrive 10 minutes early.\n• No-shows forfeit deposit."
+        faq_text="• $10 deposit required.\n• Please arrive 10 minutes early.\n• No-shows forfeit deposit.",
+        early_access=False  # for Elite-tier only, so no
     )
     db.session.add(freelancer)
     db.session.commit()
@@ -297,7 +298,8 @@ def seed_second_freelancer():
         twitter_url="https://twitter.com/elonmusk",
         no_show_policy="Reschedule at least 12 hours ahead to avoid penalty.",
         faq_text="• Bridal trials available by request.\n• Travel fees apply for out-of-salon events.",
-        tier="elite",  # ✅ Make sure support works
+        tier="elite",  # ✅ Make sure support works.
+        early_access=True  # for Elite-tier only
     )
     db.session.add(freelancer)
     db.session.commit()
@@ -527,6 +529,7 @@ def get_freelancer_info():
         "is_verified": freelancer.is_verified,  # ✅ Include this
         "no_show_policy": getattr(freelancer, "no_show_policy", ""),
         "faq_text": freelancer.faq_text,
+        "early_access": freelancer.early_access,
     })
 
 @app.route("/slots", methods=["POST"])
@@ -1026,8 +1029,10 @@ def update_freelancer_branding():
         if not re.match(r"^[a-z0-9_-]{3,30}$", new_url):
             return jsonify({"error": "Custom URL must be 3-30 characters, letters/numbers/dashes only."}), 400
 
-        if Freelancer.query.filter(Freelancer.custom_url == new_url, Freelancer.id != freelancer.id).first():
-            return jsonify({"error": "Custom URL is already taken."}), 400
+        if new_url != freelancer.custom_url:
+            if Freelancer.query.filter(Freelancer.custom_url == new_url).first():
+                return jsonify({"error": "Custom URL is already taken."}), 400
+        freelancer.custom_url = new_url
 
         freelancer.custom_url = new_url
 

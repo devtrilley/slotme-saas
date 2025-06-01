@@ -19,6 +19,7 @@ class Freelancer(db.Model):
     no_show_policy = db.Column(db.Text, nullable=True)
     faq_text = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    early_access = db.Column(db.Boolean, default=False)
 
     # ✅ Tier field added here
     tier = db.Column(db.String(20), default="free")  # "free", "pro", "elite"
