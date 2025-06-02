@@ -8,7 +8,8 @@ export default function FreelancerBookingList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
   const [selectedDate, setSelectedDate] = useState(new Date());
-
+  const [exportRange, setExportRange] = useState("selected_date");
+  
   const fetchAppointments = () => {
     axios
       .get("http://127.0.0.1:5000/appointments", {
@@ -81,8 +82,40 @@ export default function FreelancerBookingList() {
   });
 
   const exportCSV = () => {
-    const header = "Name,Email,Time Slot\n";
-    const rows = filtered.map((a) => `${a.name},${a.email},${a.slot_time}`);
+    let exportData = [...appointments];
+
+    const today = new Date();
+    const isoToday = today.toISOString().split("T")[0];
+
+    if (exportRange === "this_month") {
+      const thisMonth = today.getMonth();
+      const thisYear = today.getFullYear();
+      exportData = exportData.filter((a) => {
+        const d = new Date(a.slot_day);
+        return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+      });
+    } else if (exportRange === "last_month") {
+      const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const month = lastMonth.getMonth();
+      const year = lastMonth.getFullYear();
+      exportData = exportData.filter((a) => {
+        const d = new Date(a.slot_day);
+        d.setUTCHours(12); // Prevent time zone fallback to previous day
+        return d.getMonth() === month && d.getFullYear() === year;
+      });
+    } else if (exportRange === "upcoming") {
+      exportData = exportData.filter((a) => a.slot_day >= isoToday);
+    } else if (exportRange === "selected_date") {
+      exportData = exportData.filter(
+        (a) => a.slot_day === selectedDate.toISOString().split("T")[0]
+      );
+    }
+
+    const header = "Name,Email,Date,Time Slot\n";
+    const rows = exportData.map(
+      (a) => `${a.name},${a.email},${a.slot_day},${a.slot_time}`
+    );
+
     const csvContent = header + rows.join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv" });
@@ -154,7 +187,19 @@ export default function FreelancerBookingList() {
           </button>
         )}
 
-        <button onClick={exportCSV} className="btn btn-outline w-full">
+        <select
+          className="select select-bordered w-full"
+          value={exportRange}
+          onChange={(e) => setExportRange(e.target.value)}
+        >
+          <option value="selected_date">📌 Exact Day (selected)</option>
+          <option value="this_month">📆 This Month</option>
+          <option value="last_month">🕰️ Last Month</option>
+          <option value="upcoming">📈 Upcoming</option>
+          <option value="all">🌍 All Bookings</option>
+        </select>
+
+        <button onClick={exportCSV} className="btn btn-outline w-full mt-2">
           📄 Export to CSV
         </button>
       </div>

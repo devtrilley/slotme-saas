@@ -17,7 +17,6 @@ from datetime import datetime, timedelta
 from email_utils import send_support_email
 from email_utils import send_reply_email
 
-
 import os
 import secrets
 
@@ -48,6 +47,8 @@ def is_valid_public_slug(path):
     slug = path.lstrip("/")
     return Freelancer.query.filter_by(custom_url=slug).first() is not None
 
+from flask import make_response
+
 @app.before_request
 def load_freelancer():
     print("🔥 Path:", request.path)
@@ -58,7 +59,6 @@ def load_freelancer():
 
     open_prefixes = ("/dev", "/auth", "/seed", "/verify", "/master-times", "/404")
 
-    # ✅ Check if the route exists in Flask OR it's a known public custom_url
     if (
         any(request.path.startswith(prefix) for prefix in open_prefixes)
         or request.path.startswith("/freelancers")
@@ -69,11 +69,15 @@ def load_freelancer():
         print("✅ Skipping auth for open or public path.")
         return
 
-    # ❌ Block unauthorized access to protected routes
     freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
     if not freelancer_id:
         print("❌ Missing freelancer ID")
-        return jsonify({"error": "Missing freelancer ID"}), 403
+        origin = request.headers.get("Origin", "*")
+        response = jsonify({"error": "Missing freelancer ID"})
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Freelancer-ID, X-Dev-Auth"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        return response, 403
 
     g.freelancer_id = freelancer_id
     print("✅ Authenticated as freelancer:", g.freelancer_id)
@@ -1052,6 +1056,7 @@ def handle_404(e):
 @app.route("/404")
 def hardcoded_404():
     return jsonify({"error": "Not found"}), 404
+
 # -----------------------
 if __name__ == "__main__":
     app.run(debug=True)
