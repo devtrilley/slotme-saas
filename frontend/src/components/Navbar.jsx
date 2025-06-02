@@ -31,7 +31,12 @@ export default function Navbar() {
               <Link to="/freelancer-bookings">CRM</Link>
             </li>
             <li>
-              <button onClick={() => handleLogout("freelancer")}>Logout as Freelancer</button>
+              <Link to="/qr-code">📱 Show QR Code</Link>
+            </li>
+            <li>
+              <button onClick={() => handleLogout("freelancer")}>
+                Logout as Freelancer
+              </button>
             </li>
           </>
         )}

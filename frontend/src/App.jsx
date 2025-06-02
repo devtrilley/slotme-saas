@@ -20,6 +20,7 @@ import Upgrade from "./pages/Upgrade";
 import FreelancerProfile from "./pages/FreelancerProfile";
 import FreelancerAnalytics from "./pages/FreelancerAnalytics";
 import PrioritySupport from "./pages/PrioritySupport";
+import QRCodePage from "./pages/QRCodePage";
 
 // Component Imports
 import Navbar from "./components/Navbar";
@@ -42,7 +43,6 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/dev-login" element={<DevLogin />} />
-
           <Route
             path="/freelancer-admin"
             element={
@@ -59,7 +59,6 @@ export default function App() {
               </RequireFreelancerAuth>
             }
           />
-
           <Route
             path="/dev-admin"
             element={
@@ -76,7 +75,6 @@ export default function App() {
             path="/dev/appointments/:freelancerId"
             element={<DevFreelancerBookings />}
           />
-
           <Route
             path="/dev/new-freelancer"
             element={
@@ -85,7 +83,6 @@ export default function App() {
               </RequireDevAuth>
             }
           />
-
           <Route path="/book/:freelancerId" element={<BookingPage />} />
           <Route path="/thank-you" element={<ThankYou />} />
           <Route path="/terms" element={<Terms />} />
@@ -95,7 +92,6 @@ export default function App() {
             path="/freelancers/:freelancerId"
             element={<FreelancerProfile />}
           />
-
           <Route
             path="/freelancer-analytics"
             element={
@@ -104,12 +100,11 @@ export default function App() {
               </RequireFreelancerAuth>
             }
           />
-
           <Route path="/priority-support" element={<PrioritySupport />} />
-
           <Route path="/404" element={<NotFound />} />
           <Route path="/:custom_url" element={<CustomUrlRouter />} />
           <Route path="*" element={<NotFound />} />
+          <Route path="/qr-code" element={<QRCodePage />} />
         </Routes>
       </div>
     </div>
