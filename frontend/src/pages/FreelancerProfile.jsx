@@ -5,6 +5,7 @@ import { FaCheck } from "react-icons/fa";
 import ServiceCard from "../components/ServiceCard";
 import NoShowPolicy from "../components/NoShowPolicy";
 import FAQCard from "../components/FAQCard";
+import { DateTime } from "luxon";
 
 const mapTimeZone = (tz) => {
   const zones = {
@@ -26,10 +27,11 @@ export default function FreelancerProfile() {
 
   useEffect(() => {
     axios
-      .get(`http://127.0.0.1:5000/freelancers/${freelancerId}`)
+      .get(`http://127.0.0.1:5000/freelancer/public-info/${freelancerId}`)
       .then((res) => {
-        setFreelancer(res.data);
-        setNoShowPolicy(res.data.no_show_policy || "");
+        const data = res.data;
+        setFreelancer(data);
+        setNoShowPolicy(data.no_show_policy || "");
       });
   }, [freelancerId]);
 
@@ -76,14 +78,12 @@ export default function FreelancerProfile() {
           </div>
         )}
       </div>
-
       {/* Tagline */}
       {freelancer.tagline && (
         <p className="text-sm italic text-gray-300 -mt-3">
           “{freelancer.tagline}”
         </p>
       )}
-
       {/* Name and bullets */}
       <div>
         <h1 className="text-2xl font-bold">{freelancer.name}</h1>
@@ -182,15 +182,20 @@ export default function FreelancerProfile() {
               </p>
             </div>
           )}
-          <NoShowPolicy policy={noShowPolicy} />
-
-          <FAQCard text={freelancer.faq_text} />
+          <li>
+            <NoShowPolicy policy={noShowPolicy} />
+          </li>
+          <li>
+            <FAQCard text={freelancer.faq_text} />
+          </li>
         </ul>
       </div>
-
-      {/* Join date (hardcoded for now) */}
-      <p className="text-xs text-gray-400">Joined May 25, 2025</p>
-
+      {freelancer.created_at && (
+        <p className="text-xs text-gray-400">
+          Joined{" "}
+          {DateTime.fromISO(freelancer.created_at).toFormat("MMMM d, yyyy")}
+        </p>
+      )}
       <Link to={`/book/${freelancer.id}`} className="btn btn-primary mt-4">
         Click Here to Book Me!
       </Link>

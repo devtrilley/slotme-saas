@@ -20,7 +20,7 @@ export default function PrioritySupportPage() {
       }, {
         headers: {
           "Content-Type": "application/json",
-          "X-Freelancer-ID": freelancerId,
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         }
       });
 

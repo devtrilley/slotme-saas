@@ -24,7 +24,7 @@ export default function AddSlotForm({ onAdd }) {
     axios
       .get("http://127.0.0.1:5000/master-times", {
         headers: {
-          "X-Freelancer-ID": localStorage.getItem("freelancer_id"),
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
       })
       .then((res) => {
@@ -83,7 +83,7 @@ export default function AddSlotForm({ onAdd }) {
         },
         {
           headers: {
-            "X-Freelancer-ID": localStorage.getItem("freelancer_id"),
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`, // ✅ use JWT
           },
         }
       )

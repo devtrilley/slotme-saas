@@ -22,7 +22,9 @@ export default function FreelancerBranding({ onUpdate }) {
 
     axios
       .get("http://127.0.0.1:5000/freelancer-info", {
-        headers: { "X-Freelancer-ID": freelancerId },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
       })
       .then((res) => {
         const {
@@ -68,7 +70,9 @@ export default function FreelancerBranding({ onUpdate }) {
 
     axios
       .patch("http://127.0.0.1:5000/freelancer/branding", form, {
-        headers: { "X-Freelancer-ID": freelancerId },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
       })
       .then(() => {
         setMessage("Branding updated!");

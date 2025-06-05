@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import re #Regular Expression
+import re  # Regular Expression
 from werkzeug.security import check_password_hash  # At top with imports
 from werkzeug.security import generate_password_hash
 from itsdangerous import URLSafeTimedSerializer
@@ -17,25 +17,69 @@ from datetime import datetime, timedelta
 from email_utils import send_support_email
 from email_utils import send_reply_email
 
+from flask_jwt_extended import JWTManager
+from flask_jwt_extended import create_access_token
+from datetime import timedelta
+from datetime import datetime
+
+
+import pytz
 import os
 import secrets
+
+name_pool = [
+    ("Naomi", "Davis"),
+    ("Ava", "Patel"),
+    ("Jasmine", "Nguyen"),
+    ("Lily", "Chen"),
+    ("Amber", "Lee"),
+    ("Maya", "Ali"),
+    ("Zara", "Hassan"),
+    ("Sasha", "Brown"),
+    ("Tina", "Park"),
+    ("Emily", "Wright"),
+    ("Grace", "Lopez"),
+    ("Olivia", "Smith"),
+    ("Liam", "Johnson"),
+    ("Noah", "Williams"),
+    ("Elijah", "Rodriguez"),
+    ("Aiden", "Chen"),
+    ("Mateo", "Ramirez"),
+    ("Ethan", "Hernandez"),
+    ("Logan", "Nguyen"),
+    ("Lucas", "Carter"),
+    ("Jayden", "Kim"),
+    ("Sebastian", "Singh"),
+    ("Julian", "Wang"),
+    ("Isaac", "Diaz"),
+]
 
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app,
-     resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}},
-     supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization", "X-Freelancer-ID", "X-Dev-Auth"])
+CORS(
+    app,
+    resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization", "X-Dev-Auth"],
+)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite:///scheduler.db")
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1000)
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
+    "DATABASE_URL", "sqlite:///scheduler.db"
+)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
+app.config["JWT_SECRET_KEY"] = (
+    "3c247edff59099c6d3d5a6dc15aa7ba66a335d077b48d007862a08284a03444b"
+)
+jwt = JWTManager(app)
 
 with app.app_context():
     db.create_all()
 
 serializer = URLSafeTimedSerializer(os.getenv("SECRET_KEY", "super-secret"))
+
 
 def is_valid_public_slug(path):
     """
@@ -47,7 +91,18 @@ def is_valid_public_slug(path):
     slug = path.lstrip("/")
     return Freelancer.query.filter_by(custom_url=slug).first() is not None
 
+
+def eastern_today():
+    est = pytz.timezone("US/Eastern")
+    return datetime.now(est).date()
+
+
 from flask import make_response
+
+from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+from flask_jwt_extended.exceptions import NoAuthorizationError
+from flask_jwt_extended import jwt_required
+
 
 @app.before_request
 def load_freelancer():
@@ -57,11 +112,15 @@ def load_freelancer():
     if request.method == "OPTIONS":
         return
 
-    open_prefixes = ("/dev", "/auth", "/seed", "/verify", "/master-times", "/404")
+    open_prefixes = ("/auth", "/seed", "/verify", "/dev", "/404", "/master-times")
+    open_paths = ["/freelancer/public-info", "/freelancer/slots", "/book"]
 
     if (
         any(request.path.startswith(prefix) for prefix in open_prefixes)
-        or request.path.startswith("/freelancers")
+        or any(
+            request.path.startswith(path + "/") or request.path == path
+            for path in open_paths
+        )
         or request.endpoint == "public_profile_by_url"
         or is_valid_public_slug(request.path)
         or request.path == "/404"
@@ -69,47 +128,43 @@ def load_freelancer():
         print("✅ Skipping auth for open or public path.")
         return
 
-    freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
-    if not freelancer_id:
-        print("❌ Missing freelancer ID")
-        origin = request.headers.get("Origin", "*")
-        response = jsonify({"error": "Missing freelancer ID"})
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Freelancer-ID, X-Dev-Auth"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-        return response, 403
+    try:
+        verify_jwt_in_request()
+        g.freelancer_id = get_jwt_identity()
+        print("✅ Authenticated as freelancer:", g.freelancer_id)
+    except NoAuthorizationError:
+        print("❌ Missing or invalid JWT token")
+        return jsonify({"error": "Missing or invalid token"}), 401
 
-    g.freelancer_id = freelancer_id
-    print("✅ Authenticated as freelancer:", g.freelancer_id)
 
 @app.route("/")
 def index():
     return jsonify({"message": "Server is running!"})
 
-@app.route("/slots", methods=["GET"])
-@cross_origin(origins=["http://localhost:5173", "http://127.0.0.1:5173"], allow_headers=["X-Freelancer-ID"])
-def get_time_slots():
-    freelancer_id = g.freelancer_id
+
+@app.route("/freelancer/slots/<int:freelancer_id>", methods=["GET"])
+def get_public_time_slots(freelancer_id):
     slots = TimeSlot.query.filter_by(freelancer_id=freelancer_id).all()
     result = []
 
     for slot in slots:
         slot_data = {
             "id": slot.id,
-            "time": slot.master_time.label,  # ✅ Use label from master_time
-            "day": slot.day,  # Add this line
+            "time": slot.master_time.label,
+            "day": slot.day,
             "is_booked": slot.is_booked,
         }
 
         if slot.is_booked and slot.appointment and slot.appointment.user:
             slot_data["appointment"] = {
                 "name": slot.appointment.user.name,
-                "email": slot.appointment.user.email
+                "email": slot.appointment.user.email,
             }
 
         result.append(slot_data)
 
     return jsonify(result)
+
 
 @app.route("/book", methods=["POST"])
 def book_slot():
@@ -135,7 +190,9 @@ def book_slot():
         db.session.commit()
 
     # Check for duplicate appointment by user + slot
-    existing_appt = Appointment.query.filter_by(user_id=user.id, slot_id=slot_id).first()
+    existing_appt = Appointment.query.filter_by(
+        user_id=user.id, slot_id=slot_id
+    ).first()
     if existing_appt:
         return jsonify({"error": "You already booked this slot."}), 400
 
@@ -147,7 +204,7 @@ def book_slot():
         freelancer_id=slot.freelancer_id,
         user_id=user.id,
         service_id=service_id,
-        status='pending'  # 👈 or 'confirmed' if you’re skipping email flow
+        status="pending",  # 👈 or 'confirmed' if you’re skipping email flow
     )
     slot.is_booked = True
 
@@ -161,184 +218,90 @@ def book_slot():
 
     return jsonify({"message": "Verification email sent."}), 200
 
-@app.route("/appointments", methods=["GET"])
+
+@app.route("/appointments", methods=["GET", "OPTIONS"])
+@cross_origin(
+    origins="http://localhost:5173",
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+)
+@jwt_required()
 def get_appointments():
-    freelancer_id = g.freelancer_id
+    freelancer_id = int(g.freelancer_id)
     freelancer = Freelancer.query.get(freelancer_id)
     appointments = Appointment.query.filter_by(freelancer_id=freelancer_id).all()
     result = []
 
     for a in appointments:
-        result.append({
-            "id": a.id,
-            "name": a.user.name if a.user else None,
-            "email": a.user.email if a.user else None,
-            "slot_day": a.slot.day,
-            "slot_time": a.slot.master_time.label,
-            "status": a.status,
-            "freelancer_timezone": freelancer.timezone
-        })
+        result.append(
+            {
+                "id": a.id,
+                "name": a.user.name if a.user else None,
+                "email": a.user.email if a.user else None,
+                "slot_day": a.slot.day,
+                "slot_time": a.slot.master_time.label,
+                "status": a.status,
+                "freelancer_timezone": freelancer.timezone,
+            }
+        )
 
     return jsonify(result)
 
-@app.route("/appointments/<int:id>", methods=["DELETE"])
-def delete_appointment(id):
-    freelancer_id = g.freelancer_id
-    appointment = Appointment.query.get(id)
-    if not appointment or appointment.freelancer_id != freelancer_id:
-        return jsonify({"error": "Appointment not found or unauthorized"}), 404
 
-    appointment.slot.is_booked = False
-    db.session.delete(appointment)
-    db.session.commit()
-    return jsonify({"message": "Appointment cancelled"})
-
-@app.route("/appointments/<int:id>", methods=["PATCH"])
+@app.route("/appointments/<int:id>", methods=["PATCH", "OPTIONS"])
+@cross_origin(origins="http://localhost:5173", supports_credentials=True)
+@jwt_required()
 def update_appointment(id):
-    freelancer_id = g.freelancer_id
+    freelancer_id = int(g.freelancer_id)
     data = request.get_json()
-    new_slot_id = data.get("slot_id")
-
-    if not new_slot_id:
-        return jsonify({"error": "Missing slot_id"}), 400
 
     appointment = Appointment.query.get(id)
+
+    # 👇 Insert this block right here
+    print("🔎 Attempting to update appointment ID:", id)
+    if not appointment:
+        print("❌ Appointment not found in SQLAlchemy session.")
+    else:
+        print(
+            f"✅ Found appointment. ID: {appointment.id}, Freelancer ID: {appointment.freelancer_id}, Status: {appointment.status}"
+        )
+        if appointment.freelancer_id != freelancer_id:
+            print(
+                f"🚫 Auth mismatch: JWT freelancer {freelancer_id} does not match appointment.freelancer_id {appointment.freelancer_id}"
+            )
+
     if not appointment or appointment.freelancer_id != freelancer_id:
         return jsonify({"error": "Appointment not found or unauthorized"}), 404
 
-    new_slot = TimeSlot.query.get(new_slot_id)
-    if not new_slot or new_slot.freelancer_id != freelancer_id:
-        return jsonify({"error": "Invalid new slot"}), 404
+    # 🔁 Change status (e.g., to "cancelled")
+    if "status" in data:
+        new_status = data["status"]
+        if new_status not in ["pending", "confirmed", "cancelled"]:
+            return jsonify({"error": "Invalid status value"}), 400
+        appointment.status = new_status
+        if new_status == "cancelled":
+            appointment.slot.is_booked = False  # Free the slot
 
-    if new_slot.is_booked:
-        return jsonify({"error": "Time slot is already booked"}), 400
+    # 🔁 Optionally support rescheduling
+    if "slot_id" in data:
+        new_slot_id = data["slot_id"]
+        new_slot = TimeSlot.query.get(new_slot_id)
+        if not new_slot or new_slot.freelancer_id != freelancer_id:
+            return jsonify({"error": "Invalid new slot"}), 404
+        if new_slot.is_booked:
+            return jsonify({"error": "Time slot is already booked"}), 400
 
-    old_slot = appointment.slot
-    old_slot.is_booked = False
-    appointment.slot_id = new_slot_id
-    new_slot.is_booked = True
+        # Swap slots
+        old_slot = appointment.slot
+        old_slot.is_booked = False
+        appointment.slot_id = new_slot_id
+        new_slot.is_booked = True
+
+    print(f"🛠 Appointment {id} updated to status: {appointment.status}")
 
     db.session.commit()
-    return jsonify({"message": "Appointment updated successfully!"})
+    return jsonify({"message": "Appointment updated successfully."}), 200
 
-@app.route("/seed-full", methods=["POST", "OPTIONS"])
-def seed_with_freelancer():
-    if request.method == "OPTIONS":
-        return jsonify({}), 200
-
-    if Freelancer.query.first():
-        return jsonify({"message": "Already seeded"}), 400
-
-    freelancer = Freelancer(
-        name="Amber's Love Cafe",
-        email="demo@mail.com",
-        password=generate_password_hash("demo123"),
-        logo_url="https://randomuser.me/api/portraits/women/45.jpg",
-        tagline='Let\'s grab "Hot Coffee". Night bookings only...',
-        bio="Currently in Charlotte, NC! Been working all my life. Experience in: Miami, Toronto, and Vegas",
-        is_verified=True,
-        phone="555-123-4567",
-        contact_email="booking@ambercafe.com",
-        instagram_url="https://instagram.com/zuck",
-        twitter_url="https://twitter.com/elonmusk",
-        no_show_policy="Please cancel at least 24 hours in advance.",
-        faq_text="• $10 deposit required.\n• Please arrive 10 minutes early.\n• No-shows forfeit deposit.",
-        early_access=False  # for Elite-tier only, so no
-    )
-    db.session.add(freelancer)
-    db.session.commit()
-
-    today = datetime.now().date()
-    labels = ["09:00 AM", "09:15 AM", "09:30 AM", "10:00 AM", "10:15 AM", "10:30 AM"]
-    for label in labels:
-        master_time = MasterTimeSlot.query.filter_by(label=label).first()
-        if master_time:
-            db.session.add(TimeSlot(
-                day=today.isoformat(),
-                master_time_id=master_time.id,
-                freelancer_id=freelancer.id
-            ))
-
-    services = [
-        Service(
-            freelancer_id=freelancer.id,
-            name="Café au Lay",
-            description="A sensual coffee-making experience with full-body contact.",
-            duration_minutes=45,
-            price_usd=50.00
-        ),
-        Service(
-            freelancer_id=freelancer.id,
-            name="Espresso Eiffel Tower",
-            description="Perfect for threesomes. Short, strong, and unforgettable.",
-            duration_minutes=30,
-            price_usd=70.00
-        )
-    ]
-    db.session.add_all(services)
-    db.session.commit()
-
-    return jsonify({"message": "Seeded demo freelancer with full branding, slots, and services."})
-
-@app.route("/seed-freelancer2", methods=["POST", "OPTIONS"])
-def seed_second_freelancer():
-    if request.method == "OPTIONS":
-        return jsonify({}), 200
-
-    if Freelancer.query.count() >= 2:
-        return jsonify({"message": "Second freelancer already seeded"}), 400
-
-    freelancer = Freelancer(
-        name="Ping's Slippery Massage",
-        email="night@mail.com",
-        password=generate_password_hash("night123"),
-        logo_url="https://randomuser.me/api/portraits/women/32.jpg",
-        tagline="I milk you, we have fun time!",
-        bio="Trained in Bangkok. Open late. Ask about group sessions and 5-hand discounts.",
-        is_verified=True,
-        phone="555-987-6543",
-        contact_email="contact@pingmassage.com",
-        instagram_url="https://instagram.com/zuck",
-        twitter_url="https://twitter.com/elonmusk",
-        no_show_policy="Reschedule at least 12 hours ahead to avoid penalty.",
-        faq_text="• Bridal trials available by request.\n• Travel fees apply for out-of-salon events.",
-        tier="elite",  # ✅ Make sure support works.
-        early_access=True  # for Elite-tier only
-    )
-    db.session.add(freelancer)
-    db.session.commit()
-
-    tomorrow = datetime.now().date() + timedelta(days=1)
-    labels = ["06:30 PM", "06:45 PM", "07:00 PM", "07:15 PM"]
-    for label in labels:
-        master_time = MasterTimeSlot.query.filter_by(label=label).first()
-        if master_time:
-            db.session.add(TimeSlot(
-                day=tomorrow.isoformat(),
-                master_time_id=master_time.id,
-                freelancer_id=freelancer.id
-            ))
-
-    services = [
-        Service(
-            freelancer_id=freelancer.id,
-            name="Happy Ending Herbal Rubdown",
-            description="Start stiff, leave smiling. Our most booked treatment.",
-            duration_minutes=60,
-            price_usd=79.99
-        ),
-        Service(
-            freelancer_id=freelancer.id,
-            name="Thai Five-Hand Combo",
-            description="A once-in-a-lifetime experience. Two-hour escape.",
-            duration_minutes=120,
-            price_usd=149.99
-        )
-    ]
-    db.session.add_all(services)
-    db.session.commit()
-
-    return jsonify({"message": "Seeded second freelancer with full branding, slots, and services."})
 
 @app.route("/auth", methods=["POST"])
 def freelancer_login():
@@ -353,7 +316,19 @@ def freelancer_login():
     if not freelancer or not check_password_hash(freelancer.password, password):
         return jsonify({"error": "Invalid login"}), 401
 
-    return jsonify({"freelancer_id": freelancer.id}), 200
+    # ✅ Issue JWT token
+    access_token = create_access_token(identity=str(freelancer.id))
+
+    return (
+        jsonify(
+            {
+                "access_token": access_token,
+                "freelancer_id": freelancer.id,  # optional, for convenience
+            }
+        ),
+        200,
+    )
+
 
 @app.route("/dev/freelancers", methods=["GET"])
 def get_all_freelancers():
@@ -364,16 +339,19 @@ def get_all_freelancers():
     freelancers = Freelancer.query.all()
     result = []
     for c in freelancers:
-        result.append({
-            "id": c.id,
-            "name": c.name,
-            "email": c.email,
-            "logo_url": c.logo_url,
-            "tagline": c.tagline,
-            "bio": c.bio,
-            "is_verified": c.is_verified
-        })
+        result.append(
+            {
+                "id": c.id,
+                "name": c.name,
+                "email": c.email,
+                "logo_url": c.logo_url,
+                "tagline": c.tagline,
+                "bio": c.bio,
+                "is_verified": c.is_verified,
+            }
+        )
     return jsonify(result)
+
 
 @app.route("/dev/slots/<int:freelancer_id>", methods=["GET", "OPTIONS"])
 def get_freelancer_slots(freelancer_id):
@@ -389,20 +367,21 @@ def get_freelancer_slots(freelancer_id):
     for slot in slots:
         data = {
             "id": slot.id,
-            "time": slot.master_time.label,   # ✅ FIXED: Use master_time.label
+            "time": slot.master_time.label,  # ✅ FIXED: Use master_time.label
             "day": slot.day,
-            "is_booked": slot.is_booked
+            "is_booked": slot.is_booked,
         }
 
         if slot.is_booked and slot.appointment and slot.appointment.user:
             data["appointment"] = {
                 "name": slot.appointment.user.name,
-                "email": slot.appointment.user.email
+                "email": slot.appointment.user.email,
             }
 
         result.append(data)
 
     return jsonify(result)
+
 
 @app.route("/dev/freelancers/<int:freelancer_id>", methods=["GET", "OPTIONS"])
 def get_single_freelancer(freelancer_id):
@@ -430,21 +409,24 @@ def get_single_freelancer(freelancer_id):
         for s in services
     ]
 
-    return jsonify({
-        "id": freelancer.id,
-        "name": freelancer.name,
-        "email": freelancer.email,
-        "phone": freelancer.phone,
-        "logo_url": freelancer.logo_url,
-        "tagline": freelancer.tagline,
-        "bio": freelancer.bio,
-        "instagram_url": freelancer.instagram_url,
-        "twitter_url": freelancer.twitter_url,
-        "is_verified": freelancer.is_verified,
-        "joined": freelancer.id,  # Replace with created_at if desired
-        "services": service_data,
-        "faq_text": freelancer.faq_text,
-    })
+    return jsonify(
+        {
+            "id": freelancer.id,
+            "name": freelancer.name,
+            "email": freelancer.email,
+            "phone": freelancer.phone,
+            "logo_url": freelancer.logo_url,
+            "tagline": freelancer.tagline,
+            "bio": freelancer.bio,
+            "instagram_url": freelancer.instagram_url,
+            "twitter_url": freelancer.twitter_url,
+            "is_verified": freelancer.is_verified,
+            "joined": freelancer.id,  # Replace with created_at if desired
+            "services": service_data,
+            "faq_text": freelancer.faq_text,
+        }
+    )
+
 
 @app.route("/dev/appointments/<int:freelancer_id>", methods=["GET", "OPTIONS"])
 def get_dev_appointments_for_freelancer(freelancer_id):
@@ -458,16 +440,19 @@ def get_dev_appointments_for_freelancer(freelancer_id):
     appointments = Appointment.query.filter_by(freelancer_id=freelancer_id).all()
     result = []
     for a in appointments:
-        result.append({
-            "id": a.id,
-            "name": a.user.name if a.user else None,
-            "email": a.user.email if a.user else None,
-            "slot_day": a.slot.day,
-            "slot_time": a.slot.master_time.label, # ✅ FIXED: use master_time.label
-            "status": a.status,
-        })
+        result.append(
+            {
+                "id": a.id,
+                "name": a.user.name if a.user else None,
+                "email": a.user.email if a.user else None,
+                "slot_day": a.slot.day,
+                "slot_time": a.slot.master_time.label,  # ✅ FIXED: use master_time.label
+                "status": a.status,
+            }
+        )
 
     return jsonify(result)
+
 
 @app.route("/dev/freelancers", methods=["POST"])
 def create_freelancer():
@@ -487,13 +472,12 @@ def create_freelancer():
         return jsonify({"error": "Email already exists"}), 400
 
     new_freelancer = Freelancer(
-        name=name,
-        email=email,
-        password=generate_password_hash(password)
+        name=name, email=email, password=generate_password_hash(password)
     )
     db.session.add(new_freelancer)
     db.session.commit()
     return jsonify({"message": "Freelancer created!"}), 201
+
 
 @app.route("/dev/freelancers/<int:freelancer_id>", methods=["DELETE", "OPTIONS"])
 def delete_freelancer(freelancer_id):
@@ -514,31 +498,37 @@ def delete_freelancer(freelancer_id):
     db.session.commit()
     return jsonify({"message": "Freelancer deleted"})
 
-@app.route("/freelancer-info", methods=["GET"])
-def get_freelancer_info():
-    freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
-    if not freelancer_id:
-        return jsonify({"error": "Missing freelancer ID"}), 403
 
+@app.route("/freelancer/public-info/<int:freelancer_id>", methods=["GET"])
+def get_public_freelancer_info(freelancer_id):
     freelancer = Freelancer.query.get(freelancer_id)
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
 
-    return jsonify({
-        "name": freelancer.name,
-        "logo_url": getattr(freelancer, "logo_url", None),
-        "tagline": getattr(freelancer, "tagline", ""),
-        "bio": getattr(freelancer, "bio", ""),
-        "timezone": getattr(freelancer, "timezone", "America/New_York"),
-        "is_verified": freelancer.is_verified,  # ✅ Include this
-        "no_show_policy": getattr(freelancer, "no_show_policy", ""),
-        "faq_text": freelancer.faq_text,
-        "early_access": freelancer.early_access,
-    })
+    return jsonify(
+        {
+            "id": freelancer.id,
+            "name": freelancer.name,
+            "logo_url": freelancer.logo_url,
+            "tagline": freelancer.tagline,
+            "bio": freelancer.bio,
+            "faq_text": freelancer.faq_text,
+            "timezone": freelancer.timezone,
+            "is_verified": freelancer.is_verified,
+            "email": freelancer.contact_email,  # ✅ used publicly
+            "phone": freelancer.phone,
+            "instagram_url": freelancer.instagram_url,
+            "twitter_url": freelancer.twitter_url,
+            "no_show_policy": freelancer.no_show_policy,
+            "created_at": freelancer.created_at.isoformat(),  # ✅ ensure join date renders
+        }
+    )
+
 
 @app.route("/slots", methods=["POST"])
+@jwt_required()
 def create_time_slot():
-    freelancer_id = g.freelancer_id
+    freelancer_id = int(g.freelancer_id)
     data = request.get_json()
 
     day = data.get("day")  # "YYYY-MM-DD"
@@ -548,14 +538,13 @@ def create_time_slot():
         return jsonify({"error": "Missing day or master_time_id"}), 400
 
     from models import MasterTimeSlot
+
     master_time = MasterTimeSlot.query.get(master_time_id)
     if not master_time:
         return jsonify({"error": "Invalid master time ID"}), 400
 
     existing = TimeSlot.query.filter_by(
-        freelancer_id=freelancer_id,
-        day=day,
-        master_time_id=master_time_id
+        freelancer_id=freelancer_id, day=day, master_time_id=master_time_id
     ).first()
 
     if existing:
@@ -569,30 +558,42 @@ def create_time_slot():
             freelancer.timezone = timezone
             db.session.commit()
 
-    slot = TimeSlot(
-        day=day,
-        master_time_id=master_time_id,
-        freelancer_id=freelancer_id
-    )
+    slot = TimeSlot(day=day, master_time_id=master_time_id, freelancer_id=freelancer_id)
     db.session.add(slot)
     db.session.commit()
 
     return jsonify({"message": "Time slot created", "slot_id": slot.id}), 201
 
+
 @app.route("/slots/<int:slot_id>", methods=["DELETE"])
+@jwt_required()
 def delete_time_slot(slot_id):
-    freelancer_id = g.freelancer_id
+    freelancer_id = int(g.freelancer_id)
     slot = TimeSlot.query.get(slot_id)
+
+    print(f"🧪 Attempting to delete slot_id: {slot_id}")
+    print(f"🔑 Authenticated freelancer_id: {freelancer_id}")
+    if slot:
+        print(f"📦 Slot found, owned by freelancer_id: {slot.freelancer_id}")
+    else:
+        print("❌ Slot not found in DB")
 
     if not slot or slot.freelancer_id != freelancer_id:
         return jsonify({"error": "Slot not found or unauthorized"}), 404
 
     if slot.is_booked:
+        print("🚫 Cannot delete — slot is booked.")
         return jsonify({"error": "Cannot delete a booked slot"}), 400
 
-    db.session.delete(slot)
-    db.session.commit()
-    return jsonify({"message": "Slot deleted"}), 200
+    try:
+        db.session.delete(slot)
+        db.session.commit()
+        print("✅ Slot deleted successfully.")
+        return jsonify({"message": "Slot deleted"}), 200
+    except Exception as e:
+        print("❌ Unexpected delete failure:", e)
+        return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route("/verify/<token>", methods=["GET"])
 def verify_booking(token):
@@ -606,26 +607,9 @@ def verify_booking(token):
     if not appt:
         return jsonify({"error": "Appointment not found"}), 404
 
-    appt.status = 'confirmed'
+    appt.status = "confirmed"
     db.session.commit()
     return redirect("http://localhost:5173/thank-you")  # Adjust if hosted
-
-@app.route("/seed/master-times", methods=["POST"])
-def seed_master_time_slots():
-    from models import MasterTimeSlot  # ✅ Local import works inside route
-
-    db.session.query(MasterTimeSlot).delete()
-
-    start_time = datetime.strptime("00:00", "%H:%M")
-    delta = timedelta(minutes=15)
-
-    for i in range(96):
-        time_24h = (start_time + i * delta).strftime("%H:%M")            
-        label = (start_time + i * delta).strftime("%I:%M %p")           
-        db.session.add(MasterTimeSlot(time_24h=time_24h, label=label))
-
-    db.session.commit()
-    return jsonify({"message": "✅ 96 master time slots seeded."}), 200
 
 
 @app.route("/master-times", methods=["GET"])
@@ -633,11 +617,9 @@ def get_master_time_slots():
     from models import MasterTimeSlot
 
     times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
-    result = [
-        {"id": t.id, "label": t.label, "time_24h": t.time_24h}
-        for t in times
-    ]
+    result = [{"id": t.id, "label": t.label, "time_24h": t.time_24h} for t in times]
     return jsonify(result)
+
 
 @cross_origin(origins="http://localhost:5173")
 @app.route("/freelancers/<int:freelancer_id>", methods=["GET"])
@@ -656,33 +638,40 @@ def public_freelancer_profile(freelancer_id):
             "price_usd": s.price_usd or 0.0,
             "is_enabled": s.is_enabled,
         }
-        for s in services if s.is_enabled
+        for s in services
+        if s.is_enabled
     ]
 
-    return jsonify({
-        "id": freelancer.id,
-        "name": freelancer.name,
-        "logo_url": freelancer.logo_url,
-        "tagline": freelancer.tagline,
-        "bio": freelancer.bio,
-        "timezone": freelancer.timezone,
-        "email": freelancer.contact_email,  # <-- This one if you're using a separate public email
-        "phone": freelancer.phone,
-        "instagram_url": freelancer.instagram_url,
-        "twitter_url": freelancer.twitter_url,
-        "is_verified": freelancer.is_verified,
-        "joined": freelancer.id,
-        "services": service_data,
-        "faq_text": freelancer.faq_text,
-    })
+    return jsonify(
+        {
+            "id": freelancer.id,
+            "name": freelancer.name,
+            "logo_url": freelancer.logo_url,
+            "tagline": freelancer.tagline,
+            "bio": freelancer.bio,
+            "timezone": freelancer.timezone,
+            "email": freelancer.contact_email,  # <-- This one if you're using a separate public email
+            "phone": freelancer.phone,
+            "instagram_url": freelancer.instagram_url,
+            "twitter_url": freelancer.twitter_url,
+            "is_verified": freelancer.is_verified,
+            "joined": freelancer.id,
+            "services": service_data,
+            "faq_text": freelancer.faq_text,
+        }
+    )
+
 
 @app.route("/freelancer/services", methods=["GET", "OPTIONS"])
-@cross_origin(origins="http://localhost:5173", headers=["Content-Type", "Authorization", "X-Freelancer-ID"])
+@cross_origin(
+    origins="http://localhost:5173", headers=["Content-Type", "Authorization"]
+)
+@jwt_required()
 def get_services():
     if request.method == "OPTIONS":
-        return '', 200
+        return "", 200
 
-    freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
+    freelancer_id = int(g.freelancer_id)
     if not freelancer_id:
         return jsonify({"error": "Missing freelancer ID"}), 403
 
@@ -694,19 +683,23 @@ def get_services():
             "description": s.description,
             "duration_minutes": s.duration_minutes,
             "price_usd": s.price_usd,
-            "is_enabled": s.is_enabled
+            "is_enabled": s.is_enabled,
         }
         for s in services
     ]
     return jsonify(result)
 
-@app.route('/freelancer/services', methods=['POST', 'OPTIONS'])
-@cross_origin(origins="http://localhost:5173", headers=["Content-Type", "Authorization", "X-Freelancer-ID"])
+
+@app.route("/freelancer/services", methods=["POST", "OPTIONS"])
+@cross_origin(
+    origins="http://localhost:5173", headers=["Content-Type", "Authorization"]
+)
+@jwt_required()
 def add_service():
     if request.method == "OPTIONS":
-        return '', 200
+        return "", 200
 
-    freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
+    freelancer_id = int(g.freelancer_id)
     if not freelancer_id:
         return jsonify({"error": "Missing freelancer ID"}), 403
 
@@ -724,17 +717,21 @@ def add_service():
         name=name,
         description=description,
         duration_minutes=duration_minutes,
-        price_usd=price_usd
+        price_usd=price_usd,
     )
     db.session.add(service)
     db.session.commit()
     return jsonify({"message": "Service added!"}), 201
 
-@app.route('/freelancer/services/<int:service_id>', methods=['DELETE', 'OPTIONS'])
-@cross_origin(origins="http://localhost:5173", headers=["Content-Type", "Authorization", "X-Freelancer-ID"])
+
+@app.route("/freelancer/services/<int:service_id>", methods=["DELETE", "OPTIONS"])
+@cross_origin(
+    origins="http://localhost:5173", headers=["Content-Type", "Authorization"]
+)
+@jwt_required()
 def delete_service(service_id):
     if request.method == "OPTIONS":
-        return '', 200
+        return "", 200
 
     service = Service.query.get(service_id)
     db.session.delete(service)
@@ -742,11 +739,14 @@ def delete_service(service_id):
     return jsonify({"message": "Deleted"})
 
 
-@app.route('/freelancer/services/<int:service_id>', methods=['PATCH', 'OPTIONS'])
-@cross_origin(origins="http://localhost:5173", headers=["Content-Type", "Authorization", "X-Freelancer-ID"])
+@app.route("/freelancer/services/<int:service_id>", methods=["PATCH", "OPTIONS"])
+@cross_origin(
+    origins="http://localhost:5173", headers=["Content-Type", "Authorization"]
+)
+@jwt_required()
 def update_service(service_id):
     if request.method == "OPTIONS":
-        return '', 200
+        return "", 200
 
     service = Service.query.get(service_id)
     if not service:
@@ -765,18 +765,23 @@ def update_service(service_id):
     db.session.commit()
     return jsonify({"message": "Service updated"})
 
+
 @app.route("/freelancer/analytics", methods=["GET"])
+@jwt_required()
 def get_analytics():
-    freelancer_id = g.freelancer_id
+    freelancer_id = int(g.freelancer_id)
     from sqlalchemy import func
 
     # Count totals by status
     total = Appointment.query.filter(
-        Appointment.freelancer_id == freelancer_id,
-        Appointment.status != 'cancelled'
+        Appointment.freelancer_id == freelancer_id, Appointment.status != "cancelled"
     ).count()
-    confirmed = Appointment.query.filter_by(freelancer_id=freelancer_id, status='confirmed').count()
-    cancelled = Appointment.query.filter_by(freelancer_id=freelancer_id, status='cancelled').count()
+    confirmed = Appointment.query.filter_by(
+        freelancer_id=freelancer_id, status="confirmed"
+    ).count()
+    cancelled = Appointment.query.filter_by(
+        freelancer_id=freelancer_id, status="cancelled"
+    ).count()
 
     # Top service
     # Returns all tied top services
@@ -801,13 +806,18 @@ def get_analytics():
         .group_by(Service.name)
         .all()
     )
-    service_chart_data = [{"id": name, "value": count} for name, count in service_counts]
+    service_chart_data = [
+        {"id": name, "value": count} for name, count in service_counts
+    ]
 
     # Line chart: booking trend by scheduled day (regardless of status)
     trend_counts = (
         db.session.query(TimeSlot.day, func.count(Appointment.id))
         .join(TimeSlot, Appointment.slot_id == TimeSlot.id)
-        .filter(Appointment.freelancer_id == freelancer_id, Appointment.status != 'cancelled')
+        .filter(
+            Appointment.freelancer_id == freelancer_id,
+            Appointment.status != "cancelled",
+        )
         .group_by(TimeSlot.day)
         .order_by(TimeSlot.day)
         .all()
@@ -818,93 +828,38 @@ def get_analytics():
     revenue_per_service = (
         db.session.query(Service.name, func.sum(Service.price_usd))
         .join(Appointment, Service.id == Appointment.service_id)
-        .filter(Appointment.freelancer_id == freelancer_id, Appointment.status != "cancelled")
+        .filter(
+            Appointment.freelancer_id == freelancer_id,
+            Appointment.status != "cancelled",
+        )
         .group_by(Service.name)
         .all()
     )
-    revenue_chart_data = [{"service": name, "revenue": round(revenue or 0, 2)} for name, revenue in revenue_per_service]
+    revenue_chart_data = [
+        {"service": name, "revenue": round(revenue or 0, 2)}
+        for name, revenue in revenue_per_service
+    ]
 
-    return jsonify({
-        "total_bookings": total,
-        "confirmed": confirmed,
-        "cancelled": cancelled,
-        "top_service": ", ".join(top_names) if top_names else None,
-        "bookings_per_service": service_chart_data,
-        "booking_trend": trend_data,
-        "service_revenue": revenue_chart_data,
-        "signup_date": Freelancer.query.get(freelancer_id).created_at.strftime("%-m/%-d/%y")
-    })
+    return jsonify(
+        {
+            "total_bookings": total,
+            "confirmed": confirmed,
+            "cancelled": cancelled,
+            "top_service": ", ".join(top_names) if top_names else None,
+            "bookings_per_service": service_chart_data,
+            "booking_trend": trend_data,
+            "service_revenue": revenue_chart_data,
+            "signup_date": Freelancer.query.get(freelancer_id).created_at.strftime(
+                "%-m/%-d/%y"
+            ),
+        }
+    )
 
-@app.route("/dev/seed-demo-history", methods=["POST"])
-def seed_demo_history():
-    print("🔥 Hit /dev/seed-demo-history")
-    print("🔥 Headers:", dict(request.headers))
-
-    auth = request.headers.get("X-Dev-Auth")
-    if auth != "secret123":
-        return jsonify({"error": "Forbidden"}), 403
-
-    freelancer_id = request.headers.get("X-Freelancer-ID", type=int)
-    freelancer = Freelancer.query.get(freelancer_id)
-    if not freelancer:
-        return jsonify({"error": "Freelancer not found"}), 400
-
-    services = Service.query.filter_by(freelancer_id=freelancer.id).all()
-    if not services:
-        return jsonify({"error": "Seed services first"}), 400
-
-    from random import choice
-
-    labels = ["09:00 AM", "09:15 AM", "09:30 AM", "10:00 AM", "10:15 AM", "10:30 AM"]
-    
-    # Define 5 dates and how many bookings on each
-    bookings_by_day = {
-        (datetime.now().date() + timedelta(days=i)).isoformat(): count
-        for i, count in enumerate([1, 2, 3, 3, 3])  # total = 12
-    }
-
-    for day_str, count in bookings_by_day.items():
-        label_cycle = (label for label in labels * 2)
-
-        for i in range(count):
-            label = next(label_cycle)
-            master_time = MasterTimeSlot.query.filter_by(label=label).first()
-            if not master_time:
-                continue
-
-            slot = TimeSlot(
-                day=day_str,
-                freelancer_id=freelancer.id,
-                master_time_id=master_time.id,
-                is_booked=True
-            )
-            db.session.add(slot)
-            db.session.commit()
-
-            name = f"user_{day_str.replace('-', '')}_{i}"
-            email = f"{name}@mail.com"
-            user = User(name=name, email=email)
-            db.session.add(user)
-            db.session.commit()
-
-            appt = Appointment(
-                freelancer_id=freelancer.id,
-                user_id=user.id,
-                slot_id=slot.id,
-                status="confirmed",
-                service_id=choice(services).id,
-                timestamp=datetime.now()  # Doesn't affect trend data
-            )
-            db.session.add(appt)
-
-    db.session.commit()
-    print(f"🌱 Seeded {freelancer.name}'s demo slots and bookings.")
-
-    return jsonify({"message": "Seeded demo slots and bookings."}), 200
 
 @app.route("/freelancer/support", methods=["POST"])
+@jwt_required()
 def send_support_request():
-    freelancer_id = g.freelancer_id
+    freelancer_id = int(g.freelancer_id)
     data = request.get_json()
     subject = data.get("subject", "No Subject")
     message = data.get("message", "")
@@ -948,10 +903,12 @@ def send_support_request():
     except Exception as e:
         print("❌ Support email failed:", str(e))
         return jsonify({"error": "Failed to send support email"}), 500
-    
+
+
 @app.route("/freelancer/reply", methods=["POST"])
+@jwt_required()
 def reply_to_customer():
-    freelancer_id = g.freelancer_id
+    freelancer_id = int(g.freelancer_id)
     data = request.get_json()
     customer_email = data.get("to")
     subject = data.get("subject", "Reply from SlotMe Support")
@@ -967,11 +924,23 @@ def reply_to_customer():
     except Exception as e:
         print("❌ Reply failed:", str(e))
         return jsonify({"error": "Failed to send reply"}), 500
-    
+
+
 @app.route("/<string:custom_url>", methods=["GET"])
 def public_profile_by_url(custom_url):
     # 👇 Prevent conflict with real routes like /404
-    reserved_routes = {"404", "slots", "book", "auth", "seed", "verify", "master-times", "freelancer", "freelancers", "dev"}
+    reserved_routes = {
+        "404",
+        "slots",
+        "book",
+        "auth",
+        "seed",
+        "verify",
+        "master-times",
+        "freelancer",
+        "freelancers",
+        "dev",
+    }
 
     if custom_url in reserved_routes:
         return handle_404(None)
@@ -980,7 +949,9 @@ def public_profile_by_url(custom_url):
     if not freelancer:
         return handle_404(None)
 
-    services = Service.query.filter_by(freelancer_id=freelancer.id, is_enabled=True).all()
+    services = Service.query.filter_by(
+        freelancer_id=freelancer.id, is_enabled=True
+    ).all()
     service_data = [
         {
             "id": s.id,
@@ -993,25 +964,29 @@ def public_profile_by_url(custom_url):
         for s in services
     ]
 
-    return jsonify({
-        "id": freelancer.id,
-        "name": freelancer.name,
-        "email": freelancer.contact_email,
-        "phone": freelancer.phone,
-        "logo_url": freelancer.logo_url,
-        "tagline": freelancer.tagline,
-        "bio": freelancer.bio,
-        "instagram_url": freelancer.instagram_url,
-        "twitter_url": freelancer.twitter_url,
-        "is_verified": freelancer.is_verified,
-        "joined": freelancer.created_at.strftime("%-m/%-d/%y"),
-        "services": service_data,
-        "faq_text": freelancer.faq_text,
-    })
+    return jsonify(
+        {
+            "id": freelancer.id,
+            "name": freelancer.name,
+            "email": freelancer.contact_email,
+            "phone": freelancer.phone,
+            "logo_url": freelancer.logo_url,
+            "tagline": freelancer.tagline,
+            "bio": freelancer.bio,
+            "instagram_url": freelancer.instagram_url,
+            "twitter_url": freelancer.twitter_url,
+            "is_verified": freelancer.is_verified,
+            "joined": freelancer.created_at.strftime("%-m/%-d/%y"),
+            "services": service_data,
+            "faq_text": freelancer.faq_text,
+        }
+    )
+
 
 @app.route("/freelancer/branding", methods=["PATCH"])
+@jwt_required()
 def update_freelancer_branding():
-    freelancer_id = g.freelancer_id
+    freelancer_id = int(g.freelancer_id)
     data = request.get_json()
     freelancer = Freelancer.query.get(freelancer_id)
 
@@ -1031,17 +1006,23 @@ def update_freelancer_branding():
         new_url = data["custom_url"].strip().lower()
 
         if not re.match(r"^[a-z0-9_-]{3,30}$", new_url):
-            return jsonify({"error": "Custom URL must be 3-30 characters, letters/numbers/dashes only."}), 400
+            return (
+                jsonify(
+                    {
+                        "error": "Custom URL must be 3-30 characters, letters/numbers/dashes only."
+                    }
+                ),
+                400,
+            )
 
         if new_url != freelancer.custom_url:
             if Freelancer.query.filter(Freelancer.custom_url == new_url).first():
                 return jsonify({"error": "Custom URL is already taken."}), 400
         freelancer.custom_url = new_url
 
-        freelancer.custom_url = new_url
-
     db.session.commit()
     return jsonify({"message": "Branding updated"})
+
 
 @app.errorhandler(404)
 def handle_404(e):
@@ -1049,13 +1030,263 @@ def handle_404(e):
     response = jsonify({"error": "Not found"})
     response.status_code = 404
     response.headers["Access-Control-Allow-Origin"] = origin
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Freelancer-ID, X-Dev-Auth"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = (
+        "Content-Type, Authorization, X-Dev-Auth"
+    )
+    response.headers["Access-Control-Allow-Methods"] = (
+        "GET, POST, PATCH, DELETE, OPTIONS"
+    )
     return response
+
 
 @app.route("/404")
 def hardcoded_404():
     return jsonify({"error": "Not found"}), 404
+
+
+@app.route("/dev/seed-all", methods=["POST"])
+def seed_everything():
+    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
+    if auth != "secret123":
+        return jsonify({"error": "Forbidden"}), 403
+
+    from models import MasterTimeSlot
+    from werkzeug.security import generate_password_hash
+    from random import choice
+
+    # 1. Seed 96 master time slots
+    db.session.query(MasterTimeSlot).delete()
+    start_time = datetime.strptime("00:00", "%H:%M")
+    delta = timedelta(minutes=15)
+    for i in range(96):
+        time_24h = (start_time + i * delta).strftime("%H:%M")
+        label = (start_time + i * delta).strftime("%I:%M %p")
+        db.session.add(MasterTimeSlot(time_24h=time_24h, label=label))
+    db.session.commit()
+
+    # 2. Seed demo freelancer (2 appointments: Jane & John)
+    f1 = Freelancer.query.filter_by(email="demo@mail.com").first()
+    if not f1:
+        f1 = Freelancer(
+            name="Amber's Love Cafe",
+            email="demo@mail.com",
+            password=generate_password_hash("demo123"),
+            logo_url="https://randomuser.me/api/portraits/women/45.jpg",
+            tagline='Let\'s grab "Hot Coffee". Night bookings only...',
+            bio="Currently in Charlotte, NC!",
+            is_verified=True,
+            phone="555-123-4567",
+            contact_email="booking@ambercafe.com",
+            instagram_url="https://instagram.com/zuck",
+            twitter_url="https://twitter.com/elonmusk",
+            no_show_policy="Cancel 24h ahead.",
+            faq_text="• $10 deposit\n• Come early\n• No-shows forfeit deposit.",
+            early_access=False,
+        )
+        db.session.add(f1)
+        db.session.commit()
+
+    # Wipe any old demo data
+    Appointment.query.filter_by(freelancer_id=f1.id).delete()
+    TimeSlot.query.filter_by(freelancer_id=f1.id).delete()
+    Service.query.filter_by(freelancer_id=f1.id).delete()
+    db.session.commit()
+
+    # Add services
+    db.session.add_all(
+        [
+            Service(
+                freelancer_id=f1.id,
+                name="Café au Lay",
+                description="Coffee body contact.",
+                duration_minutes=45,
+                price_usd=50.00,
+            ),
+            Service(
+                freelancer_id=f1.id,
+                name="Espresso Eiffel Tower",
+                description="For threesomes.",
+                duration_minutes=30,
+                price_usd=70.00,
+            ),
+        ]
+    )
+    db.session.commit()
+
+    # Create today's demo appointments
+    today = eastern_today()
+    demo_labels = ["09:00 AM", "09:15 AM"]
+    demo_users = [("Jane Doe", "jane.doe@mail.com"), ("John Doe", "john.doe@mail.com")]
+
+    slots = []
+    for label in demo_labels:
+        mt = MasterTimeSlot.query.filter_by(label=label).first()
+        if mt:
+            slot = TimeSlot(
+                day=today.isoformat(),
+                master_time_id=mt.id,
+                freelancer_id=f1.id,
+                is_booked=True,
+            )
+            db.session.add(slot)
+            slots.append(slot)
+    db.session.commit()
+
+    # Add demo appointments
+    for i, (full_name, email) in enumerate(demo_users):
+        user = User(name=full_name, email=email)
+        db.session.add(user)
+        db.session.commit()
+
+        appt = Appointment(
+            freelancer_id=f1.id,
+            user_id=user.id,
+            slot_id=slots[i].id,
+            status="confirmed",
+            timestamp=datetime.now(),
+        )
+        db.session.add(appt)
+    db.session.commit()
+
+    # 3. Seed elite freelancer if needed
+    f2 = Freelancer.query.filter_by(email="night@mail.com").first()
+    if not f2:
+        f2 = Freelancer(
+            name="Ping's Slippery Massage",
+            email="night@mail.com",
+            password=generate_password_hash("night123"),
+            logo_url="https://randomuser.me/api/portraits/women/32.jpg",
+            tagline="I milk you, we have fun time!",
+            bio="Trained in Bangkok. Open late.",
+            is_verified=True,
+            phone="555-987-6543",
+            contact_email="contact@pingmassage.com",
+            instagram_url="https://instagram.com/zuck",
+            twitter_url="https://twitter.com/elonmusk",
+            no_show_policy="Reschedule 12h ahead.",
+            faq_text="• Bridal trials\n• Travel fees apply",
+            tier="elite",
+            early_access=True,
+        )
+        db.session.add(f2)
+        db.session.commit()
+
+        tomorrow = eastern_today() + timedelta(days=1)
+        labels = ["06:30 PM", "06:45 PM", "07:00 PM"]
+        for label in labels:
+            mt = MasterTimeSlot.query.filter_by(label=label).first()
+            if mt:
+                db.session.add(
+                    TimeSlot(day=tomorrow, master_time_id=mt.id, freelancer_id=f2.id)
+                )
+
+        db.session.add_all(
+            [
+                Service(
+                    freelancer_id=f2.id,
+                    name="Happy Ending Herbal Rubdown",
+                    description="Start stiff, leave smiling.",
+                    duration_minutes=60,
+                    price_usd=79.99,
+                ),
+                Service(
+                    freelancer_id=f2.id,
+                    name="Thai Five-Hand Combo",
+                    description="Two-hour escape.",
+                    duration_minutes=120,
+                    price_usd=149.99,
+                ),
+            ]
+        )
+        db.session.commit()
+
+    # 4. Seed 12 appointments for f2
+    f2 = Freelancer.query.filter_by(email="night@mail.com").first()
+    services = Service.query.filter_by(freelancer_id=f2.id).all()
+    labels = ["09:00 AM", "09:15 AM", "09:30 AM", "10:00 AM"]
+    bookings_by_day = {
+        (datetime.now().date() + timedelta(days=i)).isoformat(): count
+        for i, count in enumerate([1, 2, 3, 3, 3])
+    }
+
+    for day_str, count in bookings_by_day.items():
+        label_cycle = (label for label in labels * 2)
+        for i in range(count):
+            label = next(label_cycle)
+            mt = MasterTimeSlot.query.filter_by(label=label).first()
+            if not mt:
+                continue
+
+            slot = TimeSlot(
+                day=day_str, freelancer_id=f2.id, master_time_id=mt.id, is_booked=True
+            )
+            db.session.add(slot)
+            db.session.commit()
+
+            first, last = choice(name_pool)
+            name = f"{first} {last}"
+            email = f"{first.lower()}.{last.lower()}@mail.com"
+            user = User(name=name, email=email)
+
+            db.session.add(user)
+            db.session.commit()
+
+            appt = Appointment(
+                freelancer_id=f2.id,
+                user_id=user.id,
+                slot_id=slot.id,
+                status="confirmed",
+                service_id=choice(services).id,
+                timestamp=datetime.now(),
+            )
+            db.session.add(appt)
+
+    db.session.commit()
+
+    print("Demo freelancer ID:", f1.id)
+    print("Elite freelancer ID:", f2.id)
+
+    # 5. Return JWTs
+    token1 = create_access_token(identity=str(f1.id))
+    token2 = create_access_token(identity=str(f2.id))
+
+    return (
+        jsonify(
+            {
+                "message": "✅ Fully seeded: master times, both freelancers, and bookings.",
+                "demo_token": token1,
+                "elite_token": token2,
+            }
+        ),
+        200,
+    )
+
+
+@cross_origin(origins="http://localhost:5173", supports_credentials=True)
+@app.route("/freelancer-info", methods=["GET"])
+@jwt_required()
+def get_freelancer_info():
+    freelancer_id = int(g.freelancer_id)
+    freelancer = Freelancer.query.get(freelancer_id)
+
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
+
+    return (
+        jsonify(
+            {
+                "id": freelancer.id,
+                "name": freelancer.name,
+                "logo_url": freelancer.logo_url,
+                "tagline": freelancer.tagline,
+                "bio": freelancer.bio,
+                "timezone": freelancer.timezone,
+                "is_verified": freelancer.is_verified,
+            }
+        ),
+        200,
+    )
+
 
 # -----------------------
 if __name__ == "__main__":

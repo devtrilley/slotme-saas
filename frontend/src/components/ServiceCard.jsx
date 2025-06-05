@@ -42,7 +42,7 @@ export default function ServiceCard({
     axios
       .patch(`http://127.0.0.1:5000/freelancer/services/${id}`, payload, {
         headers: {
-          "X-Freelancer-ID": localStorage.getItem("freelancer_id"),
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
       })
       .then(() => {
@@ -62,7 +62,7 @@ export default function ServiceCard({
     axios
       .delete(`http://127.0.0.1:5000/freelancer/services/${id}`, {
         headers: {
-          "X-Freelancer-ID": localStorage.getItem("freelancer_id"),
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
       })
       .then(() => {
@@ -83,7 +83,7 @@ export default function ServiceCard({
         { is_enabled: newStatus },
         {
           headers: {
-            "X-Freelancer-ID": localStorage.getItem("freelancer_id"),
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           },
         }
       )

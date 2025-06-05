@@ -11,7 +11,11 @@ export default function Navbar() {
       navigate("/dev-login");
     } else if (type === "freelancer") {
       localStorage.removeItem("freelancer_logged_in");
-      navigate("/");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("freelancer_id");
+      localStorage.removeItem("branding_updated"); // optional
+      localStorage.removeItem("client_id");        // optional
+      navigate("/auth");
     }
   };
 

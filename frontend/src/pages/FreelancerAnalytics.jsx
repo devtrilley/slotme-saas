@@ -9,7 +9,6 @@ import BookingTrendChart from "../components/BookingTrendChart";
 import StatsSummaryCard from "../components/StatsSummaryCard";
 import AnalyticsSkeleton from "../components/AnalyticsSkeleton";
 
-
 const colorMap = {
   "Happy Ending Herbal Rubdown": "#EF4444",
   "O'Breezy Prezidential Fade": "#22C55E",
@@ -26,7 +25,9 @@ export default function FreelancerAnalytics() {
     console.log("🔁 Refresh button clicked");
     axios
       .get("http://127.0.0.1:5000/freelancer/analytics", {
-        headers: { "X-Freelancer-ID": freelancerId },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
       })
       .then((res) => {
         console.log("📊 Refetched stats:", res.data);

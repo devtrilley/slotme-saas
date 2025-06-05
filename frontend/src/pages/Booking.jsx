@@ -54,22 +54,7 @@ export default function BookingPage() {
     fetchSlots();
 
     axios
-      .get(`http://127.0.0.1:5000/freelancers/${freelancerId}`)
-      .then((res) => {
-        const enabled = res.data.services || [];
-        setServices(enabled);
-        if (enabled.length === 1) {
-          setSelectedServiceId(enabled[0].id); // auto-select if only one
-        }
-      })
-      .catch((err) => {
-        console.error("❌ Failed to load services", err);
-      });
-
-    axios
-      .get("http://127.0.0.1:5000/freelancer-info", {
-        headers: { "X-Freelancer-ID": freelancerId },
-      })
+      .get(`http://127.0.0.1:5000/freelancer/public-info/${freelancerId}`)
       .then((res) => {
         setBranding({
           name: res.data.name || "",
@@ -81,18 +66,23 @@ export default function BookingPage() {
         });
         setFreelancerTimeZone(res.data.timezone || "America/New_York");
         setNoShowPolicy(res.data.no_show_policy || "");
+
+        // ✅ Set services here
+        const enabled = res.data.services || [];
+        setServices(enabled);
+        if (enabled.length === 1) {
+          setSelectedServiceId(enabled[0].id); // auto-select if only one
+        }
       })
       .catch((err) => {
-        console.error("❌ Failed to load branding", err);
+        console.error("❌ Failed to load branding/services", err);
       });
   }, [freelancerId]);
 
   const fetchSlots = () => {
     setLoading(true);
     axios
-      .get("http://127.0.0.1:5000/slots", {
-        headers: { "X-Freelancer-ID": freelancerId },
-      })
+      .get(`http://127.0.0.1:5000/freelancer/slots/${freelancerId}`)
       .then((res) => {
         const sorted = [...res.data].sort((a, b) => {
           const toDate = (timeStr) => {
@@ -122,19 +112,13 @@ export default function BookingPage() {
     if (!selectedSlotId) return;
 
     axios
-      .post(
-        "http://127.0.0.1:5000/book",
-        {
-          name,
-          email,
-          phone,
-          slot_id: selectedSlotId,
-          service_id: selectedServiceId,
-        },
-        {
-          headers: { "X-Freelancer-ID": freelancerId },
-        }
-      )
+      .post("http://127.0.0.1:5000/book", {
+        name,
+        email,
+        phone,
+        slot_id: selectedSlotId,
+        service_id: selectedServiceId,
+      })
       .then(() => {
         setSuccess(true);
         setName("");

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { DateTime } from "luxon";
 
 export default function FreelancerBookingList() {
   const [appointments, setAppointments] = useState([]);
@@ -9,12 +10,20 @@ export default function FreelancerBookingList() {
   const [timeFilter, setTimeFilter] = useState("all");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [exportRange, setExportRange] = useState("selected_date");
-  
+
+  function parseLocalDate(str, timezone = "America/New_York") {
+    return DateTime.fromISO(str).setZone(timezone).toJSDate();
+  }
+
+  function getESTDateString(date, timezone = "America/New_York") {
+    return DateTime.fromJSDate(date).setZone(timezone).toFormat("yyyy-MM-dd");
+  }
+
   const fetchAppointments = () => {
     axios
       .get("http://127.0.0.1:5000/appointments", {
         headers: {
-          "X-Freelancer-ID": localStorage.getItem("freelancer_id"),
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
       })
       .then((res) => {
@@ -57,9 +66,17 @@ export default function FreelancerBookingList() {
     if (!confirmCancel) return;
 
     try {
-      await axios.delete(`http://127.0.0.1:5000/appointments/${id}`, {
-        headers: { "X-Freelancer-ID": localStorage.getItem("freelancer_id") },
-      });
+      await axios.patch(
+        `http://127.0.0.1:5000/appointments/${id}`,
+        {
+          status: "cancelled",
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+        }
+      );
       alert("Appointment canceled.");
       fetchAppointments();
     } catch (err) {
@@ -69,46 +86,58 @@ export default function FreelancerBookingList() {
   };
 
   const filtered = appointments.filter((a) => {
+    const timezone = a.freelancer_timezone || "America/New_York";
+
+    const parsedSlotDate = parseLocalDate(a.slot_day, timezone);
+    const dateString = getESTDateString(selectedDate, timezone);
+
     const matchesSearch = `${a.name} ${a.email}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
 
     const inTimeRange = isInTimeRange(a.slot_time);
 
-    const inDate =
-      selectedDate && a.slot_day === selectedDate.toISOString().split("T")[0];
+    const inDate = DateTime.fromISO(a.slot_day)
+      .setZone(timezone)
+      .hasSame(DateTime.fromJSDate(selectedDate).setZone(timezone), "day");
 
-    return matchesSearch && inTimeRange && inDate;
+    const isNotCancelled = a.status !== "cancelled"; // ✅ this line
+
+    return matchesSearch && inTimeRange && inDate && isNotCancelled;
   });
 
   const exportCSV = () => {
-    let exportData = [...appointments];
+    let exportData = appointments.filter((a) => a.status !== "cancelled");
 
-    const today = new Date();
-    const isoToday = today.toISOString().split("T")[0];
+    const timezone =
+      exportData.find((a) => a.freelancer_timezone)?.freelancer_timezone ||
+      "America/New_York";
+
+    const today = DateTime.now().setZone(timezone);
+    const isoToday = today.toISODate();
 
     if (exportRange === "this_month") {
-      const thisMonth = today.getMonth();
-      const thisYear = today.getFullYear();
+      const thisMonth = today.month;
+      const thisYear = today.year;
       exportData = exportData.filter((a) => {
-        const d = new Date(a.slot_day);
-        return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+        const date = DateTime.fromISO(a.slot_day).setZone(timezone);
+        return date.month === thisMonth && date.year === thisYear;
       });
     } else if (exportRange === "last_month") {
-      const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const month = lastMonth.getMonth();
-      const year = lastMonth.getFullYear();
+      const lastMonthDate = today.minus({ months: 1 });
+      const lastMonth = lastMonthDate.month;
+      const lastYear = lastMonthDate.year;
       exportData = exportData.filter((a) => {
-        const d = new Date(a.slot_day);
-        d.setUTCHours(12); // Prevent time zone fallback to previous day
-        return d.getMonth() === month && d.getFullYear() === year;
+        const date = DateTime.fromISO(a.slot_day).setZone(timezone);
+        return date.month === lastMonth && date.year === lastYear;
       });
     } else if (exportRange === "upcoming") {
       exportData = exportData.filter((a) => a.slot_day >= isoToday);
     } else if (exportRange === "selected_date") {
-      exportData = exportData.filter(
-        (a) => a.slot_day === selectedDate.toISOString().split("T")[0]
-      );
+      const selectedStr = DateTime.fromJSDate(selectedDate)
+        .setZone(timezone)
+        .toFormat("yyyy-MM-dd");
+      exportData = exportData.filter((a) => a.slot_day === selectedStr);
     }
 
     const header = "Name,Email,Date,Time Slot\n";
@@ -128,10 +157,8 @@ export default function FreelancerBookingList() {
     URL.revokeObjectURL(url);
   };
 
-  const formatDate = (isoDate) => {
-    const dateObj = new Date(isoDate);
-    const options = { year: "numeric", month: "long", day: "numeric" };
-    return dateObj.toLocaleDateString(undefined, options);
+  const formatDate = (isoDate, timezone = "America/New_York") => {
+    return DateTime.fromISO(isoDate).setZone(timezone).toFormat("MMMM d, yyyy");
   };
 
   return (
@@ -212,6 +239,7 @@ export default function FreelancerBookingList() {
             key={a.id}
             className="p-4 border rounded-lg bg-base-200 shadow-sm space-y-2 mt-4"
           >
+            <p className="text-xs text-gray-400">Appointment ID: {a.id}</p>
             <p>
               <strong>Name:</strong> {a.name}
             </p>
@@ -219,7 +247,8 @@ export default function FreelancerBookingList() {
               <strong>Email:</strong> {a.email}
             </p>
             <p>
-              <strong>Date:</strong> {formatDate(a.slot_day)}
+              <strong>Date:</strong>{" "}
+              {formatDate(a.slot_day, a.freelancer_timezone)}
             </p>
             <p>
               <strong>Time:</strong> {a.slot_time}
@@ -230,10 +259,18 @@ export default function FreelancerBookingList() {
             </p>
             <p
               className={`text-sm font-medium ${
-                a.confirmed ? "text-success" : "text-warning"
+                a.status === "confirmed"
+                  ? "text-success"
+                  : a.status === "cancelled"
+                  ? "text-error"
+                  : "text-warning"
               }`}
             >
-              {a.confirmed ? "✔ Verified" : "⚠ Unverified"}
+              {a.status === "confirmed"
+                ? "✔ Verified"
+                : a.status === "cancelled"
+                ? "✖ Cancelled"
+                : "⚠ Unverified"}
             </p>
             <button
               className="btn btn-error btn-sm"

@@ -5,10 +5,8 @@ export default function RequireFreelancerAuth({ children }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const isFreelancerLoggedIn = localStorage.getItem("freelancer_logged_in");
-    const freelancerId = localStorage.getItem("freelancer_id");
-  
-    if (!isFreelancerLoggedIn || !freelancerId) {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
       navigate("/auth");
     }
   }, [navigate]);

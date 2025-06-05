@@ -14,14 +14,20 @@ export default function ServiceForm({ onServiceAdded }) {
     e.preventDefault();
     setLoading(true);
     axios
-      .post("http://127.0.0.1:5000/freelancer/services", {
-        name,
-        description,
-        duration_minutes: duration,
-        price_usd: price,
-      }, {
-        headers: { "X-Freelancer-ID": localStorage.getItem("freelancer_id") },
-      })
+      .post(
+        "http://127.0.0.1:5000/freelancer/services",
+        {
+          name,
+          description,
+          duration_minutes: duration,
+          price_usd: price,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+        }
+      )
       .then(() => {
         showToast("Service added!");
         setName("");

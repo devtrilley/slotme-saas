@@ -10,6 +10,7 @@ import FreelancerCard from "../components/FreelancerCard";
 import FreelancerModal from "../components/FreelancerModal";
 import ServiceCard from "../components/ServiceCard";
 import ServiceForm from "../components/ServiceForm";
+import { DateTime } from "luxon";
 
 function getDateFromTimeStr(timeStr) {
   const [hourMinute, ampm] = timeStr.split(" ");
@@ -38,12 +39,20 @@ export default function AdminPage() {
 
   const navigate = useNavigate();
 
+  const token = localStorage.getItem("access_token");
+  const freelancerId = localStorage.getItem("freelancer_id");
+
   const fetchSlots = () => {
+    if (!freelancerId) {
+      setFetchError("Missing freelancer ID");
+      return;
+    }
+
     setLoading(true);
     axios
-      .get("http://127.0.0.1:5000/slots", {
+      .get(`http://127.0.0.1:5000/freelancer/slots/${freelancerId}`, {
         headers: {
-          "X-Freelancer-ID": localStorage.getItem("freelancer_id"),
+          Authorization: `Bearer ${token}`,
         },
       })
       .then((res) => {
@@ -66,7 +75,7 @@ export default function AdminPage() {
     axios
       .get("http://127.0.0.1:5000/freelancer/services", {
         headers: {
-          "X-Freelancer-ID": localStorage.getItem("freelancer_id"),
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
       })
       .then((res) => setServices(res.data))
@@ -76,10 +85,13 @@ export default function AdminPage() {
   const fetchBranding = () => {
     axios
       .get("http://127.0.0.1:5000/freelancer-info", {
-        headers: { "X-Freelancer-ID": localStorage.getItem("freelancer_id") },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
       })
       .then((res) => {
         setBranding({
+          id: res.data.id, // ✅ ADD THIS LINE
           name: res.data.name || "",
           logo_url: res.data.logo_url || "",
           tagline: res.data.tagline || "",
@@ -90,6 +102,12 @@ export default function AdminPage() {
       })
       .catch((err) => {
         console.error("❌ Failed to load branding", err);
+
+        if (err.response?.status === 401) {
+          // Token invalid or missing — force logout
+          localStorage.clear();
+          window.location.href = "/auth";
+        }
       });
   };
 
@@ -99,7 +117,7 @@ export default function AdminPage() {
     axios
       .delete(`http://127.0.0.1:5000/slots/${slotId}`, {
         headers: {
-          "X-Freelancer-ID": localStorage.getItem("freelancer_id"),
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
       })
       .then(() => {
@@ -107,6 +125,7 @@ export default function AdminPage() {
         fetchSlots();
       })
       .catch((err) => {
+        console.error("❌ Delete failed:", err.response?.data || err.message);
         const msg = err.response?.data?.error || "Failed to delete slot";
         showToast(msg, "error");
       });
@@ -115,7 +134,9 @@ export default function AdminPage() {
   const handleDeleteService = (serviceId) => {
     axios
       .delete(`http://127.0.0.1:5000/freelancer/services/${serviceId}`, {
-        headers: { "X-Freelancer-ID": localStorage.getItem("freelancer_id") },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
       })
       .then(() => {
         showToast("Service deleted");
@@ -135,7 +156,9 @@ export default function AdminPage() {
           price_usd: newPrice,
         },
         {
-          headers: { "X-Freelancer-ID": localStorage.getItem("freelancer_id") },
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
         }
       )
       .then(() => {
@@ -156,12 +179,18 @@ export default function AdminPage() {
     fetchServices();
   }, [brandingUpdated]);
 
-  const shareUrl = `http://localhost:5173/book/${localStorage.getItem(
-    "freelancer_id"
-  )}`;
+  const shareUrl = branding?.custom_url
+    ? `http://localhost:5173/${branding.custom_url}`
+    : "http://localhost:5173"; // fallback
+
+  function getESTDateString(date) {
+    return DateTime.fromJSDate(date)
+      .setZone(branding.timezone || "America/New_York")
+      .toFormat("yyyy-MM-dd");
+  }
 
   const filteredSlots = slots.filter(
-    (slot) => slot.day === selectedDate.toISOString().split("T")[0]
+    (slot) => slot.day === getESTDateString(selectedDate)
   );
 
   function formatDate(dateString) {
@@ -191,7 +220,12 @@ export default function AdminPage() {
         <button
           onClick={() => {
             localStorage.removeItem("freelancer_logged_in");
-            window.location.href = "/";
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("freelancer_id");
+            localStorage.removeItem("branding_updated"); // optional cleanup
+            localStorage.removeItem("client_id"); // optional cleanup
+
+            window.location.href = "/auth"; // 🔁 redirect to login page
           }}
           className="btn btn-sm btn-outline"
         >
@@ -212,7 +246,7 @@ export default function AdminPage() {
         <FreelancerModal
           freelancer={{
             ...branding,
-            id: localStorage.getItem("freelancer_id"),
+            id: branding.id || null,
           }}
           onClose={() => setShowModal(false)}
         />

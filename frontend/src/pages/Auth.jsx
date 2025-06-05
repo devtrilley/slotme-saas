@@ -24,8 +24,9 @@ export default function Auth() {
           password,
         });
 
-        localStorage.setItem("freelancer_logged_in", "true");
+        localStorage.setItem("access_token", res.data.access_token);
         localStorage.setItem("freelancer_id", res.data.freelancer_id);
+        localStorage.setItem("freelancer_logged_in", "true"); // ✅ ADD THIS LINE
         navigate("/freelancer-admin");
       } else {
         const res = await axios.post(
