@@ -14,13 +14,18 @@ from werkzeug.security import generate_password_hash
 from itsdangerous import URLSafeTimedSerializer
 from datetime import datetime, timedelta
 
-from email_utils import send_support_email
-from email_utils import send_reply_email
+from email_utils import send_priority_support_ticket
+from email_utils import send_branded_customer_reply
+from email_utils import send_feedback_submission
 
 from flask_jwt_extended import JWTManager
 from flask_jwt_extended import create_access_token
 from datetime import timedelta
 from datetime import datetime
+
+from itsdangerous import URLSafeTimedSerializer
+
+from flask_jwt_extended.exceptions import NoAuthorizationError
 
 
 import pytz
@@ -110,8 +115,22 @@ def load_freelancer():
     if request.method == "OPTIONS":
         return
 
-    open_prefixes = ("/auth", "/seed", "/verify", "/dev", "/404", "/master-times")
-    open_paths = ["/freelancer/public-info", "/freelancer/slots", "/book"]
+    open_prefixes = (
+        "/auth",
+        "/signup",
+        "/seed",
+        "/verify",
+        "/dev",
+        "/404",
+        "/master-times",
+    )
+    open_paths = [
+        "/freelancer/public-info",
+        "/freelancer/slots",
+        "/book",
+        "/test-email",
+        "/feedback",
+    ]
 
     if (
         any(request.path.startswith(prefix) for prefix in open_prefixes)
@@ -878,7 +897,8 @@ def send_support_request():
         msg = MIMEMultipart()
         msg["From"] = smtp_login
         msg["To"] = support_email
-        msg["Subject"] = f"[SlotMe Support] {subject}"
+        tier_prefix = freelancer.tier.upper() if freelancer.tier else "FREE"
+        msg["Subject"] = f"[ELITE SUPPORT] {subject}"
 
         body = f"""
         Tier: {freelancer.tier}
@@ -917,7 +937,7 @@ def reply_to_customer():
         return jsonify({"error": "Unauthorized"}), 403
 
     try:
-        send_reply_email(subject, message, customer_email)
+        send_branded_customer_reply(subject, message, customer_email)
         return jsonify({"message": "Reply sent successfully!"}), 200
     except Exception as e:
         print("❌ Reply failed:", str(e))
@@ -1072,7 +1092,7 @@ def seed_everything():
             logo_url="https://randomuser.me/api/portraits/women/45.jpg",
             tagline='Let\'s grab "Hot Coffee". Night bookings only...',
             bio="Currently in Charlotte, NC!",
-            is_verified=True,
+            is_verified=False,
             phone="555-123-4567",
             contact_email="booking@ambercafe.com",
             instagram_url="https://instagram.com/zuck",
@@ -1153,7 +1173,7 @@ def seed_everything():
             name="Ping's Slippery Massage",
             email="night@mail.com",
             password=generate_password_hash("night123"),
-            logo_url="https://randomuser.me/api/portraits/women/32.jpg",
+            logo_url="https://thumbs.dreamstime.com/b/portrait-beautiful-asian-woman-natural-beauty-face-thai-girl-tanned-skin-full-lips-high-resolution-137168110.jpg",
             tagline="I milk you, we have fun time!",
             bio="Trained in Bangkok. Open late.",
             is_verified=True,
@@ -1284,6 +1304,156 @@ def get_freelancer_info():
         ),
         200,
     )
+
+
+@app.route("/dev/send-confirmation/<int:freelancer_id>", methods=["POST"])
+@cross_origin()
+def send_confirmation_email(freelancer_id):
+    freelancer = Freelancer.query.get(freelancer_id)
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
+
+    token = serializer.dumps(freelancer.email, salt="email-confirm")
+    freelancer.confirmation_token = token
+    db.session.commit()
+
+    confirm_url = f"http://localhost:5173/verify-freelancer?token={token}"
+    print(f"🔗 Confirmation link: {confirm_url}")
+
+    send_feedback_submission(
+        to=freelancer.email,
+        subject="Please confirm your SlotMe email",
+        body=f"Click here to confirm: {confirm_url}",
+    )
+
+    return jsonify({"message": "Email sent!"}), 200
+
+
+@app.route("/verify-email", methods=["GET"])
+@cross_origin()
+def verify_email():
+    token = request.args.get("token")
+    try:
+        email = serializer.loads(token, salt="email-confirm", max_age=3600)
+    except:
+        return jsonify({"error": "Invalid or expired token"}), 400
+
+    freelancer = Freelancer.query.filter_by(email=email).first()
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
+
+    freelancer.email_confirmed = True
+    freelancer.confirmation_token = None
+    db.session.commit()
+
+    return jsonify({"message": "Email confirmed successfully!"}), 200
+
+
+@cross_origin(origins="http://localhost:5173")  # 👈 Add this decorator
+@app.route("/signup", methods=["POST"])
+def signup_freelancer():
+    data = request.get_json()
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+
+    if not name or not email or not password:
+        return jsonify({"error": "Missing required fields"}), 400
+
+    if Freelancer.query.filter_by(email=email).first():
+        return jsonify({"error": "Email already exists"}), 400
+
+    hashed = generate_password_hash(password)
+
+    new_freelancer = Freelancer(
+        name=name,
+        email=email,
+        contact_email=email,
+        password=hashed,
+        email_confirmed=False,
+    )
+
+    db.session.add(new_freelancer)
+    db.session.commit()
+
+    # 🔗 Generate confirmation token and send email
+    token = serializer.dumps(email, salt="email-confirm")
+    new_freelancer.confirmation_token = token
+    db.session.commit()
+
+    confirm_url = f"http://localhost:5173/verify-freelancer?token={token}"
+    print(f"📨 Confirmation URL: {confirm_url}")
+
+    # ✅ Send verification email
+    send_feedback_submission(
+        to=email,
+        subject="Verify Your SlotMe Account",
+        body=f"""Hey {name},
+
+    Thanks for signing up for SlotMe!
+
+    Before you can log in, please confirm your email address by clicking the link below:
+    http://localhost:5173/signup-confirmed
+
+    Once confirmed, you’ll have access to your dashboard and can start booking clients.
+
+    – The SlotMe Team
+    """,
+    )
+
+    return (
+        jsonify({"message": "Signup successful! Please check your email to confirm."}),
+        201,
+    )
+
+
+@app.route("/test-email", methods=["GET", "POST"])
+def test_email():
+    try:
+        send_feedback_submission(
+            "heyitsjusttom@gmail.com",
+            "🔥 SlotMe SMTP Test #merab",
+            "This is a test email from your SlotMe app.",
+        )
+        return jsonify({"message": "Test email sent successfully!"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/feedback", methods=["POST", "OPTIONS"])
+def send_feedback():
+    if request.method == "OPTIONS":
+        return jsonify({"ok": True}), 200
+
+    data = request.get_json()
+    name = data.get("name", "Anonymous")
+    email = data.get("email", "unknown@user.com")
+    subject = data.get("subject", "No Subject")
+    message = data.get("message", "")
+    reason = data.get("reason", "General")
+
+    if "@" not in email:
+        email = "unknown@user.com"
+
+    body = f"""
+Name: {name}
+Email: {email}
+Reason: {reason}
+
+Message:
+{message}
+""".strip()
+
+    try:
+        send_feedback_submission(
+            to=os.getenv("SUPPORT_EMAIL"),  # e.g. support@slotme.xyz
+            subject=f"[PUBLIC | {reason}] {subject}",
+            body=body,
+        )
+        return jsonify({"message": "Feedback sent successfully!"}), 200
+    except Exception as e:
+        print("❌ Feedback email failed:", str(e))
+        return jsonify({"error": "Failed to send feedback"}), 500
 
 
 # -----------------------

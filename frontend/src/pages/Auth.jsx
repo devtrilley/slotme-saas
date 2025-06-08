@@ -16,33 +16,27 @@ export default function Auth() {
     e.preventDefault();
     setError("");
     setSubmitting(true);
-
+  
     try {
-      if (mode === "login") {
+      if (mode === "signup") {
+        const res = await axios.post("http://127.0.0.1:5000/signup", {
+          name,
+          email,
+          password,
+        });
+  
+        alert("Thanks for signing up! Please check your email to confirm.");
+        setMode("login");
+      } else {
         const res = await axios.post("http://127.0.0.1:5000/auth", {
           email,
           password,
         });
-
+  
         localStorage.setItem("access_token", res.data.access_token);
         localStorage.setItem("freelancer_id", res.data.freelancer_id);
-        localStorage.setItem("freelancer_logged_in", "true"); // ✅ ADD THIS LINE
+        localStorage.setItem("freelancer_logged_in", "true");
         navigate("/freelancer-admin");
-      } else {
-        const res = await axios.post(
-          "http://127.0.0.1:5000/dev/freelancers",
-          {
-            name,
-            email,
-            password,
-          },
-          {
-            headers: { "X-Dev-Auth": "secret123" },
-          }
-        );
-
-        alert("Freelancer account created! You can now log in.");
-        setMode("login");
       }
     } catch (err) {
       const msg = err.response?.data?.error || "Something went wrong.";

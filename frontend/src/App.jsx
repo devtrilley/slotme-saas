@@ -12,7 +12,6 @@ import DevFreelancerSlots from "./pages/DevFreelancerSlots";
 import DevFreelancerBookings from "./pages/DevFreelancerBookings";
 import NewFreelancer from "./pages/NewFreelancer";
 import Auth from "./pages/Auth";
-import ThankYou from "./pages/ThankYou";
 import NotFound from "./pages/NotFound";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
@@ -21,6 +20,11 @@ import FreelancerProfile from "./pages/FreelancerProfile";
 import FreelancerAnalytics from "./pages/FreelancerAnalytics";
 import PrioritySupport from "./pages/PrioritySupport";
 import QRCodePage from "./pages/QRCodePage";
+import Feedback from "./pages/Feedback";
+import SignupSuccess from "./pages/SignupSuccess";
+import BookingSuccess from "./pages/BookingSuccess";
+import BookingConfirmed from "./pages/BookingConfirmed";
+import SignupConfirmed from "./pages/SignupConfirmed";
 
 // Component Imports
 import Navbar from "./components/Navbar";
@@ -84,7 +88,6 @@ export default function App() {
             }
           />
           <Route path="/book/:freelancerId" element={<BookingPage />} />
-          <Route path="/thank-you" element={<ThankYou />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/upgrade" element={<Upgrade />} />
@@ -105,6 +108,14 @@ export default function App() {
           <Route path="/:custom_url" element={<CustomUrlRouter />} />
           <Route path="*" element={<NotFound />} />
           <Route path="/qr-code" element={<QRCodePage />} />
+
+          <Route path="/feedback" element={<Feedback />} />
+
+          <Route path="/signup-success" element={<SignupSuccess />} />
+          <Route path="/booking-success" element={<BookingSuccess />} />
+
+          <Route path="/booking-confirmed" element={<BookingConfirmed />} />
+          <Route path="/signup-confirmed" element={<SignupConfirmed />} />
         </Routes>
       </div>
     </div>

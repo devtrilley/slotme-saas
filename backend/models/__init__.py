@@ -20,6 +20,8 @@ class Freelancer(db.Model):
     faq_text = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     early_access = db.Column(db.Boolean, default=False)
+    email_confirmed = db.Column(db.Boolean, default=False)
+    confirmation_token = db.Column(db.String(128), nullable=True)
 
     # ✅ Tier field added here
     tier = db.Column(db.String(20), default="free")  # "free", "pro", "elite"
