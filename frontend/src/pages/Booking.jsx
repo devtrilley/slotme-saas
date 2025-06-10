@@ -13,14 +13,17 @@ export default function BookingPage() {
   const { freelancerId } = useParams();
   const [slots, setSlots] = useState([]);
   const [selectedSlotId, setSelectedSlotId] = useState(null);
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [branding, setBranding] = useState({
-    name: "",
+    first_name: "",
+    last_name: "",
+    business_name: "",
     logo_url: "",
     tagline: "",
     bio: "",
@@ -57,7 +60,9 @@ export default function BookingPage() {
       .get(`http://127.0.0.1:5000/freelancer/public-info/${freelancerId}`)
       .then((res) => {
         setBranding({
-          name: res.data.name || "",
+          first_name: res.data.first_name || "",
+          last_name: res.data.last_name || "",
+          business_name: res.data.business_name || "",
           logo_url: res.data.logo_url || "",
           tagline: res.data.tagline || "",
           bio: res.data.bio || "",
@@ -113,7 +118,8 @@ export default function BookingPage() {
 
     axios
       .post("http://127.0.0.1:5000/book", {
-        name,
+        first_name: firstName,
+        last_name: lastName,
         email,
         phone,
         slot_id: selectedSlotId,
@@ -121,7 +127,8 @@ export default function BookingPage() {
       })
       .then(() => {
         setSuccess(true);
-        setName("");
+        setFirstName("");
+        setLastName("");
         setEmail("");
         setPhone("");
         setSelectedSlotId(null);
@@ -156,7 +163,9 @@ export default function BookingPage() {
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
       <FreelancerCard
-        name={branding.name}
+        business_name={branding.business_name}
+        first_name={branding.first_name}
+        last_name={branding.last_name}
         logoUrl={branding.logo_url}
         tagline={branding.tagline}
         bio={branding.bio}
@@ -291,14 +300,23 @@ export default function BookingPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <h3 className="text-lg font-semibold text-center border-b pb-1">
-          Your Contact Info
+          Your Name & Contact Info
         </h3>
         <input
           type="text"
-          placeholder="Your name"
+          placeholder="First name"
           className="input input-bordered w-full"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+          required
+        />
+
+        <input
+          type="text"
+          placeholder="Last name"
+          className="input input-bordered w-full"
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
           required
         />
 

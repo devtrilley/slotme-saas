@@ -19,6 +19,7 @@ export default function AddSlotForm({ onAdd }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [timesLoading, setTimesLoading] = useState(true);
+  const [userChangedDate, setUserChangedDate] = useState(false);
 
   useEffect(() => {
     axios
@@ -89,10 +90,9 @@ export default function AddSlotForm({ onAdd }) {
       )
       .then(() => {
         showToast("Time slot added!");
-        setSelectedDate(new Date());
-        setHour("12");
-        setMinute("00");
-        setAmpm("AM");
+        if (!userChangedDate) {
+          setSelectedDate(new Date()); // ✅ Only reset if user hasn't manually changed it
+        }
         if (onAdd) onAdd();
       })
       .catch((err) => {
@@ -115,7 +115,10 @@ export default function AddSlotForm({ onAdd }) {
       <div className="relative w-full">
         <DatePicker
           selected={selectedDate}
-          onChange={(date) => setSelectedDate(date)}
+          onChange={(date) => {
+            setSelectedDate(date);
+            setUserChangedDate(true);
+          }}
           className="input input-bordered w-full pl-10"
           wrapperClassName="w-full"
           dateFormat="MMMM d, yyyy"

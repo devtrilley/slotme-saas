@@ -160,6 +160,7 @@ def index():
 
 
 @app.route("/freelancer/slots/<int:freelancer_id>", methods=["GET"])
+@cross_origin(origins="http://localhost:5173", supports_credentials=True)
 def get_public_time_slots(freelancer_id):
     slots = TimeSlot.query.filter_by(freelancer_id=freelancer_id).all()
     result = []
@@ -174,7 +175,7 @@ def get_public_time_slots(freelancer_id):
 
         if slot.is_booked and slot.appointment and slot.appointment.user:
             slot_data["appointment"] = {
-                "name": slot.appointment.user.name,
+                "name": f"{slot.appointment.user.first_name} {slot.appointment.user.last_name}",
                 "email": slot.appointment.user.email,
             }
 
@@ -186,12 +187,13 @@ def get_public_time_slots(freelancer_id):
 @app.route("/book", methods=["POST"])
 def book_slot():
     data = request.get_json()
-    name = data.get("name")
+    first_name = data.get("first_name")
+    last_name = data.get("last_name")
     email = data.get("email")
     phone = data.get("phone")  # New
     slot_id = data.get("slot_id")
 
-    if not name or not email or not slot_id:
+    if not first_name or not last_name or not email or not slot_id:
         return jsonify({"error": "Missing required fields"}), 400
 
     # Get and validate slot
@@ -202,7 +204,9 @@ def book_slot():
     # Check or create user
     user = User.query.filter_by(email=email).first()
     if not user:
-        user = User(name=name, email=email, phone=phone)
+        user = User(
+            first_name=first_name, last_name=last_name, email=email, phone=phone
+        )
         db.session.add(user)
         db.session.commit()
 
@@ -250,11 +254,12 @@ def get_appointments():
     result = []
 
     for a in appointments:
+        user = a.user
         result.append(
             {
                 "id": a.id,
-                "name": a.user.name if a.user else None,
-                "email": a.user.email if a.user else None,
+                "name": f"{user.first_name} {user.last_name}" if user else None,
+                "email": user.email if user else None,
                 "slot_day": a.slot.day,
                 "slot_time": a.slot.master_time.label,
                 "status": a.status,
@@ -391,7 +396,7 @@ def get_freelancer_slots(freelancer_id):
 
         if slot.is_booked and slot.appointment and slot.appointment.user:
             data["appointment"] = {
-                "name": slot.appointment.user.name,
+                "name": f"{slot.appointment.user.first_name} {slot.appointment.user.last_name}",
                 "email": slot.appointment.user.email,
             }
 
@@ -429,7 +434,8 @@ def get_single_freelancer(freelancer_id):
     return jsonify(
         {
             "id": freelancer.id,
-            "name": freelancer.name,
+            "first_name": freelancer.first_name,
+            "last_name": freelancer.last_name,
             "email": freelancer.email,
             "phone": freelancer.phone,
             "logo_url": freelancer.logo_url,
@@ -478,18 +484,22 @@ def create_freelancer():
         return jsonify({"error": "Forbidden"}), 403
 
     data = request.get_json()
-    name = data.get("name")
+    first_name = data.get("first_name")
+    last_name = data.get("last_name")
     email = data.get("email")
     password = data.get("password")
 
-    if not name or not email or not password:
+    if not first_name or not last_name or not email or not password:
         return jsonify({"error": "Missing required fields"}), 400
 
     if Freelancer.query.filter_by(email=email).first():
         return jsonify({"error": "Email already exists"}), 400
 
     new_freelancer = Freelancer(
-        name=name, email=email, password=generate_password_hash(password)
+        first_name=first_name,
+        last_name=last_name,
+        email=email,
+        password=generate_password_hash(password),
     )
     db.session.add(new_freelancer)
     db.session.commit()
@@ -525,7 +535,9 @@ def get_public_freelancer_info(freelancer_id):
     return jsonify(
         {
             "id": freelancer.id,
-            "name": freelancer.name,
+            "first_name": freelancer.first_name,
+            "last_name": freelancer.last_name,
+            "business_name": freelancer.business_name,
             "logo_url": freelancer.logo_url,
             "tagline": freelancer.tagline,
             "bio": freelancer.bio,
@@ -662,7 +674,9 @@ def public_freelancer_profile(freelancer_id):
     return jsonify(
         {
             "id": freelancer.id,
-            "name": freelancer.name,
+            "first_name": freelancer.first_name,
+            "last_name": freelancer.last_name,
+            "business_name": freelancer.business_name,
             "logo_url": freelancer.logo_url,
             "tagline": freelancer.tagline,
             "bio": freelancer.bio,
@@ -728,6 +742,9 @@ def add_service():
 
     if not name or not duration_minutes:
         return jsonify({"error": "Missing required fields"}), 400
+
+    if price_usd is None:
+        return jsonify({"error": "Price is required"}), 400
 
     service = Service(
         freelancer_id=freelancer_id,
@@ -805,7 +822,9 @@ def get_analytics():
     top_services = (
         db.session.query(Service.name, func.count(Appointment.id).label("count"))
         .join(Appointment, Service.id == Appointment.service_id)
-        .filter(Service.freelancer_id == freelancer_id)
+        .filter(
+            Service.freelancer_id == freelancer_id, Appointment.status == "confirmed"
+        )
         .group_by(Service.id)
         .order_by(func.count(Appointment.id).desc())
         .all()
@@ -819,7 +838,9 @@ def get_analytics():
     service_counts = (
         db.session.query(Service.name, func.count(Appointment.id))
         .join(Appointment, Service.id == Appointment.service_id)
-        .filter(Service.freelancer_id == freelancer_id)
+        .filter(
+            Service.freelancer_id == freelancer_id, Appointment.status == "confirmed"
+        )
         .group_by(Service.name)
         .all()
     )
@@ -847,7 +868,7 @@ def get_analytics():
         .join(Appointment, Service.id == Appointment.service_id)
         .filter(
             Appointment.freelancer_id == freelancer_id,
-            Appointment.status != "cancelled",
+            Appointment.status == "confirmed",
         )
         .group_by(Service.name)
         .all()
@@ -985,7 +1006,8 @@ def public_profile_by_url(custom_url):
     return jsonify(
         {
             "id": freelancer.id,
-            "name": freelancer.name,
+            "first_name": freelancer.first_name,
+            "last_name": freelancer.last_name,
             "email": freelancer.contact_email,
             "phone": freelancer.phone,
             "logo_url": freelancer.logo_url,
@@ -1004,6 +1026,7 @@ def public_profile_by_url(custom_url):
 @app.route("/freelancer/branding", methods=["PATCH"])
 @jwt_required()
 def update_freelancer_branding():
+    print("🔥 Incoming PATCH payload:", request.json)
     freelancer_id = int(g.freelancer_id)
     data = request.get_json()
     freelancer = Freelancer.query.get(freelancer_id)
@@ -1011,7 +1034,9 @@ def update_freelancer_branding():
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
 
-    freelancer.name = data.get("name", freelancer.name)
+    freelancer.first_name = data.get("first_name", freelancer.first_name)
+    freelancer.last_name = data.get("last_name", freelancer.last_name)
+    freelancer.business_name = data.get("business_name", freelancer.business_name)
     freelancer.logo_url = data.get("logo_url", freelancer.logo_url)
     freelancer.bio = data.get("bio", freelancer.bio)
     freelancer.tagline = data.get("tagline", freelancer.tagline)
@@ -1023,20 +1048,25 @@ def update_freelancer_branding():
     if "custom_url" in data:
         new_url = data["custom_url"].strip().lower()
 
-        if not re.match(r"^[a-z0-9_-]{3,30}$", new_url):
-            return (
-                jsonify(
-                    {
-                        "error": "Custom URL must be 3-30 characters, letters/numbers/dashes only."
-                    }
-                ),
-                400,
-            )
+        if new_url:  # Only validate if it's not empty
+            if not re.match(r"^[a-z0-9_-]{3,30}$", new_url):
+                return (
+                    jsonify(
+                        {
+                            "error": "Custom URL must be 3-30 characters, letters/numbers/dashes only."
+                        }
+                    ),
+                    400,
+                )
 
-        if new_url != freelancer.custom_url:
-            if Freelancer.query.filter(Freelancer.custom_url == new_url).first():
-                return jsonify({"error": "Custom URL is already taken."}), 400
-        freelancer.custom_url = new_url
+            if new_url != freelancer.custom_url:
+                if Freelancer.query.filter(Freelancer.custom_url == new_url).first():
+                    return jsonify({"error": "Custom URL is already taken."}), 400
+
+            freelancer.custom_url = new_url
+        else:
+            # Optional: allow clearing the custom URL if desired
+            freelancer.custom_url = ""
 
     db.session.commit()
     return jsonify({"message": "Branding updated"})
@@ -1086,7 +1116,9 @@ def seed_everything():
     f1 = Freelancer.query.filter_by(email="demo@mail.com").first()
     if not f1:
         f1 = Freelancer(
-            name="Amber's Love Cafe",
+            first_name="Amber",
+            last_name="Gyser",
+            business_name="Amber's Love Cafe",
             email="demo@mail.com",
             password=generate_password_hash("demo123"),
             logo_url="https://randomuser.me/api/portraits/women/45.jpg",
@@ -1150,9 +1182,12 @@ def seed_everything():
             slots.append(slot)
     db.session.commit()
 
+    demo_services = Service.query.filter_by(freelancer_id=f1.id).all()
+
     # Add demo appointments
     for i, (full_name, email) in enumerate(demo_users):
-        user = User(name=full_name, email=email)
+        first, last = full_name.split(" ", 1)
+        user = User(first_name=first, last_name=last, email=email)
         db.session.add(user)
         db.session.commit()
 
@@ -1162,6 +1197,7 @@ def seed_everything():
             slot_id=slots[i].id,
             status="confirmed",
             timestamp=datetime.now(),
+            service_id=demo_services[i % len(demo_services)].id,
         )
         db.session.add(appt)
     db.session.commit()
@@ -1170,7 +1206,9 @@ def seed_everything():
     f2 = Freelancer.query.filter_by(email="night@mail.com").first()
     if not f2:
         f2 = Freelancer(
-            name="Ping's Slippery Massage",
+            first_name="Ping",
+            last_name="Xioma",
+            business_name="Ping's Slippery Massage",
             email="night@mail.com",
             password=generate_password_hash("night123"),
             logo_url="https://thumbs.dreamstime.com/b/portrait-beautiful-asian-woman-natural-beauty-face-thai-girl-tanned-skin-full-lips-high-resolution-137168110.jpg",
@@ -1242,9 +1280,8 @@ def seed_everything():
             db.session.commit()
 
             first, last = choice(name_pool)
-            name = f"{first} {last}"
             email = f"{first.lower()}.{last.lower()}@mail.com"
-            user = User(name=name, email=email)
+            user = User(first_name=first, last_name=last, email=email)
 
             db.session.add(user)
             db.session.commit()
@@ -1294,7 +1331,9 @@ def get_freelancer_info():
         jsonify(
             {
                 "id": freelancer.id,
-                "name": freelancer.name,
+                "first_name": freelancer.first_name,
+                "last_name": freelancer.last_name,
+                "business_name": freelancer.business_name,
                 "logo_url": freelancer.logo_url,
                 "tagline": freelancer.tagline,
                 "bio": freelancer.bio,
@@ -1353,11 +1392,12 @@ def verify_email():
 @app.route("/signup", methods=["POST"])
 def signup_freelancer():
     data = request.get_json()
-    name = data.get("name")
+    first_name = data.get("first_name")
+    last_name = data.get("last_name")
     email = data.get("email")
     password = data.get("password")
 
-    if not name or not email or not password:
+    if not first_name or not last_name or not email or not password:
         return jsonify({"error": "Missing required fields"}), 400
 
     if Freelancer.query.filter_by(email=email).first():
@@ -1366,7 +1406,8 @@ def signup_freelancer():
     hashed = generate_password_hash(password)
 
     new_freelancer = Freelancer(
-        name=name,
+        first_name=first_name,
+        last_name=last_name,
         email=email,
         contact_email=email,
         password=hashed,
@@ -1388,7 +1429,7 @@ def signup_freelancer():
     send_feedback_submission(
         to=email,
         subject="Verify Your SlotMe Account",
-        body=f"""Hey {name},
+        body=f"""Hey {first_name},
 
     Thanks for signing up for SlotMe!
 

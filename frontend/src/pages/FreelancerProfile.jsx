@@ -86,7 +86,7 @@ export default function FreelancerProfile() {
       )}
       {/* Name and bullets */}
       <div>
-        <h1 className="text-2xl font-bold">{freelancer.name}</h1>
+        <h1 className="text-2xl font-bold">{freelancer.business_name}</h1>
         <ul className="mt-4 text-left text-sm space-y-2">
           {freelancer.bio && (
             <li className="italic text-gray-300">

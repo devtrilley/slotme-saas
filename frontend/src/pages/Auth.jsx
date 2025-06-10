@@ -4,7 +4,8 @@ import axios from "axios";
 
 export default function Auth() {
   const [mode, setMode] = useState("login"); // "login" or "signup"
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -16,15 +17,16 @@ export default function Auth() {
     e.preventDefault();
     setError("");
     setSubmitting(true);
-  
+
     try {
       if (mode === "signup") {
         const res = await axios.post("http://127.0.0.1:5000/signup", {
-          name,
+          first_name: firstName,
+          last_name: lastName,
           email,
           password,
         });
-  
+
         alert("Thanks for signing up! Please check your email to confirm.");
         setMode("login");
       } else {
@@ -32,7 +34,7 @@ export default function Auth() {
           email,
           password,
         });
-  
+
         localStorage.setItem("access_token", res.data.access_token);
         localStorage.setItem("freelancer_id", res.data.freelancer_id);
         localStorage.setItem("freelancer_logged_in", "true");
@@ -75,14 +77,24 @@ export default function Auth() {
       {/* Auth Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         {mode === "signup" && (
-          <input
-            type="text"
-            className="input input-bordered w-full"
-            placeholder="Full Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
+          <>
+            <input
+              type="text"
+              className="input input-bordered w-full"
+              placeholder="First Name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
+            <input
+              type="text"
+              className="input input-bordered w-full"
+              placeholder="Last Name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+            />
+          </>
         )}
         <input
           type="email"

@@ -1,4 +1,3 @@
-// ServiceForm.jsx
 import { useState } from "react";
 import axios from "axios";
 import { showToast } from "../utils/toast";
@@ -6,8 +5,8 @@ import { showToast } from "../utils/toast";
 export default function ServiceForm({ onServiceAdded }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [duration, setDuration] = useState(60);
-  const [price, setPrice] = useState(0);
+  const [duration, setDuration] = useState("");
+  const [price, setPrice] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = (e) => {
@@ -19,8 +18,8 @@ export default function ServiceForm({ onServiceAdded }) {
         {
           name,
           description,
-          duration_minutes: duration,
-          price_usd: price,
+          duration_minutes: Number(duration),
+          price_usd: Number(price),
         },
         {
           headers: {
@@ -32,8 +31,8 @@ export default function ServiceForm({ onServiceAdded }) {
         showToast("Service added!");
         setName("");
         setDescription("");
-        setDuration(60);
-        setPrice(0);
+        setDuration("");
+        setPrice("");
         if (onServiceAdded) onServiceAdded();
       })
       .catch((err) => {
@@ -44,39 +43,90 @@ export default function ServiceForm({ onServiceAdded }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <h3 className="font-bold text-center text-md">Add a New Service</h3>
-      <input
-        className="input input-bordered w-full"
-        placeholder="Service name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-      />
-      <textarea
-        className="textarea textarea-bordered w-full"
-        placeholder="Description"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        required
-      />
-      <input
-        className="input input-bordered w-full"
-        type="number"
-        placeholder="Duration (minutes)"
-        value={duration}
-        onChange={(e) => setDuration(e.target.value)}
-        required
-      />
-      <input
-        className="input input-bordered w-full"
-        type="number"
-        step="0.01"
-        placeholder="Price (USD)"
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
-        required
-      />
+
+      {/* Service Name */}
+      <div>
+        <label className="block text-sm font-medium mb-1">Service Name</label>
+        <input
+          className="input input-bordered w-full"
+          placeholder="e.g. Haircut"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block text-sm font-medium mb-1">Description</label>
+        <textarea
+          className="textarea textarea-bordered w-full"
+          placeholder="Brief description of the service"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          required
+        />
+      </div>
+
+      {/* Duration */}
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          Duration (minutes, 15 min increments)
+        </label>
+        <input
+          className="input input-bordered w-full text-center"
+          type="number"
+          step={15}
+          min={15}
+          placeholder="e.g. 60"
+          value={duration}
+          onChange={(e) => setDuration(e.target.value)}
+          required
+        />
+
+        {/* Buttons for mobile */}
+        <div className="flex justify-center gap-2 mt-2 sm:hidden">
+          <div className="flex gap-2 sm:hidden w-full">
+            <button
+              type="button"
+              className="btn btn-sm btn-error flex-1 text-white font-bold"
+              onClick={() =>
+                setDuration((prev) => Math.max(15, Number(prev || 15) - 15))
+              }
+            >
+              − 15
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-success flex-1 text-white font-bold"
+              onClick={() =>
+                setDuration((prev) => Math.min(360, Number(prev || 15) + 15))
+              }
+            >
+              + 15
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Price */}
+      <div>
+        <label className="block text-sm font-medium mb-1">Price (USD)</label>
+        <input
+          className="input input-bordered w-full"
+          type="number"
+          step="0.01"
+          min={0}
+          placeholder="e.g. 25.00"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          required
+        />
+      </div>
+
+      {/* Submit */}
       <button className="btn btn-primary w-full" disabled={loading}>
         {loading ? "Adding..." : "Add Service"}
       </button>

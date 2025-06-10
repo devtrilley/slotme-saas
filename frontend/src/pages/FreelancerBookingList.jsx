@@ -108,14 +108,14 @@ export default function FreelancerBookingList() {
 
   const exportCSV = () => {
     let exportData = appointments.filter((a) => a.status !== "cancelled");
-
+  
     const timezone =
       exportData.find((a) => a.freelancer_timezone)?.freelancer_timezone ||
       "America/New_York";
-
+  
     const today = DateTime.now().setZone(timezone);
     const isoToday = today.toISODate();
-
+  
     if (exportRange === "this_month") {
       const thisMonth = today.month;
       const thisYear = today.year;
@@ -139,17 +139,29 @@ export default function FreelancerBookingList() {
         .toFormat("yyyy-MM-dd");
       exportData = exportData.filter((a) => a.slot_day === selectedStr);
     }
-
-    const header = "Name,Email,Date,Time Slot\n";
-    const rows = exportData.map(
-      (a) => `${a.name},${a.email},${a.slot_day},${a.slot_time}`
-    );
-
+  
+    // ✅ New CSV header
+    const header = "First Name,Last Name,Email,Phone,Service,Date,Time Slot,Status\n";
+  
+    // ✅ Rows mapped cleanly
+    const rows = exportData.map((a) => {
+      const firstName = a.first_name || "";
+      const lastName = a.last_name || "";
+      const email = a.email || "";
+      const phone = a.phone || "";
+      const service = a.service || "Unknown";
+      const date = a.slot_day || "";
+      const time = a.slot_time || "";
+      const status = a.status || "pending";
+  
+      return `${firstName},${lastName},${email},${phone},${service},${date},${time},${status}`;
+    });
+  
     const csvContent = header + rows.join("\n");
-
+  
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-
+  
     const a = document.createElement("a");
     a.href = url;
     a.download = "bookings.csv";
@@ -163,11 +175,15 @@ export default function FreelancerBookingList() {
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
-      <div className="flex flex-col gap-3">
-        <h2 className="text-2xl font-bold text-center">
-          Freelancer CRM: Bookings
-        </h2>
+      <h2 className="text-2xl font-bold text-center">
+        Freelancer CRM: Bookings
+      </h2>
 
+      {/* === Search + Time Filter FIRST === */}
+      <div className="space-y-2">
+        <label className="font-medium text-sm text-gray-400">
+          Search & Time Filter:
+        </label>
         <input
           type="text"
           placeholder="Search by name or email"
@@ -175,45 +191,108 @@ export default function FreelancerBookingList() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-
         <select
           className="select select-bordered w-full"
           value={timeFilter}
           onChange={(e) => setTimeFilter(e.target.value)}
         >
-          <option value="all">All Bookings</option>
+          <option value="all">All Times</option>
           <option value="morning">Morning (Before 12PM)</option>
           <option value="afternoon">Afternoon (12PM–4PM)</option>
           <option value="evening">Evening (After 4PM)</option>
         </select>
+      </div>
 
-        <label className="text-sm text-gray-400 block text-center mt-2">
-          Filter by booking date:
+      {/* === Filter by Booking Date BELOW that === */}
+      <div className="space-y-2">
+        <label className="font-medium text-sm text-gray-400">
+          Filter by Booking Date:
         </label>
 
-        <div className="relative w-full">
+        {/* ✅ Wrap the picker in a div that controls the width */}
+        <div className="w-full">
           <DatePicker
             selected={selectedDate}
             onChange={(date) => setSelectedDate(date)}
-            className="input input-bordered w-full pl-10"
-            wrapperClassName="w-full" // ✅ Fixes width!
             dateFormat="MMMM d, yyyy"
             placeholderText="Choose a date"
+            className="input input-bordered w-full" // style the input
+            wrapperClassName="w-full" // style the outer wrapper
           />
-          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-            📅
-          </span>
         </div>
 
-        {selectedDate && (
+        {/* ✅ Make sure this button uses w-full and consistent size */}
+        <div className="w-full">
           <button
             onClick={() => setSelectedDate(new Date())}
-            className="btn btn-sm btn-outline w-full mt-2"
+            className="btn btn-outline w-full"
           >
-            ❌ Clear Date Filter
+            ⏮️ Return to Today
           </button>
-        )}
+        </div>
+      </div>
 
+      {/* === Appointment Cards === */}
+      <div className="space-y-4">
+        {filtered.length === 0 ? (
+          <p className="text-center text-gray-400 pt-4">
+            No matching bookings.
+          </p>
+        ) : (
+          filtered.map((a) => (
+            <div
+              key={a.id}
+              className="p-4 border rounded-lg bg-base-200 shadow-sm space-y-2"
+            >
+              <p className="text-xs text-gray-400">Appointment ID: {a.id}</p>
+              <p>
+                <strong>Name:</strong> {a.name}
+              </p>
+              <p>
+                <strong>Email:</strong> {a.email}
+              </p>
+              <p>
+                <strong>Date:</strong>{" "}
+                {formatDate(a.slot_day, a.freelancer_timezone)}
+              </p>
+              <p>
+                <strong>Time:</strong> {a.slot_time}
+                <span className="ml-1 text-xs text-gray-400">
+                  {a.freelancer_timezone?.split("/")[1]?.replace("_", " ") ||
+                    "Time Zone"}
+                </span>
+              </p>
+              <p
+                className={`text-sm font-medium ${
+                  a.status === "confirmed"
+                    ? "text-success"
+                    : a.status === "cancelled"
+                    ? "text-error"
+                    : "text-warning"
+                }`}
+              >
+                {a.status === "confirmed"
+                  ? "✔ Verified"
+                  : a.status === "cancelled"
+                  ? "✖ Cancelled"
+                  : "⚠ Unverified"}
+              </p>
+              <button
+                className="btn btn-error btn-sm"
+                onClick={() => handleCancel(a.id)}
+              >
+                Cancel
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* === Export Section === */}
+      <div className="space-y-2 pt-6">
+        <label className="font-medium text-sm text-gray-400">
+          Export Bookings:
+        </label>
         <select
           className="select select-bordered w-full"
           value={exportRange}
@@ -225,62 +304,10 @@ export default function FreelancerBookingList() {
           <option value="upcoming">📈 Upcoming</option>
           <option value="all">🌍 All Bookings</option>
         </select>
-
-        <button onClick={exportCSV} className="btn btn-outline w-full mt-2">
+        <button onClick={exportCSV} className="btn btn-outline w-full">
           📄 Export to CSV
         </button>
       </div>
-
-      {filtered.length === 0 ? (
-        <p className="text-center pt-4">No matching bookings.</p>
-      ) : (
-        filtered.map((a) => (
-          <div
-            key={a.id}
-            className="p-4 border rounded-lg bg-base-200 shadow-sm space-y-2 mt-4"
-          >
-            <p className="text-xs text-gray-400">Appointment ID: {a.id}</p>
-            <p>
-              <strong>Name:</strong> {a.name}
-            </p>
-            <p>
-              <strong>Email:</strong> {a.email}
-            </p>
-            <p>
-              <strong>Date:</strong>{" "}
-              {formatDate(a.slot_day, a.freelancer_timezone)}
-            </p>
-            <p>
-              <strong>Time:</strong> {a.slot_time}
-              <span className="ml-1 text-xs text-gray-400">
-                {a.freelancer_timezone?.split("/")[1]?.replace("_", " ") ||
-                  "Time Zone"}
-              </span>
-            </p>
-            <p
-              className={`text-sm font-medium ${
-                a.status === "confirmed"
-                  ? "text-success"
-                  : a.status === "cancelled"
-                  ? "text-error"
-                  : "text-warning"
-              }`}
-            >
-              {a.status === "confirmed"
-                ? "✔ Verified"
-                : a.status === "cancelled"
-                ? "✖ Cancelled"
-                : "⚠ Unverified"}
-            </p>
-            <button
-              className="btn btn-error btn-sm"
-              onClick={() => handleCancel(a.id)}
-            >
-              Cancel
-            </button>
-          </div>
-        ))
-      )}
     </div>
   );
 }

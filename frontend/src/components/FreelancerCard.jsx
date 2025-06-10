@@ -2,7 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { FaCheck } from "react-icons/fa";
 
 export default function FreelancerCard({
-  name,
+  business_name,
+  first_name,
+  last_name,
   logoUrl,
   isVerified,
   tagline,
@@ -12,7 +14,6 @@ export default function FreelancerCard({
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
   const badgeRef = useRef();
 
-  // Watch screen size
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 640);
@@ -21,7 +22,6 @@ export default function FreelancerCard({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Close tooltip on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (badgeRef.current && !badgeRef.current.contains(e.target)) {
@@ -39,7 +39,9 @@ export default function FreelancerCard({
     >
       <div className="relative w-17 h-17">
         <img
-          src={logoUrl?.trim() ? logoUrl : "https://placehold.co/64x64?text=Logo"}
+          src={
+            logoUrl?.trim() ? logoUrl : "https://placehold.co/64x64?text=Logo"
+          }
           alt="Freelancer Logo"
           className="w-17 h-17 rounded-full object-cover border-1 border-white"
         />
@@ -50,15 +52,11 @@ export default function FreelancerCard({
             className="absolute bottom-0 right-0 z-10 translate-x-1 translate-y-0 cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
-              if (!isMobile) return; // prevent click toggle on desktop
+              if (!isMobile) return;
               setTooltipVisible((prev) => !prev);
             }}
-            onMouseEnter={() => {
-              if (!isMobile) setTooltipVisible(true);
-            }}
-            onMouseLeave={() => {
-              if (!isMobile) setTooltipVisible(false);
-            }}
+            onMouseEnter={() => !isMobile && setTooltipVisible(true)}
+            onMouseLeave={() => !isMobile && setTooltipVisible(false)}
           >
             <div className="w-6 h-6 bg-blue-500 border-2 border-white rounded-full flex items-center justify-center">
               <FaCheck className="text-white text-xs" />
@@ -74,8 +72,13 @@ export default function FreelancerCard({
       </div>
 
       <div className="flex-1">
-        <p className="font-bold text-lg leading-tight">{name}</p>
-        {tagline && <p className="text-sm text-gray-400">{tagline}</p>}
+        <p className="text-white font-bold text-lg">
+          {business_name?.trim() ||
+            (first_name && last_name ? `${first_name} ${last_name}` : "")}
+        </p>
+        {tagline && (
+          <p className="text-sm italic text-gray-300 mt-1">{tagline}</p>
+        )}
       </div>
     </div>
   );

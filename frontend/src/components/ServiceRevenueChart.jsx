@@ -1,11 +1,25 @@
 import { useState } from "react";
 import { ResponsivePie } from "@nivo/pie";
 
-const colorMap = {
-  "Happy Ending Herbal Rubdown": "#EF4444",
-  "O'Breezy Prezidential Fade": "#22C55E",
-  "Thai Five-Hand Combo": "#F59E0B",
-};
+// ✅ Simple, consistent color palette
+const colorPalette = [
+  "#EF4444", "#F59E0B", "#10B981", "#6366F1",
+  "#EC4899", "#8B5CF6", "#22D3EE", "#EAB308",
+];
+
+// 🎯 Assign colors in order per unique service name
+const getColor = (() => {
+  const assigned = new Map();
+  let i = 0;
+
+  return (id) => {
+    if (!assigned.has(id)) {
+      assigned.set(id, colorPalette[i % colorPalette.length]);
+      i++;
+    }
+    return assigned.get(id);
+  };
+})();
 
 export default function ServiceRevenueChart({ data }) {
   const [activeId, setActiveId] = useState(null);
@@ -34,7 +48,7 @@ export default function ServiceRevenueChart({ data }) {
           onClick={({ id }) =>
             setActiveId((prev) => (prev === id ? null : id))
           }
-          colors={({ id }) => colorMap[id] || "#4B5563"}  // Tailwind's gray-600
+          colors={({ id }) => getColor(id)}
           borderWidth={2}
           borderColor="#fff"
           tooltip={({ datum }) => (
@@ -54,7 +68,7 @@ export default function ServiceRevenueChart({ data }) {
         />
       </div>
 
-      {/* Custom Legend */}
+      {/* 🧾 Custom Legend */}
       <div className="pt-3 space-y-1 text-sm">
         {[...data]
           .sort((a, b) => b.revenue - a.revenue)
@@ -70,7 +84,7 @@ export default function ServiceRevenueChart({ data }) {
             >
               <span
                 className="inline-block w-3 h-3 rounded-full"
-                style={{ backgroundColor: colorMap[service] || "#999" }}
+                style={{ backgroundColor: getColor(service) }}
               />
               <span className="truncate">{service}</span>
               <span className="ml-auto font-semibold">

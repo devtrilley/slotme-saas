@@ -3,7 +3,7 @@ import axios from "axios";
 
 export default function FreelancerBranding({ onUpdate }) {
   const [form, setForm] = useState({
-    name: "",
+    business_name: "",
     logo_url: "",
     bio: "",
     tagline: "",
@@ -28,7 +28,7 @@ export default function FreelancerBranding({ onUpdate }) {
       })
       .then((res) => {
         const {
-          name,
+          business_name,
           logo_url,
           bio,
           tagline,
@@ -37,14 +37,14 @@ export default function FreelancerBranding({ onUpdate }) {
           faq_text,
         } = res.data;
         setForm({
-          name: name || "",
+          business_name: business_name || "",
           logo_url: logo_url || "",
           bio: bio || "",
           tagline: tagline || "",
           timezone: timezone || "America/New_York", // ✅ default fallback
           no_show_policy: no_show_policy || "",
           faq_text: faq_text || "",
-          custom_url: "", // ✅ Add this line
+          custom_url: res.data.custom_url || "", // ✅ Add this line
         });
 
         localStorage.setItem("branding_updated", Date.now());
@@ -67,6 +67,7 @@ export default function FreelancerBranding({ onUpdate }) {
     e.preventDefault();
     setError("");
     setMessage("");
+    console.log("🔁 Submitting form:", form);
 
     axios
       .patch("http://127.0.0.1:5000/freelancer/branding", form, {
@@ -95,8 +96,8 @@ export default function FreelancerBranding({ onUpdate }) {
         <label className="label text-sm text-white">Business Name:</label>
         <input
           type="text"
-          name="name"
-          value={form.name}
+          name="business_name"
+          value={form.business_name}
           onChange={handleChange}
           placeholder="Business Name"
           className="input input-bordered w-full"

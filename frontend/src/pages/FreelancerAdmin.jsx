@@ -28,7 +28,9 @@ export default function AdminPage() {
   const [fetchError, setFetchError] = useState("");
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [branding, setBranding] = useState({
-    name: "",
+    business_name: "",
+    first_name: "",
+    last_name: "",
     logo_url: "",
     tagline: "",
     bio: "",
@@ -92,7 +94,9 @@ export default function AdminPage() {
       .then((res) => {
         setBranding({
           id: res.data.id, // ✅ ADD THIS LINE
-          name: res.data.name || "",
+          business_name: res.data.business_name || "",
+          first_name: res.data.first_name || "",
+          last_name: res.data.last_name || "",
           logo_url: res.data.logo_url || "",
           tagline: res.data.tagline || "",
           bio: res.data.bio || "",
@@ -234,7 +238,9 @@ export default function AdminPage() {
       </div>
 
       <FreelancerCard
-        name={branding.name}
+        business_name={branding.business_name}
+        first_name={branding.first_name}
+        last_name={branding.last_name}
         logoUrl={branding.logo_url}
         tagline={branding.tagline}
         bio={branding.bio}
@@ -270,13 +276,15 @@ export default function AdminPage() {
         </button>
       </div>
 
-      <AddSlotForm onAdd={fetchSlots} />
+      <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
+        <AddSlotForm onAdd={fetchSlots} />
+      </section>
 
       {loading && <p className="text-center">Loading...</p>}
       {fetchError && <p className="text-red-500 text-center">{fetchError}</p>}
 
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-center border-b pb-1 mt-12">
+      <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
+      <h3 className="text-lg font-semibold text-center border-b pb-1">
           Your Time Slots
         </h3>
 
@@ -342,23 +350,30 @@ export default function AdminPage() {
             </div>
           ))
         )}
-      </div>
+      </section>
 
-      <ServiceForm onServiceAdded={fetchServices} />
-      {services.map((s) => (
-        <ServiceCard
-          key={s.id}
-          id={s.id}
-          name={s.name}
-          description={s.description}
-          duration_minutes={s.duration_minutes}
-          price_usd={s.price_usd}
-          is_enabled={s.is_enabled}
-          onUpdate={fetchServices}
-        />
-      ))}
+      <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
+        <ServiceForm onServiceAdded={fetchServices} />
+      </section>
 
-      <FreelancerBranding onUpdate={() => setBrandingUpdated((n) => n + 1)} />
+      <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
+        {services.map((s) => (
+          <ServiceCard
+            key={s.id}
+            id={s.id}
+            name={s.name}
+            description={s.description}
+            duration_minutes={s.duration_minutes}
+            price_usd={s.price_usd}
+            is_enabled={s.is_enabled}
+            onUpdate={fetchServices}
+          />
+        ))}
+      </section>
+
+      <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
+        <FreelancerBranding onUpdate={() => setBrandingUpdated((n) => n + 1)} />
+      </section>
     </div>
   );
 }

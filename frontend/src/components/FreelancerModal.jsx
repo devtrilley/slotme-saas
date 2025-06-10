@@ -62,7 +62,8 @@ export default function FreelancerModal({ freelancer, onClose }) {
 
         {/* Name + Tagline */}
         <h2 className="text-xl font-bold text-center text-white">
-          {freelancer.name}
+          {freelancer.business_name ||
+            `${freelancer.first_name} ${freelancer.last_name}`}
         </h2>
         {freelancer.tagline && (
           <p className="italic text-sm text-gray-400 text-center mt-1">
