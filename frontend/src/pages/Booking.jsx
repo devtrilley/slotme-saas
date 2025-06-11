@@ -8,6 +8,7 @@ import FreelancerCard from "../components/FreelancerCard";
 import FreelancerModal from "../components/FreelancerModal";
 import NoShowPolicy from "../components/NoShowPolicy";
 import FAQCard from "../components/FAQCard";
+import IconDatePicker from "../components/IconDatePicker";
 
 export default function BookingPage() {
   const { freelancerId } = useParams();
@@ -201,19 +202,10 @@ export default function BookingPage() {
         <label className="text-sm text-gray-400 block text-center">
           Select a date:
         </label>
-        <div className="relative w-full">
-          <DatePicker
-            selected={selectedDate}
-            onChange={(date) => setSelectedDate(date)}
-            className="input input-bordered w-full pl-10"
-            wrapperClassName="w-full"
-            dateFormat="MMMM d, yyyy"
-            placeholderText="Choose a date"
-          />
-          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-            📅
-          </span>
-        </div>
+        <IconDatePicker
+          selected={selectedDate}
+          onChange={(date) => setSelectedDate(date)}
+        />
       </div>
 
       {success && (

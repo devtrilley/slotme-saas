@@ -1317,8 +1317,8 @@ def seed_everything():
     )
 
 
-@cross_origin(origins="http://localhost:5173", supports_credentials=True)
 @app.route("/freelancer-info", methods=["GET"])
+@cross_origin(origins="http://localhost:5173", supports_credentials=True)
 @jwt_required()
 def get_freelancer_info():
     freelancer_id = int(g.freelancer_id)
@@ -1388,8 +1388,8 @@ def verify_email():
     return jsonify({"message": "Email confirmed successfully!"}), 200
 
 
-@cross_origin(origins="http://localhost:5173")  # 👈 Add this decorator
 @app.route("/signup", methods=["POST"])
+@cross_origin(origins="http://localhost:5173")  # 👈 Add this decorator
 def signup_freelancer():
     data = request.get_json()
     first_name = data.get("first_name")
@@ -1495,6 +1495,54 @@ Message:
     except Exception as e:
         print("❌ Feedback email failed:", str(e))
         return jsonify({"error": "Failed to send feedback"}), 500
+
+
+@app.route("/freelancer/batch-slots", methods=["POST"])
+@cross_origin(
+    origins="http://localhost:5173", supports_credentials=True
+)
+@jwt_required()
+def create_batch_slots():
+    data = request.get_json()
+    freelancer_id = get_jwt_identity()
+    day = data.get("day")
+    start_time = data.get("start_time")  # e.g., "12:00 PM"
+    end_time = data.get("end_time")  # e.g., "7:00 PM"
+    interval = int(data.get("interval", 15))
+
+    # Fetch master times for that freelancer
+    master_times = MasterTimeSlot.query.order_by(MasterTimeSlot.time_24h).all()
+    time_labels = [t.label for t in master_times]
+
+    # Generate time blocks between start and end (exclusive)
+    times_to_create = []
+    in_range = False
+    for label in time_labels:
+        if label == start_time:
+            in_range = True
+        if in_range:
+            if label == end_time:
+                break  # 👈 skip the end_time itself
+            times_to_create.append(label)
+
+    # Select only slots matching interval
+    times_to_create = times_to_create[:: interval // 15]
+
+    created = []
+    for label in times_to_create:
+        mt = next((m for m in master_times if m.label == label), None)
+        if mt:
+            new_slot = TimeSlot(
+                freelancer_id=freelancer_id,
+                day=day,
+                master_time_id=mt.id,
+                is_booked=False,
+            )
+            db.session.add(new_slot)
+            created.append(label)
+
+    db.session.commit()
+    return jsonify({"message": f"{len(created)} slots created", "slots": created}), 201
 
 
 # -----------------------

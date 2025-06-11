@@ -1,14 +1,14 @@
-// AddSlotForm.jsx
-// This is a React component that lets freelancers add new time slots by selecting day, hour, minute, and AM/PM.
-
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { showToast } from "../utils/toast";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import BatchSlotForm from "./BatchSlotForm";
+import SingleSlotForm from "./SingleSlotForm";
 
 export default function AddSlotForm({ onAdd }) {
-  const [selectedDate, setSelectedDate] = useState(new Date()); // ✅ renamed from `day`
+  const [mode, setMode] = useState("single");
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [hour, setHour] = useState("12");
   const [minute, setMinute] = useState("00");
   const [ampm, setAmpm] = useState("AM");
@@ -28,22 +28,13 @@ export default function AddSlotForm({ onAdd }) {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
       })
-      .then((res) => {
-        setMasterTimes(res.data);
-      })
+      .then((res) => setMasterTimes(res.data))
       .catch((err) => {
         console.error("❌ Failed to fetch master times", err);
         setError("Invalid time selection (auth error)");
       })
       .finally(() => setTimesLoading(false));
   }, []);
-
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => setError(""), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
 
   useEffect(() => {
     if (masterTimes.length > 0) {
@@ -84,14 +75,14 @@ export default function AddSlotForm({ onAdd }) {
         },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`, // ✅ use JWT
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           },
         }
       )
       .then(() => {
         showToast("Time slot added!");
         if (!userChangedDate) {
-          setSelectedDate(new Date()); // ✅ Only reset if user hasn't manually changed it
+          setSelectedDate(new Date());
         }
         if (onAdd) onAdd();
       })
@@ -102,80 +93,54 @@ export default function AddSlotForm({ onAdd }) {
       .finally(() => setLoading(false));
   };
 
-  if (timesLoading) {
+  if (timesLoading)
     return (
       <p className="text-center text-sm">Loading available time options...</p>
     );
-  }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <h3 className="text-md font-bold text-center">Add a New Time Slot</h3>
+    <div className="space-y-4">
+      <div className="flex justify-center gap-2 mb-2">
+        <button
+          type="button"
+          className={`btn btn-sm ${
+            mode === "single" ? "btn-primary" : "btn-outline"
+          }`}
+          onClick={() => setMode("single")}
+        >
+          Single Slot
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${
+            mode === "batch" ? "btn-primary" : "btn-outline"
+          }`}
+          onClick={() => setMode("batch")}
+        >
+          Batch Slots
+        </button>
+      </div>
 
-      <div className="relative w-full">
-        <DatePicker
-          selected={selectedDate}
-          onChange={(date) => {
-            setSelectedDate(date);
-            setUserChangedDate(true);
-          }}
-          className="input input-bordered w-full pl-10"
-          wrapperClassName="w-full"
-          dateFormat="MMMM d, yyyy"
-          placeholderText="Choose a date"
+      {mode === "single" && (
+        <SingleSlotForm
+          onAdd={onAdd}
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          hour={hour}
+          setHour={setHour}
+          minute={minute}
+          setMinute={setMinute}
+          ampm={ampm}
+          setAmpm={setAmpm}
+          timezone={timezone}
+          setTimezone={setTimezone}
+          masterTimes={masterTimes}
+          userChangedDate={userChangedDate}
+          setUserChangedDate={setUserChangedDate}
         />
-        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-          📅
-        </span>
-      </div>
+      )}
 
-      <div className="flex gap-2">
-        <select
-          className="select select-bordered"
-          value={hour}
-          onChange={(e) => setHour(e.target.value)}
-        >
-          {[...Array(12)].map((_, i) => (
-            <option key={i + 1}>{String(i + 1).padStart(2, "0")}</option>
-          ))}
-        </select>
-
-        <select
-          className="select select-bordered"
-          value={minute}
-          onChange={(e) => setMinute(e.target.value)}
-        >
-          {["00", "15", "30", "45"].map((m) => (
-            <option key={m}>{m}</option>
-          ))}
-        </select>
-
-        <select
-          className="select select-bordered"
-          value={ampm}
-          onChange={(e) => setAmpm(e.target.value)}
-        >
-          <option>AM</option>
-          <option>PM</option>
-        </select>
-      </div>
-
-      {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-
-      <select
-        className="select select-bordered w-full"
-        value={timezone}
-        onChange={(e) => setTimezone(e.target.value)}
-      >
-        <option value="America/New_York">Eastern (EST)</option>
-        <option value="America/Chicago">Central (CST)</option>
-        <option value="America/Denver">Mountain (MST)</option>
-        <option value="America/Los_Angeles">Pacific (PST)</option>
-      </select>
-
-      <button className="btn btn-primary w-full" disabled={loading}>
-        {loading ? "Adding..." : "Add Slot"}
-      </button>
-    </form>
+      {mode === "batch" && <BatchSlotForm onBatchAdd={onAdd} />}
+    </div>
   );
 }
