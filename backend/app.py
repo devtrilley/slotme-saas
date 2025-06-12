@@ -162,24 +162,91 @@ def index():
 @app.route("/freelancer/slots/<int:freelancer_id>", methods=["GET"])
 @cross_origin(origins="http://localhost:5173", supports_credentials=True)
 def get_public_time_slots(freelancer_id):
-    slots = TimeSlot.query.filter_by(freelancer_id=freelancer_id).all()
-    result = []
+    from sqlalchemy.orm import joinedload
 
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+
+    # Fetch all master times in order to map time labels to IDs
+    master_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    time_label_to_id = {mt.label: mt.id for mt in master_times}
+    time_labels = [mt.label for mt in master_times]
+
+    # Precompute inherited slot IDs
+    inherited_ids = set()
+    appointments = (
+        Appointment.query
+        .filter_by(freelancer_id=freelancer_id)
+        .filter(Appointment.status != "cancelled")
+        .options(
+            joinedload(Appointment.slot).joinedload(TimeSlot.master_time),
+            joinedload(Appointment.service)
+        )
+        .all()
+    )
+    for appt in appointments:
+        slot = appt.slot
+        service = appt.service
+        if not slot or not service:
+            continue
+        start_label = slot.master_time.label
+        try:
+            start_idx = time_labels.index(start_label)
+            blocks = service.duration_minutes // 15
+            inherited_labels = time_labels[start_idx + 1: start_idx + blocks]
+            for label in inherited_labels:
+                inherited_id = TimeSlot.query.filter_by(
+                    freelancer_id=freelancer_id,
+                    day=slot.day,
+                    master_time_id=time_label_to_id[label]
+                ).first()
+                if inherited_id:
+                    inherited_ids.add(inherited_id.id)
+        except ValueError:
+            continue
+
+    # Fetch all slots
+    slots = (
+        TimeSlot.query.options(
+            joinedload(TimeSlot.master_time),
+            joinedload(TimeSlot.appointment).joinedload(Appointment.user),
+            joinedload(TimeSlot.appointment).joinedload(Appointment.service),
+        )
+        .filter_by(freelancer_id=freelancer_id)
+        .all()
+    )
+
+    result = []
     for slot in slots:
-        slot_data = {
+        is_booked = slot.is_booked
+        is_inherited = slot.id in inherited_ids
+        appointment = slot.appointment
+        user_info = None
+        service_name = None
+        duration_minutes = None
+
+        if is_booked and appointment and not is_inherited:
+            user = appointment.user
+            service = appointment.service
+            if user:
+                user_info = {
+                    "name": f"{user.first_name} {user.last_name}",
+                    "email": user.email,
+                }
+            if service:
+                service_name = service.name
+                duration_minutes = service.duration_minutes
+
+        result.append({
             "id": slot.id,
             "time": slot.master_time.label,
             "day": slot.day,
-            "is_booked": slot.is_booked,
-        }
-
-        if slot.is_booked and slot.appointment and slot.appointment.user:
-            slot_data["appointment"] = {
-                "name": f"{slot.appointment.user.first_name} {slot.appointment.user.last_name}",
-                "email": slot.appointment.user.email,
-            }
-
-        result.append(slot_data)
+            "is_booked": is_booked,
+            "is_inherited_block": is_inherited,
+            "appointment": user_info,
+            "service_name": service_name,
+            "duration_minutes": duration_minutes,
+        })
 
     return jsonify(result)
 
@@ -190,18 +257,21 @@ def book_slot():
     first_name = data.get("first_name")
     last_name = data.get("last_name")
     email = data.get("email")
-    phone = data.get("phone")  # New
+    phone = data.get("phone")
     slot_id = data.get("slot_id")
+    service_id = data.get("service_id")
 
-    if not first_name or not last_name or not email or not slot_id:
+    if not first_name or not last_name or not email or not slot_id or not service_id:
         return jsonify({"error": "Missing required fields"}), 400
 
-    # Get and validate slot
     slot = TimeSlot.query.get(slot_id)
     if not slot or slot.is_booked:
         return jsonify({"error": "Slot is unavailable"}), 400
 
-    # Check or create user
+    service = Service.query.get(service_id)
+    if not service:
+        return jsonify({"error": "Invalid service selected"}), 400
+
     user = User.query.filter_by(email=email).first()
     if not user:
         user = User(
@@ -210,31 +280,68 @@ def book_slot():
         db.session.add(user)
         db.session.commit()
 
-    # Check for duplicate appointment by user + slot
     existing_appt = Appointment.query.filter_by(
         user_id=user.id, slot_id=slot_id
     ).first()
     if existing_appt:
         return jsonify({"error": "You already booked this slot."}), 400
 
-    service_id = data.get("service_id")
+    # Atomic booking logic starts here
+    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    time_labels = [t.label for t in all_times]
+    duration_blocks = service.duration_minutes // 15
+    start_label = slot.master_time.label
 
-    # Create appointment
+    try:
+        start_index = time_labels.index(start_label)
+    except ValueError:
+        return jsonify({"error": "Invalid slot time"}), 400
+
+    required_labels = time_labels[start_index : start_index + duration_blocks]
+    if len(required_labels) < duration_blocks:
+        return jsonify({"error": "Not enough consecutive blocks"}), 400
+
+    conflicts = (
+        TimeSlot.query.join(MasterTimeSlot)
+        .filter(
+            TimeSlot.freelancer_id == slot.freelancer_id,
+            TimeSlot.day == slot.day,
+            MasterTimeSlot.label.in_(required_labels),
+            TimeSlot.is_booked == True,
+        )
+        .all()
+    )
+    if conflicts:
+        return (
+            jsonify({"error": "Selected time conflicts with an existing booking."}),
+            400,
+        )
+
     appointment = Appointment(
         slot_id=slot_id,
         freelancer_id=slot.freelancer_id,
         user_id=user.id,
         service_id=service_id,
-        status="pending",  # 👈 or 'confirmed' if you’re skipping email flow
+        status="pending",
     )
-    slot.is_booked = True
-
     db.session.add(appointment)
+
+    for label in required_labels:
+        mt = next((m for m in all_times if m.label == label), None)
+        if not mt:
+            continue
+        s = TimeSlot.query.filter_by(
+            day=slot.day,
+            freelancer_id=slot.freelancer_id,
+            master_time_id=mt.id,
+        ).first()
+        if s:
+            s.is_booked = True
+
     db.session.commit()
 
     token = serializer.dumps({"appointment_id": appointment.id})
     link = f"http://localhost:5000/verify/{token}"
-
     print(f"📧 Send this to the user: {link}")
 
     return jsonify({"message": "Verification email sent."}), 200
@@ -249,7 +356,6 @@ def book_slot():
 @jwt_required()
 def get_appointments():
     freelancer_id = int(g.freelancer_id)
-    freelancer = Freelancer.query.get(freelancer_id)
     appointments = Appointment.query.filter_by(freelancer_id=freelancer_id).all()
     result = []
 
@@ -258,12 +364,19 @@ def get_appointments():
         result.append(
             {
                 "id": a.id,
-                "name": f"{user.first_name} {user.last_name}" if user else None,
-                "email": user.email if user else None,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "name": f"{user.first_name} {user.last_name}",
+                "email": user.email,
+                "phone": user.phone,
                 "slot_day": a.slot.day,
                 "slot_time": a.slot.master_time.label,
                 "status": a.status,
-                "freelancer_timezone": freelancer.timezone,
+                "freelancer_timezone": "America/New_York",  # or dynamic later
+                "service": a.service.name if a.service else None,  # ✅ add this
+                "service_duration_minutes": (
+                    a.service.duration_minutes if a.service else None
+                ),  # ✅ and this
             }
         )
 
@@ -326,6 +439,7 @@ def update_appointment(id):
 
 
 @app.route("/auth", methods=["POST"])
+@cross_origin(origins="http://localhost:5173", supports_credentials=True)
 def freelancer_login():
     data = request.get_json()
     email = data.get("email")
@@ -378,29 +492,94 @@ def get_all_freelancers():
 @app.route("/dev/slots/<int:freelancer_id>", methods=["GET", "OPTIONS"])
 def get_freelancer_slots(freelancer_id):
     if request.method == "OPTIONS":
-        return jsonify({}), 200  # ✅ Allow CORS preflight
+        return jsonify({}), 200
 
     auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
     if auth != "secret123":
         return jsonify({"error": "Forbidden"}), 403
 
-    slots = TimeSlot.query.filter_by(freelancer_id=freelancer_id).all()
+    from sqlalchemy.orm import joinedload
+
+    # Fetch master times in order to get consistent time label order
+    master_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    time_label_to_id = {mt.label: mt.id for mt in master_times}
+    time_labels = [mt.label for mt in master_times]
+
+    # Precompute inherited block IDs
+    inherited_ids = set()
+    appointments = (
+        Appointment.query
+        .filter_by(freelancer_id=freelancer_id)
+        .filter(Appointment.status != "cancelled")
+        .options(
+            joinedload(Appointment.slot).joinedload(TimeSlot.master_time),
+            joinedload(Appointment.service)
+        )
+        .all()
+    )
+    for appt in appointments:
+        slot = appt.slot
+        service = appt.service
+        if not slot or not service:
+            continue
+        start_label = slot.master_time.label
+        try:
+            start_idx = time_labels.index(start_label)
+            blocks = service.duration_minutes // 15
+            inherited_labels = time_labels[start_idx + 1: start_idx + blocks]
+            for label in inherited_labels:
+                inherited_id = TimeSlot.query.filter_by(
+                    freelancer_id=freelancer_id,
+                    day=slot.day,
+                    master_time_id=time_label_to_id[label]
+                ).first()
+                if inherited_id:
+                    inherited_ids.add(inherited_id.id)
+        except ValueError:
+            continue
+
+    # Load all slots
+    slots = (
+        TimeSlot.query.options(
+            joinedload(TimeSlot.master_time),
+            joinedload(TimeSlot.appointment).joinedload(Appointment.user),
+            joinedload(TimeSlot.appointment).joinedload(Appointment.service),
+        )
+        .filter_by(freelancer_id=freelancer_id)
+        .all()
+    )
+
     result = []
     for slot in slots:
-        data = {
+        is_booked = slot.is_booked
+        is_inherited = slot.id in inherited_ids
+        appointment = slot.appointment
+        user_info = None
+        service_name = None
+        duration_minutes = None
+
+        if is_booked and appointment and not is_inherited:
+            user = appointment.user
+            service = appointment.service
+            if user:
+                user_info = {
+                    "name": f"{user.first_name} {user.last_name}",
+                    "email": user.email,
+                }
+            if service:
+                service_name = service.name
+                duration_minutes = service.duration_minutes
+
+        result.append({
             "id": slot.id,
-            "time": slot.master_time.label,  # ✅ FIXED: Use master_time.label
+            "time": slot.master_time.label,
             "day": slot.day,
-            "is_booked": slot.is_booked,
-        }
-
-        if slot.is_booked and slot.appointment and slot.appointment.user:
-            data["appointment"] = {
-                "name": f"{slot.appointment.user.first_name} {slot.appointment.user.last_name}",
-                "email": slot.appointment.user.email,
-            }
-
-        result.append(data)
+            "is_booked": is_booked,
+            "is_inherited_block": is_inherited,
+            "appointment": user_info,
+            "service_name": service_name,
+            "duration_minutes": duration_minutes,
+        })
 
     return jsonify(result)
 
@@ -526,11 +705,30 @@ def delete_freelancer(freelancer_id):
     return jsonify({"message": "Freelancer deleted"})
 
 
-@app.route("/freelancer/public-info/<int:freelancer_id>", methods=["GET"])
+@app.route("/freelancer/public-info/<int:freelancer_id>", methods=["GET", "OPTIONS"])
+@cross_origin(origins="http://localhost:5173", supports_credentials=True)
 def get_public_freelancer_info(freelancer_id):
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    
     freelancer = Freelancer.query.get(freelancer_id)
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
+
+    services = Service.query.filter_by(
+        freelancer_id=freelancer.id, is_enabled=True
+    ).all()
+    service_data = [
+        {
+            "id": s.id,
+            "name": s.name,
+            "description": s.description,
+            "duration_minutes": s.duration_minutes,
+            "price_usd": s.price_usd or 0.0,
+            "is_enabled": s.is_enabled,
+        }
+        for s in services
+    ]
 
     return jsonify(
         {
@@ -544,12 +742,13 @@ def get_public_freelancer_info(freelancer_id):
             "faq_text": freelancer.faq_text,
             "timezone": freelancer.timezone,
             "is_verified": freelancer.is_verified,
-            "email": freelancer.contact_email,  # ✅ used publicly
+            "email": freelancer.contact_email,
             "phone": freelancer.phone,
             "instagram_url": freelancer.instagram_url,
             "twitter_url": freelancer.twitter_url,
             "no_show_policy": freelancer.no_show_policy,
-            "created_at": freelancer.created_at.isoformat(),  # ✅ ensure join date renders
+            "created_at": freelancer.created_at.isoformat(),
+            "services": service_data,  # ✅ ADD THIS
         }
     )
 
@@ -579,6 +778,41 @@ def create_time_slot():
     if existing:
         return jsonify({"error": "Time slot already exists"}), 400
 
+    # ✅ NEW: Check if this time block overlaps with any appointment's duration
+    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    target_label = master_time.label
+    time_labels = [t.label for t in all_times]
+    target_index = time_labels.index(target_label) if target_label in time_labels else -1
+
+    is_booked = False
+
+    if target_index != -1:
+        from sqlalchemy.orm import joinedload
+
+        appointments = (
+            Appointment.query.options(
+                joinedload(Appointment.slot).joinedload(TimeSlot.master_time),
+                joinedload(Appointment.service)
+            )
+            .filter_by(freelancer_id=freelancer_id)
+            .filter(Appointment.status != "cancelled")
+            .all()
+        )
+
+        for appt in appointments:
+            slot_time = appt.slot.master_time.label
+            duration = appt.service.duration_minutes
+            blocks = duration // 15
+
+            try:
+                appt_start = time_labels.index(slot_time)
+                appt_labels = time_labels[appt_start : appt_start + blocks]
+                if target_label in appt_labels:
+                    is_booked = True
+                    break
+            except ValueError:
+                continue
+
     # Optionally update freelancer's timezone if provided
     timezone = data.get("timezone")
     if timezone:
@@ -587,11 +821,17 @@ def create_time_slot():
             freelancer.timezone = timezone
             db.session.commit()
 
-    slot = TimeSlot(day=day, master_time_id=master_time_id, freelancer_id=freelancer_id)
+    # Create the slot (with is_booked = True if it conflicts with any appointment block)
+    slot = TimeSlot(
+        day=day,
+        master_time_id=master_time_id,
+        freelancer_id=freelancer_id,
+        is_booked=is_booked,
+    )
     db.session.add(slot)
     db.session.commit()
 
-    return jsonify({"message": "Time slot created", "slot_id": slot.id}), 201
+    return jsonify({"message": "Time slot created", "slot_id": slot.id, "booked": is_booked}), 201
 
 
 @app.route("/slots/<int:slot_id>", methods=["DELETE"])
@@ -1092,6 +1332,7 @@ def hardcoded_404():
     return jsonify({"error": "Not found"}), 404
 
 
+# SEEDME
 @app.route("/dev/seed-all", methods=["POST"])
 def seed_everything():
     auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
@@ -1136,13 +1377,11 @@ def seed_everything():
         db.session.add(f1)
         db.session.commit()
 
-    # Wipe any old demo data
     Appointment.query.filter_by(freelancer_id=f1.id).delete()
     TimeSlot.query.filter_by(freelancer_id=f1.id).delete()
     Service.query.filter_by(freelancer_id=f1.id).delete()
     db.session.commit()
 
-    # Add services
     db.session.add_all(
         [
             Service(
@@ -1163,46 +1402,73 @@ def seed_everything():
     )
     db.session.commit()
 
-    # Create today's demo appointments
     today = eastern_today()
-    demo_labels = ["09:00 AM", "09:15 AM"]
-    demo_users = [("Jane Doe", "jane.doe@mail.com"), ("John Doe", "john.doe@mail.com")]
-
-    slots = []
-    for label in demo_labels:
-        mt = MasterTimeSlot.query.filter_by(label=label).first()
-        if mt:
-            slot = TimeSlot(
-                day=today.isoformat(),
-                master_time_id=mt.id,
-                freelancer_id=f1.id,
-                is_booked=True,
-            )
-            db.session.add(slot)
-            slots.append(slot)
-    db.session.commit()
-
+    demo_bookings = [
+        ("Jane", "Doe", "jane.doe@mail.com", "09:00 AM", 45),
+        ("John", "Doe", "john.doe@mail.com", "10:00 AM", 30),
+    ]
+    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    time_labels = [t.label for t in all_times]
     demo_services = Service.query.filter_by(freelancer_id=f1.id).all()
 
-    # Add demo appointments
-    for i, (full_name, email) in enumerate(demo_users):
-        first, last = full_name.split(" ", 1)
-        user = User(first_name=first, last_name=last, email=email)
-        db.session.add(user)
+    for first, last, email, start_label, duration in demo_bookings:
+        mt_start = MasterTimeSlot.query.filter_by(label=start_label).first()
+        if not mt_start:
+            continue
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            user = User(first_name=first, last_name=last, email=email)
+            db.session.add(user)
+            db.session.commit()
+
+        service = next(
+            (s for s in demo_services if s.duration_minutes == duration), None
+        )
+        if not service:
+            continue
+
+        start_slot = TimeSlot(
+            day=today.isoformat(),
+            master_time_id=mt_start.id,
+            freelancer_id=f1.id,
+            is_booked=True,
+        )
+        db.session.add(start_slot)
         db.session.commit()
 
         appt = Appointment(
+            slot_id=start_slot.id,
             freelancer_id=f1.id,
             user_id=user.id,
-            slot_id=slots[i].id,
+            service_id=service.id,
             status="confirmed",
             timestamp=datetime.now(),
-            service_id=demo_services[i % len(demo_services)].id,
         )
         db.session.add(appt)
+
+        start_index = time_labels.index(start_label)
+        required_labels = time_labels[start_index : start_index + (duration // 15)]
+        for label in required_labels[1:]:
+            mt = next((t for t in all_times if t.label == label), None)
+            if not mt:
+                continue
+            existing = TimeSlot.query.filter_by(
+                day=today.isoformat(),
+                freelancer_id=f1.id,
+                master_time_id=mt.id,
+            ).first()
+            if not existing:
+                db.session.add(
+                    TimeSlot(
+                        day=today.isoformat(),
+                        freelancer_id=f1.id,
+                        master_time_id=mt.id,
+                        is_booked=True,
+                    )
+                )
     db.session.commit()
 
-    # 3. Seed elite freelancer if needed
+    # ✅ REWRITE ELITE FREELANCER SEEDING TO BE ATOMIC
     f2 = Freelancer.query.filter_by(email="night@mail.com").first()
     if not f2:
         f2 = Freelancer(
@@ -1227,15 +1493,6 @@ def seed_everything():
         db.session.add(f2)
         db.session.commit()
 
-        tomorrow = eastern_today() + timedelta(days=1)
-        labels = ["06:30 PM", "06:45 PM", "07:00 PM"]
-        for label in labels:
-            mt = MasterTimeSlot.query.filter_by(label=label).first()
-            if mt:
-                db.session.add(
-                    TimeSlot(day=tomorrow, master_time_id=mt.id, freelancer_id=f2.id)
-                )
-
         db.session.add_all(
             [
                 Service(
@@ -1256,52 +1513,72 @@ def seed_everything():
         )
         db.session.commit()
 
-    # 4. Seed 12 appointments for f2
-    f2 = Freelancer.query.filter_by(email="night@mail.com").first()
     services = Service.query.filter_by(freelancer_id=f2.id).all()
-    labels = ["09:00 AM", "09:15 AM", "09:30 AM", "10:00 AM"]
-    bookings_by_day = {
-        (datetime.now().date() + timedelta(days=i)).isoformat(): count
-        for i, count in enumerate([1, 2, 3, 3, 3])
-    }
+    elite_bookings = [
+        (datetime.now().date() + timedelta(days=i)).isoformat()
+        for i in range(5)
+        for _ in range(3)
+    ]
 
-    for day_str, count in bookings_by_day.items():
-        label_cycle = (label for label in labels * 2)
-        for i in range(count):
-            label = next(label_cycle)
-            mt = MasterTimeSlot.query.filter_by(label=label).first()
+    for day_str in elite_bookings:
+        label = choice(time_labels[:-8])
+        mt_start = MasterTimeSlot.query.filter_by(label=label).first()
+        if not mt_start:
+            continue
+
+        service = choice(services)
+        duration = service.duration_minutes
+        start_index = time_labels.index(label)
+        required_labels = time_labels[start_index : start_index + (duration // 15)]
+
+        slot = TimeSlot(
+            day=day_str,
+            master_time_id=mt_start.id,
+            freelancer_id=f2.id,
+            is_booked=True,
+        )
+        db.session.add(slot)
+        db.session.commit()
+
+        first, last = choice(name_pool)
+        email = f"{first.lower()}.{last.lower()}@mail.com"
+        user = User(first_name=first, last_name=last, email=email)
+        db.session.add(user)
+        db.session.commit()
+
+        appt = Appointment(
+            slot_id=slot.id,
+            freelancer_id=f2.id,
+            user_id=user.id,
+            service_id=service.id,
+            status="confirmed",
+            timestamp=datetime.now(),
+        )
+        db.session.add(appt)
+
+        for label in required_labels[1:]:
+            mt = next((t for t in all_times if t.label == label), None)
             if not mt:
                 continue
-
-            slot = TimeSlot(
-                day=day_str, freelancer_id=f2.id, master_time_id=mt.id, is_booked=True
-            )
-            db.session.add(slot)
-            db.session.commit()
-
-            first, last = choice(name_pool)
-            email = f"{first.lower()}.{last.lower()}@mail.com"
-            user = User(first_name=first, last_name=last, email=email)
-
-            db.session.add(user)
-            db.session.commit()
-
-            appt = Appointment(
+            existing = TimeSlot.query.filter_by(
+                day=day_str,
                 freelancer_id=f2.id,
-                user_id=user.id,
-                slot_id=slot.id,
-                status="confirmed",
-                service_id=choice(services).id,
-                timestamp=datetime.now(),
-            )
-            db.session.add(appt)
-
+                master_time_id=mt.id,
+            ).first()
+            if not existing:
+                db.session.add(
+                    TimeSlot(
+                        day=day_str,
+                        freelancer_id=f2.id,
+                        master_time_id=mt.id,
+                        is_booked=True,
+                    )
+                )
     db.session.commit()
 
     print("Demo freelancer ID:", f1.id)
     print("Elite freelancer ID:", f2.id)
 
-    # 5. Return JWTs
     token1 = create_access_token(identity=str(f1.id))
     token2 = create_access_token(identity=str(f2.id))
 
@@ -1315,6 +1592,9 @@ def seed_everything():
         ),
         200,
     )
+
+
+# SEEDME
 
 
 @app.route("/freelancer-info", methods=["GET"])
@@ -1498,9 +1778,7 @@ Message:
 
 
 @app.route("/freelancer/batch-slots", methods=["POST"])
-@cross_origin(
-    origins="http://localhost:5173", supports_credentials=True
-)
+@cross_origin(origins="http://localhost:5173", supports_credentials=True)
 @jwt_required()
 def create_batch_slots():
     data = request.get_json()
@@ -1510,11 +1788,32 @@ def create_batch_slots():
     end_time = data.get("end_time")  # e.g., "7:00 PM"
     interval = int(data.get("interval", 15))
 
-    # Fetch master times for that freelancer
     master_times = MasterTimeSlot.query.order_by(MasterTimeSlot.time_24h).all()
     time_labels = [t.label for t in master_times]
 
-    # Generate time blocks between start and end (exclusive)
+    # Load appointment time blocks
+    appointments = (
+        Appointment.query
+        .filter_by(freelancer_id=freelancer_id)
+        .filter(Appointment.status != "cancelled")
+        .all()
+    )
+    booked_labels = set()
+    for appt in appointments:
+        slot = TimeSlot.query.get(appt.slot_id)
+        service = Service.query.get(appt.service_id)
+        if not slot or not service:
+            continue
+        try:
+            start_label = MasterTimeSlot.query.get(slot.master_time_id).label
+            start_index = time_labels.index(start_label)
+            blocks = service.duration_minutes // 15
+            for lbl in time_labels[start_index : start_index + blocks]:
+                booked_labels.add(lbl)
+        except:
+            continue
+
+    # Build time block list from start to end
     times_to_create = []
     in_range = False
     for label in time_labels:
@@ -1522,21 +1821,27 @@ def create_batch_slots():
             in_range = True
         if in_range:
             if label == end_time:
-                break  # 👈 skip the end_time itself
+                break  # don't include the endpoint
             times_to_create.append(label)
-
-    # Select only slots matching interval
     times_to_create = times_to_create[:: interval // 15]
 
     created = []
     for label in times_to_create:
         mt = next((m for m in master_times if m.label == label), None)
         if mt:
+            existing = TimeSlot.query.filter_by(
+                freelancer_id=freelancer_id, day=day, master_time_id=mt.id
+            ).first()
+            if existing:
+                continue
+
+            is_booked = label in booked_labels
+
             new_slot = TimeSlot(
                 freelancer_id=freelancer_id,
                 day=day,
                 master_time_id=mt.id,
-                is_booked=False,
+                is_booked=is_booked,
             )
             db.session.add(new_slot)
             created.append(label)

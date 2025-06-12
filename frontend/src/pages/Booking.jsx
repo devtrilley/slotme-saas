@@ -9,6 +9,7 @@ import FreelancerModal from "../components/FreelancerModal";
 import NoShowPolicy from "../components/NoShowPolicy";
 import FAQCard from "../components/FAQCard";
 import IconDatePicker from "../components/IconDatePicker";
+import { showToast } from "../utils/toast";
 
 export default function BookingPage() {
   const { freelancerId } = useParams();
@@ -36,9 +37,12 @@ export default function BookingPage() {
   const [showModal, setShowModal] = useState(false);
   const [services, setServices] = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
+  const [selectedServiceDuration, setSelectedServiceDuration] = useState(0);
   const [noShowPolicy, setNoShowPolicy] = useState("");
 
   const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const getRequiredBlocks = (durationMinutes) =>
+    Math.ceil(durationMinutes / 15);
 
   const getTZAbbreviation = (tz) => {
     const map = {
@@ -138,7 +142,7 @@ export default function BookingPage() {
       })
       .catch((err) => {
         const msg = err.response?.data?.error || "Booking failed";
-        setError(msg);
+        showToast(msg, "error");
         console.error("❌", msg);
       });
   };
@@ -206,6 +210,38 @@ export default function BookingPage() {
           selected={selectedDate}
           onChange={(date) => setSelectedDate(date)}
         />
+
+        {services.length > 0 && (
+          <div className="space-y-2">
+            <label className="text-sm text-gray-400 block text-center">
+              Select a service:
+            </label>
+            <select
+              className="select select-bordered w-full"
+              value={selectedServiceId || ""}
+              onChange={(e) => {
+                const serviceId = Number(e.target.value);
+                setSelectedServiceId(serviceId);
+                const selectedService = services.find(
+                  (s) => s.id === serviceId
+                );
+                setSelectedServiceDuration(
+                  selectedService?.duration_minutes || 0
+                );
+              }}
+              required
+            >
+              <option value="" disabled>
+                -- Choose a service --
+              </option>
+              {services.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} (${s.price_usd?.toFixed(2) || "0.00"})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {success && (
@@ -217,76 +253,83 @@ export default function BookingPage() {
         </div>
       )}
 
-      {error && (
-        <div className="alert alert-error shadow-lg">
-          <span>{error}</span>
-        </div>
-      )}
-
       {loading ? (
         <p className="text-center">Loading slots...</p>
       ) : (
         <div className="grid grid-cols-2 gap-4">
-          {filteredSlots.map((slot) => (
-            <div key={slot.id} className="flex flex-col">
-              <button
-                className={`btn w-full text-sm ${
-                  slot.is_booked
-                    ? "bg-gray-800 text-gray-500 cursor-not-allowed"
-                    : selectedSlotId === slot.id
-                    ? "btn-primary text-white"
-                    : "btn-outline text-white border-white"
-                }`}
-                onClick={() =>
-                  !slot.is_booked &&
-                  setSelectedSlotId((prev) =>
-                    prev === slot.id ? null : slot.id
-                  )
-                }
-                disabled={slot.is_booked}
-                type="button"
-              >
-                <span className="text-xs w-full text-center">
-                  {convertToUserTime(
-                    slot.time,
-                    freelancerTimeZone,
-                    userTimeZone
-                  )}{" "}
-                  <span className="text-[10px] text-gray-400">
-                    {getTZAbbreviation(userTimeZone)}
-                  </span>
-                </span>
-              </button>
-              {slot.is_booked && (
-                <span className="text-xs text-red-400 mt-1 text-center">
-                  Booked
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+          {filteredSlots.map((slot, index) => {
+            const isSelected = selectedSlotId === slot.id;
+            const isBlocked =
+              slot.is_booked || slot.is_inherited_block || !selectedServiceId;
 
-      {services.length > 0 && (
-        <div className="space-y-2">
-          <label className="text-sm text-gray-400 block text-center">
-            Select a service:
-          </label>
-          <select
-            className="select select-bordered w-full"
-            value={selectedServiceId || ""}
-            onChange={(e) => setSelectedServiceId(Number(e.target.value))}
-            required
-          >
-            <option value="" disabled>
-              -- Choose a service --
-            </option>
-            {services.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} (${s.price_usd?.toFixed(2) || "0.00"})
-              </option>
-            ))}
-          </select>
+            const handleSelectSlot = () => {
+              const requiredBlocks = getRequiredBlocks(selectedServiceDuration);
+              const futureSlots = filteredSlots.slice(index); // all slots from this point on
+
+              // Get the slice we need for this booking
+              const relevantSlice = futureSlots.slice(0, requiredBlocks);
+
+              // Check if all blocks that exist are free
+              const allAreFree = relevantSlice.every((s) => !s.is_booked);
+
+              if (!allAreFree) {
+                showToast(
+                  "❌ That time overlaps with an existing booking. Try a different time slot.",
+                  "error"
+                );
+                return;
+              }
+
+              // ✅ Even if there aren't enough future blocks, we'll allow it — assume free time
+              setSelectedSlotId((prev) => (prev === slot.id ? null : slot.id));
+            };
+
+            return (
+              <div key={slot.id} className="flex flex-col">
+                <button
+                  className={`btn w-full text-sm ${
+                    isBlocked
+                      ? "bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
+                      : isSelected
+                      ? "btn-primary text-white"
+                      : "btn-outline text-white border-white"
+                  }`}
+                  onClick={() => {
+                    if (slot.is_booked || slot.is_inherited_block) return;
+                    if (!selectedServiceId) {
+                      showToast("❌ Please select a service first.", "error");
+                      return;
+                    }
+                    handleSelectSlot();
+                  }}
+                  type="button"
+                >
+                  <span className="text-xs w-full text-center">
+                    {convertToUserTime(
+                      slot.time,
+                      freelancerTimeZone,
+                      userTimeZone
+                    )}{" "}
+                    <span className="text-[10px] text-gray-400">
+                      {getTZAbbreviation(userTimeZone)}
+                    </span>
+                  </span>
+                </button>
+                {slot.is_booked && (
+                  <div className="text-xs text-red-400 mt-1 text-center">
+                    {slot.service_name ? (
+                      <>
+                        Booked: <strong>{slot.service_name}</strong> (
+                        {slot.duration_minutes} min)
+                      </>
+                    ) : (
+                      <>Booked</>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

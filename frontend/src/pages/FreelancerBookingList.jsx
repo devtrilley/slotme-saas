@@ -108,14 +108,14 @@ export default function FreelancerBookingList() {
 
   const exportCSV = () => {
     let exportData = appointments.filter((a) => a.status !== "cancelled");
-  
+
     const timezone =
       exportData.find((a) => a.freelancer_timezone)?.freelancer_timezone ||
       "America/New_York";
-  
+
     const today = DateTime.now().setZone(timezone);
     const isoToday = today.toISODate();
-  
+
     if (exportRange === "this_month") {
       const thisMonth = today.month;
       const thisYear = today.year;
@@ -139,10 +139,11 @@ export default function FreelancerBookingList() {
         .toFormat("yyyy-MM-dd");
       exportData = exportData.filter((a) => a.slot_day === selectedStr);
     }
-  
+
     // ✅ New CSV header
-    const header = "First Name,Last Name,Email,Phone,Service,Date,Time Slot,Status\n";
-  
+    const header =
+      "First Name,Last Name,Email,Phone,Service,Date,Time Slot,Status\n";
+
     // ✅ Rows mapped cleanly
     const rows = exportData.map((a) => {
       const firstName = a.first_name || "";
@@ -153,15 +154,15 @@ export default function FreelancerBookingList() {
       const date = a.slot_day || "";
       const time = a.slot_time || "";
       const status = a.status || "pending";
-  
+
       return `${firstName},${lastName},${email},${phone},${service},${date},${time},${status}`;
     });
-  
+
     const csvContent = header + rows.join("\n");
-  
+
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-  
+
     const a = document.createElement("a");
     a.href = url;
     a.download = "bookings.csv";
@@ -261,6 +262,13 @@ export default function FreelancerBookingList() {
                   {a.freelancer_timezone?.split("/")[1]?.replace("_", " ") ||
                     "Time Zone"}
                 </span>
+              </p>
+              <p>
+                <strong>Service:</strong> {a.service || "N/A"}
+              </p>
+              <p>
+                <strong>Duration:</strong> {a.service_duration_minutes || "?"}{" "}
+                minutes
               </p>
               <p
                 className={`text-sm font-medium ${

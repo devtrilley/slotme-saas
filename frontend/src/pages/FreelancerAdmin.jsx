@@ -185,7 +185,7 @@ export default function AdminPage() {
 
   const shareUrl = branding?.custom_url
     ? `http://localhost:5173/${branding.custom_url}`
-    : "http://localhost:5173"; // fallback
+    : `http://localhost:5173/book/${branding.id}`; // fallback
 
   function getESTDateString(date) {
     return DateTime.fromJSDate(date)
@@ -265,15 +265,25 @@ export default function AdminPage() {
         <p className="text-sm text-primary text-center break-words">
           {shareUrl}
         </p>
-        <button
-          className="btn btn-xs btn-outline block mx-auto"
-          onClick={() => {
-            navigator.clipboard.writeText(shareUrl);
-            showToast("Link copied to clipboard!");
-          }}
-        >
-          Copy Link
-        </button>
+        <div className="flex justify-center gap-2">
+          <button
+            className="btn btn-xs btn-outline"
+            onClick={() => {
+              navigator.clipboard.writeText(shareUrl);
+              showToast("Link copied to clipboard!");
+            }}
+          >
+            Copy Link
+          </button>
+          <a
+            href={shareUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-xs btn-primary"
+          >
+            Go to Booking Page
+          </a>
+        </div>
       </div>
 
       <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
@@ -284,7 +294,7 @@ export default function AdminPage() {
       {fetchError && <p className="text-red-500 text-center">{fetchError}</p>}
 
       <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
-      <h3 className="text-lg font-semibold text-center border-b pb-1">
+        <h3 className="text-lg font-semibold text-center border-b pb-1">
           Your Time Slots
         </h3>
 
@@ -325,21 +335,36 @@ export default function AdminPage() {
                   {branding.timezone?.split("/")[1]?.replace("_", " ") || "EST"}
                 </span>
               </p>
-              {slot.is_booked ? (
-                slot.appointment?.name && slot.appointment?.email ? (
+              {console.log("🧠 Slot Debug:", slot.time, {
+                day: slot.day,
+                booked: slot.is_booked,
+                inherited: slot.is_inherited_block,
+                appointment: slot.appointment,
+                service: slot.service_name,
+              })}
+
+              {slot.is_booked || slot.is_inherited_block ? (
+                slot.appointment?.name &&
+                slot.appointment?.email &&
+                !slot.is_inherited_block ? (
                   <>
-                    <p className="text-sm">Booked by:</p>
+                    <p className="text-sm text-primary font-medium">
+                      Booked by:
+                    </p>
                     <p className="text-sm text-primary">
                       {slot.appointment.name} ({slot.appointment.email})
                     </p>
                   </>
                 ) : (
-                  <p className="text-sm text-red-400">Booked (no details)</p>
+                  <p className="text-sm text-primary italic">
+                    Booked (part of earlier appointment)
+                  </p>
                 )
               ) : (
                 <p className="text-sm text-success">Available</p>
               )}
-              {!slot.is_booked && (
+
+              {!slot.is_booked && !slot.is_inherited_block && (
                 <button
                   onClick={() => handleDelete(slot.id)}
                   className="btn btn-xs btn-error mt-2"

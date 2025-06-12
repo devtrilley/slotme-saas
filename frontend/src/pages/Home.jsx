@@ -17,7 +17,7 @@ export default function Home() {
       </div>
 
       {/* Demo Booking CTA */}
-      <div className="bg-base-200 border rounded-lg p-4 shadow space-y-2">
+      {/* <div className="bg-base-200 border rounded-lg p-4 shadow space-y-2">
         <p className="text-sm text-gray-300 font-semibold">
           Want to see how it works?
         </p>
@@ -27,7 +27,7 @@ export default function Home() {
         >
           Try Demo Booking Page
         </a>
-      </div>
+      </div> */}
 
       {/* Freelancer and Dev Login CTA */}
       <div className="grid grid-cols-1 gap-3">
