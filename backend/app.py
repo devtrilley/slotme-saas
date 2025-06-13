@@ -1794,7 +1794,9 @@ def create_batch_slots():
     # Load appointment time blocks
     appointments = (
         Appointment.query
-        .filter_by(freelancer_id=freelancer_id)
+        .join(TimeSlot, Appointment.slot_id == TimeSlot.id)
+        .filter(TimeSlot.day == day)  # <- only slots on the selected day
+        .filter(Appointment.freelancer_id == freelancer_id)
         .filter(Appointment.status != "cancelled")
         .all()
     )
@@ -1826,25 +1828,29 @@ def create_batch_slots():
     times_to_create = times_to_create[:: interval // 15]
 
     created = []
+    label_to_master_id = {m.label: m.id for m in master_times}
+
+    existing_ids = {
+        s.master_time_id
+        for s in TimeSlot.query.filter_by(freelancer_id=freelancer_id, day=day).all()
+    }
+
+    created = []
     for label in times_to_create:
-        mt = next((m for m in master_times if m.label == label), None)
-        if mt:
-            existing = TimeSlot.query.filter_by(
-                freelancer_id=freelancer_id, day=day, master_time_id=mt.id
-            ).first()
-            if existing:
-                continue
+        master_id = label_to_master_id.get(label)
+        if not master_id or master_id in existing_ids:
+            continue
 
-            is_booked = label in booked_labels
+        is_booked = label in booked_labels
 
-            new_slot = TimeSlot(
-                freelancer_id=freelancer_id,
-                day=day,
-                master_time_id=mt.id,
-                is_booked=is_booked,
-            )
-            db.session.add(new_slot)
-            created.append(label)
+        new_slot = TimeSlot(
+            freelancer_id=freelancer_id,
+            day=day,
+            master_time_id=master_id,
+            is_booked=is_booked,
+        )
+        db.session.add(new_slot)
+        created.append(label)
 
     db.session.commit()
     return jsonify({"message": f"{len(created)} slots created", "slots": created}), 201

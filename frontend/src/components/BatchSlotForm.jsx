@@ -35,7 +35,7 @@ export default function BatchSlotForm({ onBatchAdd }) {
         interval: interval,
       };
 
-      await axios.post(
+      const res = await axios.post(
         "http://127.0.0.1:5000/freelancer/batch-slots",
         payload,
         {
@@ -45,7 +45,13 @@ export default function BatchSlotForm({ onBatchAdd }) {
         }
       );
 
-      showToast("✅ Slots generated!");
+      const count = res.data.slots.length;
+      showToast(
+        `✅ ${count} slot${count !== 1 ? "s" : ""} added from ${startTime} to ${endTime}`,
+        "success",
+        5000 // 5 seconds
+      );
+
       if (onBatchAdd) onBatchAdd();
     } catch (err) {
       const msg = err.response?.data?.error || "Something went wrong";
@@ -103,7 +109,9 @@ export default function BatchSlotForm({ onBatchAdd }) {
       </div>
 
       <div>
-        <label className="label text-xs text-gray-400 mb-1">End Time (Exclusive)</label>
+        <label className="label text-xs text-gray-400 mb-1">
+          End Time (Exclusive)
+        </label>
         <div className="flex gap-2">
           <select
             className="select select-bordered w-1/3"

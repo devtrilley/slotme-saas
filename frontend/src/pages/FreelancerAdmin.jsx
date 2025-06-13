@@ -197,6 +197,13 @@ export default function AdminPage() {
     (slot) => slot.day === getESTDateString(selectedDate)
   );
 
+  const handleRefresh = () => {
+    showToast("Refreshing...", "success", 2000);
+    fetchSlots();
+    fetchBranding();
+    fetchServices();
+  };
+
   function formatDate(dateString) {
     const [year, month, day] = dateString.split("-");
     const date = new Date(Number(year), Number(month) - 1, Number(day));
@@ -301,7 +308,11 @@ export default function AdminPage() {
         <label className="text-sm text-gray-400 block text-center">
           Select a date to view / edit your time slots:
         </label>
-
+        <div className="flex justify-center">
+          <button onClick={handleRefresh} className="btn btn-sm btn-outline">
+            🔄 Refresh
+          </button>
+        </div>
         <div className="relative w-full">
           <DatePicker
             selected={selectedDate}
