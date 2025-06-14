@@ -83,12 +83,21 @@ export default function BookingConfirmed() {
           📧 Check your email for full booking details and next steps.
         </p>
 
-        <button
-          onClick={() => alert("📅 Calendar integration coming soon!")}
+        <a
+          href={appointment.calendar_url}
+          target="_blank"
+          rel="noopener noreferrer"
           className="btn btn-sm btn-outline mt-4"
         >
           📆 Add to Calendar
-        </button>
+        </a>
+
+        <a
+  href={`http://127.0.0.1:5000/download-ics/${appointmentId}`}
+  className="btn btn-sm btn-outline mt-2"
+>
+  📄 Download .ics (Apple/Outlook)
+</a>
       </div>
 
       <div className="text-center mt-6">

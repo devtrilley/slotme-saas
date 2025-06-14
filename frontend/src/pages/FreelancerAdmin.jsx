@@ -346,13 +346,6 @@ export default function AdminPage() {
                   {branding.timezone?.split("/")[1]?.replace("_", " ") || "EST"}
                 </span>
               </p>
-              {console.log("🧠 Slot Debug:", slot.time, {
-                day: slot.day,
-                booked: slot.is_booked,
-                inherited: slot.is_inherited_block,
-                appointment: slot.appointment,
-                service: slot.service_name,
-              })}
 
               {slot.is_booked || slot.is_inherited_block ? (
                 slot.appointment?.name &&

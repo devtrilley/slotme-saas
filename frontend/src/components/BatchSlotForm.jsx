@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { showToast } from "../utils/toast";
 import IconDatePicker from "./IconDatePicker";
+import { DateTime } from "luxon";
 import "react-datepicker/dist/react-datepicker.css";
 
 export default function BatchSlotForm({ onBatchAdd }) {
@@ -27,13 +28,34 @@ export default function BatchSlotForm({ onBatchAdd }) {
     const startTime = `${startHour}:${startMinute} ${startAMPM}`;
     const endTime = `${endHour}:${endMinute} ${endAMPM}`;
 
+    // Parse start and end into comparable DateTime objects
+    const start = DateTime.fromFormat(startTime, "hh:mm a");
+    const end = DateTime.fromFormat(endTime, "hh:mm a");
+
+    // Defensive checks
+    if (end < start) {
+      setError("❌ End time must be after start time.");
+      setLoading(false);
+      return;
+    }
+
+    if (!interval) {
+      setError("❌ Please select a valid interval.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const payload = {
-        day: selectedDate.toISOString().split("T")[0],
+        day: DateTime.fromJSDate(selectedDate)
+          .setZone("America/New_York")
+          .toFormat("yyyy-MM-dd"),
         start_time: startTime,
         end_time: endTime,
         interval: interval,
       };
+
+      console.log("📤 Sending batch slot payload:", payload);
 
       const res = await axios.post(
         "http://127.0.0.1:5000/freelancer/batch-slots",
@@ -47,7 +69,9 @@ export default function BatchSlotForm({ onBatchAdd }) {
 
       const count = res.data.slots.length;
       showToast(
-        `✅ ${count} slot${count !== 1 ? "s" : ""} added from ${startTime} to ${endTime}`,
+        `✅ ${count} slot${
+          count !== 1 ? "s" : ""
+        } added from ${startTime} to ${endTime}`,
         "success",
         5000 // 5 seconds
       );

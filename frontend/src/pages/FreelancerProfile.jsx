@@ -164,7 +164,7 @@ export default function FreelancerProfile() {
                 {freelancer.services.map((service) => (
                   <ServiceCard
                     key={service.id}
-                    {...service}
+                    service={service}
                     isPublicView={true}
                   />
                 ))}

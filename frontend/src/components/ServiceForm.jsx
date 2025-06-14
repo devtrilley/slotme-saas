@@ -5,7 +5,7 @@ import { showToast } from "../utils/toast";
 export default function ServiceForm({ onServiceAdded }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [duration, setDuration] = useState("");
+  const [duration, setDuration] = useState("15");
   const [price, setPrice] = useState("");
   const [loading, setLoading] = useState(false);
 

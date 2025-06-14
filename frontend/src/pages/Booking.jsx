@@ -162,9 +162,11 @@ export default function BookingPage() {
     return dateInSourceTZ.setZone(userTZ).toLocaleString(DateTime.TIME_SIMPLE);
   };
 
-  const filteredSlots = slots.filter(
-    (s) => s.day === selectedDate.toISOString().split("T")[0]
-  );
+  const selectedESTDate = DateTime.fromJSDate(selectedDate)
+    .setZone("America/New_York")
+    .toFormat("yyyy-MM-dd");
+
+  const filteredSlots = slots.filter((s) => s.day === selectedESTDate);
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
@@ -285,7 +287,9 @@ export default function BookingPage() {
               const relevantSlice = futureSlots.slice(0, requiredBlocks);
 
               // Check if all blocks that exist are free
-              const allAreFree = relevantSlice.every((s) => !s.is_booked);
+              const allAreFree = relevantSlice.every(
+                (s) => !s.is_booked && !s.is_inherited_block
+              );
 
               if (!allAreFree) {
                 showToast(
@@ -340,6 +344,11 @@ export default function BookingPage() {
                     ) : (
                       <>Booked</>
                     )}
+                  </div>
+                )}
+                {slot.is_inherited_block && (
+                  <div className="text-xs text-purple-400 mt-1 text-center italic">
+                    Blocked (part of earlier appointment)
                   </div>
                 )}
               </div>

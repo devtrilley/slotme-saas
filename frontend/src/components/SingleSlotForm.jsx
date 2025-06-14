@@ -4,6 +4,7 @@ import { showToast } from "../utils/toast";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import IconDatePicker from "./IconDatePicker";
+import { DateTime } from "luxon";
 
 export default function SingleSlotForm({
   onAdd,
@@ -38,11 +39,21 @@ export default function SingleSlotForm({
       return;
     }
 
+    console.log("📤 Submitting slot:", {
+      day: DateTime.fromJSDate(selectedDate)
+        .setZone("America/New_York")
+        .toFormat("yyyy-MM-dd"),
+      master_time_id: match.id,
+      timezone,
+    });
+
     axios
       .post(
         "http://127.0.0.1:5000/slots",
         {
-          day: selectedDate.toISOString().split("T")[0],
+          day: DateTime.fromJSDate(selectedDate)
+            .setZone("America/New_York")
+            .toFormat("yyyy-MM-dd"),
           master_time_id: match.id,
           timezone,
         },
@@ -60,6 +71,10 @@ export default function SingleSlotForm({
         if (onAdd) onAdd();
       })
       .catch((err) => {
+        console.error(
+          "❌ Slot creation failed",
+          err.response?.data || err.message
+        );
         const msg = err.response?.data?.error || "Failed to add slot";
         setError(msg);
       })
@@ -83,7 +98,9 @@ export default function SingleSlotForm({
         />
       </div>
 
-      <label className="label text-xs text-gray-400">Time (Hour, Min, AM/PM)</label>
+      <label className="label text-xs text-gray-400">
+        Time (Hour, Min, AM/PM)
+      </label>
       <div className="flex gap-2">
         <select
           className="select select-bordered w-1/3"

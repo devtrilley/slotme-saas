@@ -1,6 +1,6 @@
 # This file is pretty much like a .app file in Express that holds all of our routes
 
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify, redirect, Response
 from flask import g
 from flask_cors import CORS, cross_origin
 from models import db, TimeSlot, Appointment, Freelancer, User, MasterTimeSlot, Service
@@ -131,6 +131,7 @@ def load_freelancer():
         "/feedback",
         "/confirm-booking",
         "/appointment",
+        "/download-ics"
     ]
 
     if (
@@ -302,12 +303,17 @@ def book_slot():
         )
 
     # Check for any conflicting bookings across the entire service duration
-    user_appointments = Appointment.query.join(TimeSlot).join(MasterTimeSlot).filter(
-        Appointment.user_id == user.id,
-        Appointment.freelancer_id == slot.freelancer_id,
-        Appointment.status != "cancelled",
-        TimeSlot.day == slot.day,
-    ).all()
+    user_appointments = (
+        Appointment.query.join(TimeSlot)
+        .join(MasterTimeSlot)
+        .filter(
+            Appointment.user_id == user.id,
+            Appointment.freelancer_id == slot.freelancer_id,
+            Appointment.status != "cancelled",
+            TimeSlot.day == slot.day,
+        )
+        .all()
+    )
 
     for appt in user_appointments:
         appt_start = appt.slot.master_time.label
@@ -316,7 +322,14 @@ def book_slot():
             appt_index = time_labels.index(appt_start)
             appt_labels = time_labels[appt_index : appt_index + appt_duration]
             if any(lbl in appt_labels for lbl in required_labels):
-                return jsonify({"error": "You already have a booking that conflicts with this time."}), 400
+                return (
+                    jsonify(
+                        {
+                            "error": "You already have a booking that conflicts with this time."
+                        }
+                    ),
+                    400,
+                )
         except ValueError:
             continue
 
@@ -1959,6 +1972,26 @@ def confirm_booking_email(token):
         )
         formatted_time = slot.master_time.label
 
+        # ⏰ Google Calendar Link
+        start_datetime = f"{slot.day}T{slot.master_time.time_24h}:00"
+        duration = service.duration_minutes
+        end_dt = datetime.strptime(start_datetime, "%Y-%m-%dT%H:%M:%S") + timedelta(
+            minutes=duration
+        )
+        end_datetime = end_dt.strftime("%Y-%m-%dT%H:%M:%S")
+
+        title = f"{freelancer.business_name or 'Appointment'} with {user.first_name}"
+        details = f"Service: {service.name}\\nBooked via SlotMe"
+        location = freelancer.business_address or "Online"
+
+        calendar_url = (
+            "https://calendar.google.com/calendar/render?action=TEMPLATE"
+            f"&text={title}"
+            f"&dates={start_datetime.replace('-', '').replace(':', '')}/{end_datetime.replace('-', '').replace(':', '')}"
+            f"&details={details}"
+            f"&location={location}"
+        )
+
         subject = "📅 Your Appointment is Confirmed – SlotMe"
         body = f"""Hi {user.first_name},
 
@@ -1973,8 +2006,9 @@ Thanks for confirming your booking!
 
         if freelancer.business_address:
             body += f"• Location: {freelancer.business_address}\n"
-
+        body += f"\n📅 Add to your calendar: {calendar_url}\n"
         body += """
+        
 
 If you need to cancel or reschedule, please contact the freelancer directly.
 
@@ -1991,7 +2025,7 @@ If you need to cancel or reschedule, please contact the freelancer directly.
         )
     else:
         return redirect("http://localhost:5173/not-found")
-    
+
 
 @app.route("/resend-confirmation/<int:appointment_id>", methods=["POST"])
 def resend_confirmation_email(appointment_id):
@@ -2000,7 +2034,10 @@ def resend_confirmation_email(appointment_id):
         return jsonify({"error": "Appointment not found"}), 404
 
     if appointment.status != "pending":
-        return jsonify({"error": "This appointment is already confirmed or cancelled."}), 400
+        return (
+            jsonify({"error": "This appointment is already confirmed or cancelled."}),
+            400,
+        )
 
     user = appointment.user
     token = serializer.dumps({"appointment_id": appointment.id}, salt="booking-confirm")
@@ -2036,16 +2073,32 @@ def get_appointment(appointment_id):
     if not appt:
         return jsonify({"error": "Not found"}), 404
 
+    start_dt = datetime.strptime(
+        f"{appt.slot.day} {appt.slot.master_time.time_24h}", "%Y-%m-%d %H:%M"
+    )
+    end_dt = start_dt + timedelta(minutes=appt.service.duration_minutes)
+    start_str = start_dt.strftime("%Y%m%dT%H%M%S")
+    end_str = end_dt.strftime("%Y%m%dT%H%M%S")
+
+    calendar_url = (
+        "https://calendar.google.com/calendar/render?action=TEMPLATE"
+        f"&text={appt.service.name} with {appt.freelancer.business_name or 'your freelancer'}"
+        f"&dates={start_str}/{end_str}"
+        f"&details=Booked via SlotMe"
+        f"&location={appt.freelancer.business_address or 'Online'}"
+    )
+
     return jsonify(
         {
-            "first_name": appt.user.first_name,  # ✅ Add this line
-            "last_name": appt.user.last_name,  # (Optional) if you want full name
+            "first_name": appt.user.first_name,
+            "last_name": appt.user.last_name,
             "freelancer_name": appt.freelancer.business_name or "your freelancer",
             "day": appt.slot.day,
             "time": appt.slot.master_time.label,
-            "timezone": "EST",  # or appt.freelancer.timezone
+            "timezone": "EST",
             "service_name": appt.service.name,
             "business_address": appt.freelancer.business_address or None,
+            "calendar_url": calendar_url,
         }
     )
 
@@ -2085,13 +2138,58 @@ def cancel_booking(token):
 
     return redirect("http://localhost:5173/booking-cancelled")
 
+@app.route("/download-ics/<int:appointment_id>")
+def download_ics(appointment_id):
+    appt = Appointment.query.get(appointment_id)
+    if not appt:
+        return jsonify({"error": "Not found"}), 404
+
+    user = appt.user
+    freelancer = appt.freelancer
+    service = appt.service
+    slot = appt.slot
+
+    # Parse naive time assuming it's in Eastern Time (local UI-facing label)
+    est = pytz.timezone("US/Eastern")
+    naive_start = datetime.strptime(f"{slot.day} {slot.master_time.time_24h}", "%Y-%m-%d %H:%M")
+    aware_start = est.localize(naive_start)
+
+    # Convert to UTC
+    utc_start = aware_start.astimezone(pytz.utc)
+    utc_end = utc_start + timedelta(minutes=service.duration_minutes)
+
+    # Format for ICS (UTC Zulu time format)
+    start_utc_str = utc_start.strftime("%Y%m%dT%H%M%SZ")
+    end_utc_str = utc_end.strftime("%Y%m%dT%H%M%SZ")
+
+    title = f"{service.name} with {freelancer.business_name or 'your freelancer'}"
+    description = "Booked via SlotMe"
+    location = freelancer.business_address or "Online"
+
+    ics = f"""BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+SUMMARY:{title}
+DTSTART:{start_utc_str}
+DTEND:{end_utc_str}
+LOCATION:{location}
+DESCRIPTION:{description}
+END:VEVENT
+END:VCALENDAR"""
+
+    return Response(
+        ics,
+        mimetype="text/calendar",
+        headers={"Content-Disposition": f"attachment; filename=slotme-booking.ics"},
+    )
+
+
 def purge_old_pending():
     with app.app_context():
         print("🧹 Running startup cleanup for expired pending bookings...")
         cutoff = datetime.utcnow() - timedelta(minutes=10)
         expired = Appointment.query.filter(
-            Appointment.status == "pending",
-            Appointment.timestamp < cutoff
+            Appointment.status == "pending", Appointment.timestamp < cutoff
         ).all()
 
         for appt in expired:
@@ -2100,6 +2198,7 @@ def purge_old_pending():
 
         db.session.commit()
         print(f"✅ Cleaned {len(expired)} expired pending bookings.")
+
 
 # Run once at startup
 purge_old_pending()
