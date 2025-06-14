@@ -11,7 +11,7 @@ from email.mime.multipart import MIMEMultipart
 import re  # Regular Expression
 from werkzeug.security import check_password_hash  # At top with imports
 from werkzeug.security import generate_password_hash
-from itsdangerous import URLSafeTimedSerializer
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from datetime import datetime, timedelta
 
 from email_utils import send_priority_support_ticket
@@ -23,7 +23,6 @@ from flask_jwt_extended import create_access_token
 from datetime import timedelta
 from datetime import datetime
 
-from itsdangerous import URLSafeTimedSerializer
 
 from flask_jwt_extended.exceptions import NoAuthorizationError
 
@@ -130,6 +129,8 @@ def load_freelancer():
         "/book",
         "/test-email",
         "/feedback",
+        "/confirm-booking",
+        "/appointment",
     ]
 
     if (
@@ -175,12 +176,11 @@ def get_public_time_slots(freelancer_id):
     # Precompute inherited slot IDs
     inherited_ids = set()
     appointments = (
-        Appointment.query
-        .filter_by(freelancer_id=freelancer_id)
+        Appointment.query.filter_by(freelancer_id=freelancer_id)
         .filter(Appointment.status != "cancelled")
         .options(
             joinedload(Appointment.slot).joinedload(TimeSlot.master_time),
-            joinedload(Appointment.service)
+            joinedload(Appointment.service),
         )
         .all()
     )
@@ -193,12 +193,12 @@ def get_public_time_slots(freelancer_id):
         try:
             start_idx = time_labels.index(start_label)
             blocks = service.duration_minutes // 15
-            inherited_labels = time_labels[start_idx + 1: start_idx + blocks]
+            inherited_labels = time_labels[start_idx + 1 : start_idx + blocks]
             for label in inherited_labels:
                 inherited_id = TimeSlot.query.filter_by(
                     freelancer_id=freelancer_id,
                     day=slot.day,
-                    master_time_id=time_label_to_id[label]
+                    master_time_id=time_label_to_id[label],
                 ).first()
                 if inherited_id:
                     inherited_ids.add(inherited_id.id)
@@ -237,16 +237,18 @@ def get_public_time_slots(freelancer_id):
                 service_name = service.name
                 duration_minutes = service.duration_minutes
 
-        result.append({
-            "id": slot.id,
-            "time": slot.master_time.label,
-            "day": slot.day,
-            "is_booked": is_booked,
-            "is_inherited_block": is_inherited,
-            "appointment": user_info,
-            "service_name": service_name,
-            "duration_minutes": duration_minutes,
-        })
+        result.append(
+            {
+                "id": slot.id,
+                "time": slot.master_time.label,
+                "day": slot.day,
+                "is_booked": is_booked,
+                "is_inherited_block": is_inherited,
+                "appointment": user_info,
+                "service_name": service_name,
+                "duration_minutes": duration_minutes,
+            }
+        )
 
     return jsonify(result)
 
@@ -273,18 +275,50 @@ def book_slot():
         return jsonify({"error": "Invalid service selected"}), 400
 
     user = User.query.filter_by(email=email).first()
-    if not user:
+    if user:
+        user.first_name = first_name
+        user.last_name = last_name
+        user.phone = phone  # optional: keep most recent phone
+    else:
         user = User(
             first_name=first_name, last_name=last_name, email=email, phone=phone
         )
         db.session.add(user)
-        db.session.commit()
 
-    existing_appt = Appointment.query.filter_by(
-        user_id=user.id, slot_id=slot_id
+    db.session.commit()
+
+    # 🛡️ Prevent multiple pending bookings for same freelancer
+    existing_unconfirmed = Appointment.query.filter_by(
+        user_id=user.id, freelancer_id=slot.freelancer_id, status="pending"
     ).first()
-    if existing_appt:
-        return jsonify({"error": "You already booked this slot."}), 400
+    if existing_unconfirmed:
+        return (
+            jsonify(
+                {
+                    "error": "You already have a pending booking. Please confirm or cancel it before making another."
+                }
+            ),
+            400,
+        )
+
+    # Check for any conflicting bookings across the entire service duration
+    user_appointments = Appointment.query.join(TimeSlot).join(MasterTimeSlot).filter(
+        Appointment.user_id == user.id,
+        Appointment.freelancer_id == slot.freelancer_id,
+        Appointment.status != "cancelled",
+        TimeSlot.day == slot.day,
+    ).all()
+
+    for appt in user_appointments:
+        appt_start = appt.slot.master_time.label
+        appt_duration = appt.service.duration_minutes // 15
+        try:
+            appt_index = time_labels.index(appt_start)
+            appt_labels = time_labels[appt_index : appt_index + appt_duration]
+            if any(lbl in appt_labels for lbl in required_labels):
+                return jsonify({"error": "You already have a booking that conflicts with this time."}), 400
+        except ValueError:
+            continue
 
     # Atomic booking logic starts here
     all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
@@ -323,6 +357,9 @@ def book_slot():
         user_id=user.id,
         service_id=service_id,
         status="pending",
+        email=email,  # <- NEW
+        phone=phone,
+        timestamp=datetime.utcnow(),
     )
     db.session.add(appointment)
 
@@ -340,9 +377,31 @@ def book_slot():
 
     db.session.commit()
 
-    token = serializer.dumps({"appointment_id": appointment.id})
-    link = f"http://localhost:5000/verify/{token}"
-    print(f"📧 Send this to the user: {link}")
+    from email_utils import (
+        send_branded_customer_reply,
+    )  # ✅ make sure this is at the top
+
+    token = serializer.dumps({"appointment_id": appointment.id}, salt="booking-confirm")
+    link = f"http://127.0.0.1:5000/confirm-booking/{token}"
+
+    subject = "Confirm Your Appointment – SlotMe"
+    body = f"""Hi {first_name},
+
+    Thanks for booking with SlotMe!
+
+    You're one step away from confirming your appointment. Just click the link below:
+
+    {link}
+
+    If you didn’t make this request, feel free to ignore this email.
+
+    – The SlotMe Team
+    """
+
+    try:
+        send_branded_customer_reply(subject, body, email)
+    except Exception as e:
+        print("❌ Failed to send confirmation email:", e)
 
     return jsonify({"message": "Verification email sent."}), 200
 
@@ -508,12 +567,11 @@ def get_freelancer_slots(freelancer_id):
     # Precompute inherited block IDs
     inherited_ids = set()
     appointments = (
-        Appointment.query
-        .filter_by(freelancer_id=freelancer_id)
+        Appointment.query.filter_by(freelancer_id=freelancer_id)
         .filter(Appointment.status != "cancelled")
         .options(
             joinedload(Appointment.slot).joinedload(TimeSlot.master_time),
-            joinedload(Appointment.service)
+            joinedload(Appointment.service),
         )
         .all()
     )
@@ -526,12 +584,12 @@ def get_freelancer_slots(freelancer_id):
         try:
             start_idx = time_labels.index(start_label)
             blocks = service.duration_minutes // 15
-            inherited_labels = time_labels[start_idx + 1: start_idx + blocks]
+            inherited_labels = time_labels[start_idx + 1 : start_idx + blocks]
             for label in inherited_labels:
                 inherited_id = TimeSlot.query.filter_by(
                     freelancer_id=freelancer_id,
                     day=slot.day,
-                    master_time_id=time_label_to_id[label]
+                    master_time_id=time_label_to_id[label],
                 ).first()
                 if inherited_id:
                     inherited_ids.add(inherited_id.id)
@@ -570,16 +628,18 @@ def get_freelancer_slots(freelancer_id):
                 service_name = service.name
                 duration_minutes = service.duration_minutes
 
-        result.append({
-            "id": slot.id,
-            "time": slot.master_time.label,
-            "day": slot.day,
-            "is_booked": is_booked,
-            "is_inherited_block": is_inherited,
-            "appointment": user_info,
-            "service_name": service_name,
-            "duration_minutes": duration_minutes,
-        })
+        result.append(
+            {
+                "id": slot.id,
+                "time": slot.master_time.label,
+                "day": slot.day,
+                "is_booked": is_booked,
+                "is_inherited_block": is_inherited,
+                "appointment": user_info,
+                "service_name": service_name,
+                "duration_minutes": duration_minutes,
+            }
+        )
 
     return jsonify(result)
 
@@ -710,7 +770,7 @@ def delete_freelancer(freelancer_id):
 def get_public_freelancer_info(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200
-    
+
     freelancer = Freelancer.query.get(freelancer_id)
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
@@ -726,6 +786,7 @@ def get_public_freelancer_info(freelancer_id):
             "duration_minutes": s.duration_minutes,
             "price_usd": s.price_usd or 0.0,
             "is_enabled": s.is_enabled,
+            "business_address": freelancer.business_address,
         }
         for s in services
     ]
@@ -782,7 +843,9 @@ def create_time_slot():
     all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
     target_label = master_time.label
     time_labels = [t.label for t in all_times]
-    target_index = time_labels.index(target_label) if target_label in time_labels else -1
+    target_index = (
+        time_labels.index(target_label) if target_label in time_labels else -1
+    )
 
     is_booked = False
 
@@ -792,7 +855,7 @@ def create_time_slot():
         appointments = (
             Appointment.query.options(
                 joinedload(Appointment.slot).joinedload(TimeSlot.master_time),
-                joinedload(Appointment.service)
+                joinedload(Appointment.service),
             )
             .filter_by(freelancer_id=freelancer_id)
             .filter(Appointment.status != "cancelled")
@@ -831,7 +894,12 @@ def create_time_slot():
     db.session.add(slot)
     db.session.commit()
 
-    return jsonify({"message": "Time slot created", "slot_id": slot.id, "booked": is_booked}), 201
+    return (
+        jsonify(
+            {"message": "Time slot created", "slot_id": slot.id, "booked": is_booked}
+        ),
+        201,
+    )
 
 
 @app.route("/slots/<int:slot_id>", methods=["DELETE"])
@@ -1277,6 +1345,9 @@ def update_freelancer_branding():
     freelancer.first_name = data.get("first_name", freelancer.first_name)
     freelancer.last_name = data.get("last_name", freelancer.last_name)
     freelancer.business_name = data.get("business_name", freelancer.business_name)
+    freelancer.business_address = data.get(
+        "business_address", freelancer.business_address
+    )
     freelancer.logo_url = data.get("logo_url", freelancer.logo_url)
     freelancer.bio = data.get("bio", freelancer.bio)
     freelancer.tagline = data.get("tagline", freelancer.tagline)
@@ -1619,6 +1690,7 @@ def get_freelancer_info():
                 "bio": freelancer.bio,
                 "timezone": freelancer.timezone,
                 "is_verified": freelancer.is_verified,
+                "business_address": freelancer.business_address,
             }
         ),
         200,
@@ -1793,8 +1865,7 @@ def create_batch_slots():
 
     # Load appointment time blocks
     appointments = (
-        Appointment.query
-        .join(TimeSlot, Appointment.slot_id == TimeSlot.id)
+        Appointment.query.join(TimeSlot, Appointment.slot_id == TimeSlot.id)
         .filter(TimeSlot.day == day)  # <- only slots on the selected day
         .filter(Appointment.freelancer_id == freelancer_id)
         .filter(Appointment.status != "cancelled")
@@ -1856,6 +1927,182 @@ def create_batch_slots():
     return jsonify({"message": f"{len(created)} slots created", "slots": created}), 201
 
 
+# Create serializer (add near your config)
+serializer = URLSafeTimedSerializer(os.getenv("SECRET_KEY"))
+
+
+@app.route("/confirm-booking/<token>", methods=["GET"])
+@cross_origin(origins="*")
+def confirm_booking_email(token):
+    try:
+        data = serializer.loads(token, salt="booking-confirm", max_age=86400)
+        appointment_id = data["appointment_id"]
+    except SignatureExpired:
+        return redirect("http://localhost:5173/expired")
+    except BadSignature:
+        return redirect("http://localhost:5173/invalid")
+
+    appointment = Appointment.query.get(appointment_id)
+
+    if appointment and appointment.status == "pending":
+        appointment.status = "confirmed"
+        db.session.commit()
+
+        # ✅ Send confirmation receipt email
+        user = appointment.user
+        freelancer = appointment.freelancer
+        service = appointment.service
+        slot = appointment.slot
+
+        formatted_date = datetime.strptime(slot.day, "%Y-%m-%d").strftime(
+            "%A, %B %d, %Y"
+        )
+        formatted_time = slot.master_time.label
+
+        subject = "📅 Your Appointment is Confirmed – SlotMe"
+        body = f"""Hi {user.first_name},
+
+Thanks for confirming your booking!
+
+✅ Appointment Details:
+• Freelancer: {freelancer.business_name or "your freelancer"}
+• Service: {service.name}
+• Date: {formatted_date}
+• Time: {formatted_time} (EST)
+"""
+
+        if freelancer.business_address:
+            body += f"• Location: {freelancer.business_address}\n"
+
+        body += """
+
+If you need to cancel or reschedule, please contact the freelancer directly.
+
+– The SlotMe Team
+"""
+
+        try:
+            send_branded_customer_reply(subject, body, user.email)
+        except Exception as e:
+            print("❌ Failed to send booking receipt:", e)
+
+        return redirect(
+            f"http://localhost:5173/booking-confirmed?appointment_id={appointment.id}"
+        )
+    else:
+        return redirect("http://localhost:5173/not-found")
+    
+
+@app.route("/resend-confirmation/<int:appointment_id>", methods=["POST"])
+def resend_confirmation_email(appointment_id):
+    appointment = Appointment.query.get(appointment_id)
+    if not appointment:
+        return jsonify({"error": "Appointment not found"}), 404
+
+    if appointment.status != "pending":
+        return jsonify({"error": "This appointment is already confirmed or cancelled."}), 400
+
+    user = appointment.user
+    token = serializer.dumps({"appointment_id": appointment.id}, salt="booking-confirm")
+    link = f"http://127.0.0.1:5000/confirm-booking/{token}"
+
+    subject = "Confirm Your Appointment – SlotMe (Resend)"
+    body = f"""Hi {user.first_name},
+
+You requested a new confirmation email for your appointment.
+
+Just click the link below to confirm:
+
+{link}
+
+If you didn’t request this, feel free to ignore it.
+
+– The SlotMe Team
+"""
+
+    try:
+        send_branded_customer_reply(subject, body, user.email)
+    except Exception as e:
+        print("❌ Failed to resend confirmation email:", e)
+        return jsonify({"error": "Failed to send email"}), 500
+
+    return jsonify({"message": "Confirmation email resent."}), 200
+
+
+# GET /appointment/<int:appointment_id>
+@app.route("/appointment/<int:appointment_id>")
+def get_appointment(appointment_id):
+    appt = Appointment.query.get(appointment_id)
+    if not appt:
+        return jsonify({"error": "Not found"}), 404
+
+    return jsonify(
+        {
+            "first_name": appt.user.first_name,  # ✅ Add this line
+            "last_name": appt.user.last_name,  # (Optional) if you want full name
+            "freelancer_name": appt.freelancer.business_name or "your freelancer",
+            "day": appt.slot.day,
+            "time": appt.slot.master_time.label,
+            "timezone": "EST",  # or appt.freelancer.timezone
+            "service_name": appt.service.name,
+            "business_address": appt.freelancer.business_address or None,
+        }
+    )
+
+
+@app.route("/dev/cleanup-pending", methods=["POST"])
+def cleanup_pending():
+    ten_minutes_ago = datetime.utcnow() - timedelta(minutes=10)
+    expired = Appointment.query.filter(
+        Appointment.status == "pending", Appointment.timestamp < ten_minutes_ago
+    ).all()
+
+    for appt in expired:
+        appt.status = "cancelled"
+        appt.slot.is_booked = False  # Free up slot
+
+    db.session.commit()
+    return jsonify({"message": f"Expired {len(expired)} pending appointments."})
+
+
+@app.route("/cancel-booking/<token>", methods=["GET"])
+def cancel_booking(token):
+    try:
+        data = serializer.loads(token, salt="booking-confirm", max_age=86400)
+        appointment_id = data["appointment_id"]
+    except SignatureExpired:
+        return redirect("http://localhost:5173/expired")
+    except BadSignature:
+        return redirect("http://localhost:5173/invalid")
+
+    appt = Appointment.query.get(appointment_id)
+    if not appt or appt.status != "pending":
+        return redirect("http://localhost:5173/not-found")
+
+    appt.status = "cancelled"
+    appt.slot.is_booked = False
+    db.session.commit()
+
+    return redirect("http://localhost:5173/booking-cancelled")
+
+def purge_old_pending():
+    with app.app_context():
+        print("🧹 Running startup cleanup for expired pending bookings...")
+        cutoff = datetime.utcnow() - timedelta(minutes=10)
+        expired = Appointment.query.filter(
+            Appointment.status == "pending",
+            Appointment.timestamp < cutoff
+        ).all()
+
+        for appt in expired:
+            appt.status = "cancelled"
+            appt.slot.is_booked = False
+
+        db.session.commit()
+        print(f"✅ Cleaned {len(expired)} expired pending bookings.")
+
+# Run once at startup
+purge_old_pending()
 # -----------------------
 if __name__ == "__main__":
     app.run(debug=True)

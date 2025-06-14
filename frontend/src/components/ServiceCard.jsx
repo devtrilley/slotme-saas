@@ -3,15 +3,15 @@ import axios from "axios";
 import { showToast } from "../utils/toast";
 
 export default function ServiceCard({
-  id,
-  name,
-  description,
-  duration_minutes,
-  price_usd,
-  is_enabled,
-  onUpdate,
+  service,
   isPublicView = false,
+  onClick,
 }) {
+  const { id, name, description, duration_minutes, price_usd, is_enabled } =
+    service;
+
+  const [isFlashing, setIsFlashing] = useState(false);
+
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     name,
@@ -20,12 +20,11 @@ export default function ServiceCard({
     price_usd: String(price_usd ?? ""),
   });
   const [isEnabled, setEnabled] = useState(() => is_enabled ?? true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setEnabled(is_enabled);
   }, [is_enabled]);
-
-  const [loading, setLoading] = useState(false);
 
   const handleChange = (field) => (e) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -48,7 +47,6 @@ export default function ServiceCard({
       .then(() => {
         showToast("Service updated!");
         setEditing(false);
-        onUpdate?.();
       })
       .catch((err) => {
         console.error("❌ Failed to update service", err);
@@ -67,7 +65,6 @@ export default function ServiceCard({
       })
       .then(() => {
         showToast("Service deleted");
-        onUpdate?.();
       })
       .catch((err) => {
         console.error("❌ Failed to delete service", err);
@@ -90,7 +87,6 @@ export default function ServiceCard({
       .then(() => {
         setEnabled(newStatus);
         showToast(`Service ${newStatus ? "enabled" : "disabled"}`);
-        onUpdate?.();
       })
       .catch((err) => {
         console.error("❌ Failed to toggle service", err);
@@ -99,7 +95,20 @@ export default function ServiceCard({
   };
 
   return (
-    <li className="bg-white/10 backdrop-blur-md rounded-lg px-4 py-4 border border-white/20 list-none space-y-2">
+    <li
+      onClick={() => {
+        if (isPublicView && onClick) {
+          setIsFlashing(true);
+          onClick();
+          setTimeout(() => setIsFlashing(false), 500); // keep your preferred duration
+        }
+      }}
+      className={`bg-white/10 backdrop-blur-md rounded-xl px-4 py-4 list-none space-y-2 cursor-pointer transition-all duration-300 border ${
+        isFlashing
+          ? "border-blue-400 ring-2 ring-blue-400 ring-offset-2 ring-offset-black"
+          : "border-white/20 hover:shadow-md"
+      }`}
+    >
       {editing ? (
         <div className="space-y-2">
           <input
@@ -140,7 +149,7 @@ export default function ServiceCard({
           <p className="text-xs text-green-400">
             ${parseFloat(form.price_usd || 0).toFixed(2)}
           </p>
-          {!isEnabled && (
+          {!isPublicView && !isEnabled && (
             <p className="text-xs text-red-400 font-medium">Disabled</p>
           )}
         </>

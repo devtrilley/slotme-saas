@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { showToast } from "../utils/toast";
 
 export default function FreelancerBranding({ onUpdate }) {
   const [form, setForm] = useState({
@@ -11,9 +12,8 @@ export default function FreelancerBranding({ onUpdate }) {
     no_show_policy: "",
     faq_text: "",
     custom_url: "", // ✅ Add this line
+    business_address: "", // ✅ New
   });
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   const freelancerId = localStorage.getItem("freelancer_id");
 
@@ -35,6 +35,7 @@ export default function FreelancerBranding({ onUpdate }) {
           timezone,
           no_show_policy,
           faq_text,
+          business_address, // ✅ Add this
         } = res.data;
         setForm({
           business_name: business_name || "",
@@ -45,6 +46,7 @@ export default function FreelancerBranding({ onUpdate }) {
           no_show_policy: no_show_policy || "",
           faq_text: faq_text || "",
           custom_url: res.data.custom_url || "", // ✅ Add this line
+          business_address: business_address || "", // ✅ Add this
         });
 
         localStorage.setItem("branding_updated", Date.now());
@@ -60,14 +62,26 @@ export default function FreelancerBranding({ onUpdate }) {
   }, [freelancerId]);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm({
+      ...form,
+      [name]: name === "custom_url" ? value.toLowerCase() : value,
+    });
   };
+
+  const isValidSlug = (slug) => /^[a-z0-9_-]{3,30}$/i.test(slug);
 
   const handleSave = (e) => {
     e.preventDefault();
-    setError("");
-    setMessage("");
     console.log("🔁 Submitting form:", form);
+
+    if (!isValidSlug(form.custom_url)) {
+      showToast(
+        "❌ Invalid custom URL. Use 3–30 letters, numbers, dashes or underscores.",
+        "error"
+      );
+      return;
+    }
 
     axios
       .patch("http://127.0.0.1:5000/freelancer/branding", form, {
@@ -76,21 +90,18 @@ export default function FreelancerBranding({ onUpdate }) {
         },
       })
       .then(() => {
-        setMessage("Branding updated!");
+        showToast("✅ Branding updated!", "success");
         if (onUpdate) onUpdate();
       })
       .catch((err) => {
         console.error("❌ Failed to update branding", err);
-        setError("Failed to update branding");
+        showToast("❌ Failed to update branding", "error");
       });
   };
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-4">
       <h2 className="text-xl font-bold text-center">Branding Preferences</h2>
-
-      {message && <p className="text-green-500 text-center">{message}</p>}
-      {error && <p className="text-red-500 text-center">{error}</p>}
 
       <form onSubmit={handleSave} className="space-y-4">
         <label className="label text-sm text-white">Business Name:</label>
@@ -103,6 +114,18 @@ export default function FreelancerBranding({ onUpdate }) {
           className="input input-bordered w-full"
         />
 
+        <label className="label text-sm text-white">
+          Business Address (if applicable):
+        </label>
+        <input
+          type="text"
+          name="business_address"
+          value={form.business_address}
+          onChange={handleChange}
+          placeholder="e.g. 123 Main St, Atlanta, GA"
+          className="input input-bordered w-full"
+        />
+
         <label className="label text-sm text-white">Custom Booking URL:</label>
         <input
           type="text"
@@ -112,10 +135,17 @@ export default function FreelancerBranding({ onUpdate }) {
           placeholder="e.g. ambercutz"
           className="input input-bordered w-full"
         />
-        <p className="text-xs text-white mt-1">
-          Your booking page will be available at:{" "}
-          <strong>slotme.com/&lt;custom_url&gt;</strong>
-        </p>
+        {form.custom_url && !isValidSlug(form.custom_url) ? (
+          <p className="text-xs text-red-400 mt-1">
+            Only 3–30 characters: letters, numbers, dashes (-) or underscores
+            (_)
+          </p>
+        ) : (
+          <p className="text-xs text-white mt-1">
+            Your booking page will be available at:{" "}
+            <strong>slotme.com/{form.custom_url || "<custom_url>"}</strong>
+          </p>
+        )}
 
         <label className="label text-sm text-white">Logo URL: (optional)</label>
         <input

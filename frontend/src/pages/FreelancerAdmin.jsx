@@ -396,12 +396,7 @@ export default function AdminPage() {
         {services.map((s) => (
           <ServiceCard
             key={s.id}
-            id={s.id}
-            name={s.name}
-            description={s.description}
-            duration_minutes={s.duration_minutes}
-            price_usd={s.price_usd}
-            is_enabled={s.is_enabled}
+            service={s} // ✅ pass the whole object like expected
             onUpdate={fetchServices}
           />
         ))}

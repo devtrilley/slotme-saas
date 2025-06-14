@@ -233,6 +233,12 @@ export default function FreelancerBookingList() {
         </div>
       </div>
 
+      <div className="flex justify-center">
+        <button className="btn btn-sm btn-outline" onClick={fetchAppointments}>
+          🔁 Refresh
+        </button>
+      </div>
+
       {/* === Appointment Cards === */}
       <div className="space-y-4">
         {filtered.length === 0 ? (

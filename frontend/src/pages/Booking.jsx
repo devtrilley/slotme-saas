@@ -10,6 +10,8 @@ import NoShowPolicy from "../components/NoShowPolicy";
 import FAQCard from "../components/FAQCard";
 import IconDatePicker from "../components/IconDatePicker";
 import { showToast } from "../utils/toast";
+import ServiceCard from "../components/ServiceCard";
+import { useNavigate } from "react-router-dom";
 
 export default function BookingPage() {
   const { freelancerId } = useParams();
@@ -117,6 +119,8 @@ export default function BookingPage() {
       .finally(() => setLoading(false));
   };
 
+  const navigate = useNavigate(); // ⬅ place this inside BookingPage()
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!selectedSlotId) return;
@@ -130,15 +134,12 @@ export default function BookingPage() {
         slot_id: selectedSlotId,
         service_id: selectedServiceId,
       })
-      .then(() => {
-        setSuccess(true);
-        setFirstName("");
-        setLastName("");
-        setEmail("");
-        setPhone("");
-        setSelectedSlotId(null);
-        setTimeout(() => setSuccess(false), 4000);
-        fetchSlots();
+      .then((res) => {
+        showToast("📨 Redirecting you now...", "info", 3000); // 3 sec blue toast
+        const appointmentId = res.data.appointment_id;
+        setTimeout(() => {
+          navigate(`/booking-success?appointment_id=${appointmentId}`);
+        }, 1000); // wait 1 sec before redirect
       })
       .catch((err) => {
         const msg = err.response?.data?.error || "Booking failed";
@@ -202,6 +203,28 @@ export default function BookingPage() {
         </p>
       )}
 
+      {services.length > 0 && (
+        <div className="mt-4">
+          <h3 className="text-center text-sm text-white mb-2 font-medium">
+            Available Services
+          </h3>
+          <div className="flex overflow-x-auto gap-4 px-5 py-4 snap-x snap-mandatory rounded-xl bg-white/5">
+            {services.map((service) => (
+              <div key={service.id} className="snap-start shrink-0 w-72">
+                <ServiceCard
+                  service={service}
+                  isPublicView={true}
+                  onClick={() => {
+                    setSelectedServiceId(service.id);
+                    setSelectedServiceDuration(service.duration_minutes);
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
         <label className="text-sm text-gray-400 block text-center">
           Select a date:
@@ -236,22 +259,14 @@ export default function BookingPage() {
               </option>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name} (${s.price_usd?.toFixed(2) || "0.00"})
+                  {s.name} ({s.duration_minutes} min) - $
+                  {s.price_usd?.toFixed(2) || "0.00"}
                 </option>
               ))}
             </select>
           </div>
         )}
       </div>
-
-      {success && (
-        <div className="alert alert-info shadow-lg">
-          <span>
-            📧 We’ve sent a confirmation link to your email. Please verify to
-            finalize your booking.
-          </span>
-        </div>
-      )}
 
       {loading ? (
         <p className="text-center">Loading slots...</p>

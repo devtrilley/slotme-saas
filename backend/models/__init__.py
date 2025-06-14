@@ -36,6 +36,8 @@ class Freelancer(db.Model):
     instagram_url = db.Column(db.String(200), nullable=True)
     twitter_url = db.Column(db.String(200), nullable=True)
 
+    business_address = db.Column(db.String(300), nullable=True)  # ✅ Optional business address
+
     slots = db.relationship('TimeSlot', backref='freelancer', lazy=True)
     appointments = db.relationship('Appointment', backref='freelancer', lazy=True)
 
@@ -86,6 +88,9 @@ class Appointment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     slot_id = db.Column(db.Integer, db.ForeignKey('time_slots.id'), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    email = db.Column(db.String(120))  # optional at first
+    phone = db.Column(db.String(20))   # optional at first
 
     # ⬇️ New status field replaces need for confirmed/cancelled booleans
     status = db.Column(db.String(20), default='pending')  # 'pending', 'confirmed', 'cancelled'
