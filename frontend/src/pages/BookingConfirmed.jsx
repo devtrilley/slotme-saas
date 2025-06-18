@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { CalendarCheck } from "lucide-react";
 import axios from "axios";
+import { API_BASE } from "../utils/constants";
 
 export default function BookingConfirmed() {
   const [params] = useSearchParams();
@@ -13,7 +14,7 @@ export default function BookingConfirmed() {
     if (!appointmentId) return;
 
     axios
-      .get(`http://127.0.0.1:5000/appointment/${appointmentId}`)
+      .get(`${API_BASE}/appointment/${appointmentId}`)
       .then((res) => {
         setAppointment(res.data);
       })
@@ -93,7 +94,7 @@ export default function BookingConfirmed() {
         </a>
 
         <a
-  href={`http://127.0.0.1:5000/download-ics/${appointmentId}`}
+  href={`${API_BASE}/download-ics/${appointmentId}`}
   className="btn btn-sm btn-outline mt-2"
 >
   📄 Download .ics (Apple/Outlook)

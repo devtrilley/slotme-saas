@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE } from "../utils/constants";
 
 export default function Feedback() {
   const [email, setEmail] = useState("");
@@ -29,7 +30,7 @@ export default function Feedback() {
         "Content-Type": "application/json",
       };
 
-      await axios.post("http://127.0.0.1:5000/feedback", payload, { headers });
+      await axios.post(`${API_BASE}/feedback`, payload, { headers });
 
       setStatus("success");
       setName("");

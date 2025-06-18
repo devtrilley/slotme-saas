@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { MessageSquare } from "lucide-react";
+import { API_BASE } from "../utils/constants";
 
 export default function PrioritySupportPage() {
   const [subject, setSubject] = useState("");
@@ -15,7 +16,7 @@ export default function PrioritySupportPage() {
 
     try {
       await axios.post(
-        "http://127.0.0.1:5000/freelancer/support",
+        `${API_BASE}/freelancer/support`,
         {
           subject,
           message,

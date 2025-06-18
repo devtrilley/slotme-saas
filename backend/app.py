@@ -28,8 +28,14 @@ from flask_jwt_extended.exceptions import NoAuthorizationError
 
 
 import pytz
-import os
+
 import secrets
+
+import os
+import stripe
+
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 name_pool = [
     ("Naomi", "Davis"),
@@ -108,6 +114,7 @@ from flask_jwt_extended import jwt_required
 
 @app.before_request
 def load_freelancer():
+    request.path = request.path.rstrip("/")
     print("🔥 Path:", request.path)
     print("🔥 Headers:", dict(request.headers))
 
@@ -122,30 +129,35 @@ def load_freelancer():
         "/dev",
         "/404",
         "/master-times",
-    )
-    open_paths = [
         "/freelancer/public-info",
         "/freelancer/slots",
+    )
+    open_paths = [
         "/book",
         "/test-email",
         "/feedback",
         "/confirm-booking",
         "/appointment",
-        "/download-ics"
+        "/download-ics",
+        "/webhook",
+        "/check-session-status",
+        "/upgrade-success",
+        "/upgrade-cancelled",
     ]
 
     if (
         any(request.path.startswith(prefix) for prefix in open_prefixes)
-        or any(
-            request.path.startswith(path + "/") or request.path == path
-            for path in open_paths
-        )
+        or request.path in open_paths
         or request.endpoint == "public_profile_by_url"
         or is_valid_public_slug(request.path)
         or request.path == "/404"
     ):
         print("✅ Skipping auth for open or public path.")
         return
+
+    # 💥 Add this diagnostic log to catch blocked requests
+    print("🚫 BLOCKING REQUEST — NOT IN open_prefixes or open_paths")
+    print("🚫 Full request.path:", request.path)
 
     try:
         verify_jwt_in_request()
@@ -1704,6 +1716,7 @@ def get_freelancer_info():
                 "timezone": freelancer.timezone,
                 "is_verified": freelancer.is_verified,
                 "business_address": freelancer.business_address,
+                "tier": freelancer.tier,
             }
         ),
         200,
@@ -2138,6 +2151,7 @@ def cancel_booking(token):
 
     return redirect("http://localhost:5173/booking-cancelled")
 
+
 @app.route("/download-ics/<int:appointment_id>")
 def download_ics(appointment_id):
     appt = Appointment.query.get(appointment_id)
@@ -2151,7 +2165,9 @@ def download_ics(appointment_id):
 
     # Parse naive time assuming it's in Eastern Time (local UI-facing label)
     est = pytz.timezone("US/Eastern")
-    naive_start = datetime.strptime(f"{slot.day} {slot.master_time.time_24h}", "%Y-%m-%d %H:%M")
+    naive_start = datetime.strptime(
+        f"{slot.day} {slot.master_time.time_24h}", "%Y-%m-%d %H:%M"
+    )
     aware_start = est.localize(naive_start)
 
     # Convert to UTC
@@ -2182,6 +2198,113 @@ END:VCALENDAR"""
         mimetype="text/calendar",
         headers={"Content-Disposition": f"attachment; filename=slotme-booking.ics"},
     )
+
+
+@app.route("/create-checkout-session", methods=["POST"])
+@jwt_required()
+def create_checkout_session():
+    freelancer_id = int(g.freelancer_id)
+    data = request.get_json()
+    plan = data.get("plan")  # "pro" or "elite"
+
+    if plan not in ["pro", "elite"]:
+        return jsonify({"error": "Invalid plan"}), 400
+
+    price_lookup = {
+        "pro": "price_1RaRhqE05eQPvycWs9mHnfIQ",  # 🟪 from Doonga sandbox
+        "elite": "price_1RaRi8E05eQPvycWOvwxPwpV",  # 🟪 from Doonga sandbox
+    }
+
+    try:
+        # Support optional frontend override of success_url
+        success_url = data.get("success_url")
+        if success_url:
+            if "session_id=" not in success_url:
+                if "?" in success_url:
+                    success_url += "&session_id={CHECKOUT_SESSION_ID}"
+                else:
+                    success_url += "?session_id={CHECKOUT_SESSION_ID}"
+        else:
+            success_url = (
+                "http://localhost:5173/upgrade-success?session_id={CHECKOUT_SESSION_ID}"
+            )
+        freelancer = Freelancer.query.get(freelancer_id)
+        
+        session = stripe.checkout.Session.create(
+            customer_email=freelancer.email,
+            success_url=success_url,
+            cancel_url="http://localhost:5173/upgrade-cancelled",
+            payment_method_types=["card"],
+            mode="subscription",
+            line_items=[{"price": price_lookup[plan], "quantity": 1}],
+            metadata={"freelancer_id": str(freelancer_id), "tier": plan},
+        )
+        return jsonify({"url": session.url})
+    except Exception as e:
+        print("❌ Stripe session error:", e)
+        return jsonify({"error": "Failed to create checkout session"}), 500
+
+
+@app.route("/webhook", methods=["POST"])
+def stripe_webhook():
+    print("🔥 Stripe webhook route HIT")
+    payload = request.data
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+        print(f"📦 Received Stripe event: {event['id']} of type {event['type']}")
+    except stripe.error.SignatureVerificationError:
+        print("❌ Signature verification failed.")
+        return jsonify(success=False), 400
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        print("🔓 Test mode session accepted")
+
+        metadata = session.get("metadata", {})
+        freelancer_id = metadata.get("freelancer_id")
+        new_tier = metadata.get("tier")
+
+        if not freelancer_id or not new_tier:
+            print("⚠️  Missing metadata in checkout.session.completed")
+            return jsonify({"status": "ignored"}), 200
+
+        freelancer = Freelancer.query.get(int(freelancer_id))
+        if freelancer:
+            freelancer.tier = new_tier
+            db.session.commit()
+            print(f"✅ Upgraded freelancer {freelancer_id} to {new_tier}")
+        else:
+            print(f"❌ Freelancer with ID {freelancer_id} not found")
+
+    return jsonify(success=True), 200
+
+
+@app.route("/check-session/<session_id>", methods=["GET"])
+@jwt_required()
+def check_session_status(session_id):
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        print(f"🔍 Checking session {session_id}...")
+
+        metadata = session.get("metadata", {})
+        freelancer_id = metadata.get("freelancer_id")
+
+        if not freelancer_id:
+            print("⚠️  Missing freelancer_id in session metadata")
+            return jsonify({"error": "Missing freelancer ID"}), 400
+
+        freelancer = Freelancer.query.get(int(freelancer_id))
+        if not freelancer:
+            print(f"❌ No freelancer found for ID {freelancer_id}")
+            return jsonify({"error": "Freelancer not found"}), 404
+
+        return jsonify({"tier": freelancer.tier}), 200
+
+    except Exception as e:
+        print("❌ Failed to verify session:", e)
+        return jsonify({"error": "Failed to verify session"}), 500
 
 
 def purge_old_pending():

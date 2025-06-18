@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
+import { API_BASE } from "../utils/constants";
 
 export default function DevFreelancerSlots() {
   const { freelancerId } = useParams();
@@ -19,7 +20,7 @@ export default function DevFreelancerSlots() {
 
   useEffect(() => {
     axios
-      .get(`http://127.0.0.1:5000/dev/slots/${freelancerId}`, {
+      .get(`${API_BASE}/dev/slots/${freelancerId}`, {
         headers: {
           "X-Dev-Auth": "secret123",
         },
@@ -38,7 +39,7 @@ export default function DevFreelancerSlots() {
   useEffect(() => {
     if (!location.state) {
       axios
-        .get(`http://127.0.0.1:5000/dev/freelancers/${freelancerId}`, {
+        .get(`${API_BASE}/dev/freelancers/${freelancerId}`, {
           headers: {
             "X-Dev-Auth": "secret123",
           },

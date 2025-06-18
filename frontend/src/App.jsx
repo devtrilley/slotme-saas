@@ -25,6 +25,8 @@ import SignupSuccess from "./pages/SignupSuccess";
 import BookingSuccess from "./pages/BookingSuccess";
 import BookingConfirmed from "./pages/BookingConfirmed";
 import SignupConfirmed from "./pages/SignupConfirmed";
+import UpgradeSuccess from "./pages/UpgradeSuccess"; // or wherever the file lives
+import UpgradeCancelled from "./pages/UpgradeCancelled";
 
 // Component Imports
 import Navbar from "./components/Navbar";
@@ -32,7 +34,36 @@ import RequireDevAuth from "./components/RequireDevAuth";
 import RequireFreelancerAuth from "./components/RequireFreelancerAuth";
 import CustomUrlRouter from "./components/CustomUrlRouter";
 
+// Context Import
+import { FreelancerProvider } from "./context/FreelancerContext";
+
+import { useEffect } from "react";
+import { useFreelancer } from "./context/FreelancerContext";
+import { API_BASE } from "./utils/constants";
+
 export default function App() {
+  const { setFreelancer } = useFreelancer();
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+
+    fetch(`${API_BASE}/freelancer-info`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.tier) {
+          setFreelancer(data);
+          localStorage.setItem("freelancer", JSON.stringify(data));
+        }
+      })
+      .catch((err) =>
+        console.error("❌ Failed to fetch freelancer-info on load:", err)
+      );
+  }, [setFreelancer]);
   return (
     <div className="h-full bg-base-200">
       <Navbar />
@@ -116,6 +147,9 @@ export default function App() {
 
           <Route path="/booking-confirmed" element={<BookingConfirmed />} />
           <Route path="/signup-confirmed" element={<SignupConfirmed />} />
+
+          <Route path="/upgrade-success" element={<UpgradeSuccess />} />
+          <Route path="/upgrade-cancelled" element={<UpgradeCancelled />} />
         </Routes>
       </div>
     </div>

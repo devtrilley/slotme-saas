@@ -11,6 +11,10 @@ import FreelancerModal from "../components/FreelancerModal";
 import ServiceCard from "../components/ServiceCard";
 import ServiceForm from "../components/ServiceForm";
 import { DateTime } from "luxon";
+import TierStatusCard from "../components/TierStatusCard";
+import { API_BASE } from "../utils/constants";
+
+import { useFreelancer } from "../context/FreelancerContext";
 
 function getDateFromTimeStr(timeStr) {
   const [hourMinute, ampm] = timeStr.split(" ");
@@ -23,6 +27,8 @@ function getDateFromTimeStr(timeStr) {
 }
 
 export default function AdminPage() {
+  const { freelancer, setFreelancer } = useFreelancer();
+
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
@@ -35,6 +41,7 @@ export default function AdminPage() {
     tagline: "",
     bio: "",
     is_verified: false,
+    tier: "free",
   });
   const [showModal, setShowModal] = useState(false);
   const [services, setServices] = useState([]);
@@ -52,7 +59,7 @@ export default function AdminPage() {
 
     setLoading(true);
     axios
-      .get(`http://127.0.0.1:5000/freelancer/slots/${freelancerId}`, {
+      .get(`${API_BASE}/freelancer/slots/${freelancerId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -75,7 +82,7 @@ export default function AdminPage() {
 
   const fetchServices = () => {
     axios
-      .get("http://127.0.0.1:5000/freelancer/services", {
+      .get(`${API_BASE}/freelancer/services`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
@@ -86,29 +93,32 @@ export default function AdminPage() {
 
   const fetchBranding = () => {
     axios
-      .get("http://127.0.0.1:5000/freelancer-info", {
+      .get(`${API_BASE}/freelancer-info`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
       })
       .then((res) => {
+        const data = res.data;
         setBranding({
-          id: res.data.id, // ✅ ADD THIS LINE
-          business_name: res.data.business_name || "",
-          first_name: res.data.first_name || "",
-          last_name: res.data.last_name || "",
-          logo_url: res.data.logo_url || "",
-          tagline: res.data.tagline || "",
-          bio: res.data.bio || "",
-          timezone: res.data.timezone || "America/New_York",
-          is_verified: res.data.is_verified || false,
+          id: data.id,
+          business_name: data.business_name || "",
+          first_name: data.first_name || "",
+          last_name: data.last_name || "",
+          logo_url: data.logo_url || "",
+          tagline: data.tagline || "",
+          bio: data.bio || "",
+          timezone: data.timezone || "America/New_York",
+          is_verified: data.is_verified || false,
         });
+
+        // ✅ This ensures TierStatusCard uses the latest tier
+        setFreelancer(data);
+        localStorage.setItem("freelancer", JSON.stringify(data));
       })
       .catch((err) => {
         console.error("❌ Failed to load branding", err);
-
         if (err.response?.status === 401) {
-          // Token invalid or missing — force logout
           localStorage.clear();
           window.location.href = "/auth";
         }
@@ -119,7 +129,7 @@ export default function AdminPage() {
     if (!confirm("Are you sure you want to delete this time slot?")) return;
 
     axios
-      .delete(`http://127.0.0.1:5000/slots/${slotId}`, {
+      .delete(`${API_BASE}/slots/${slotId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
@@ -137,7 +147,7 @@ export default function AdminPage() {
 
   const handleDeleteService = (serviceId) => {
     axios
-      .delete(`http://127.0.0.1:5000/freelancer/services/${serviceId}`, {
+      .delete(`${API_BASE}/freelancer/services/${serviceId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
@@ -155,7 +165,7 @@ export default function AdminPage() {
   const handleUpdatePrice = (serviceId, newPrice) => {
     axios
       .patch(
-        `http://127.0.0.1:5000/freelancer/services/${serviceId}`,
+        `${API_BASE}/freelancer/services/${serviceId}`,
         {
           price_usd: newPrice,
         },
@@ -243,6 +253,8 @@ export default function AdminPage() {
           Logout
         </button>
       </div>
+
+      <TierStatusCard tier={freelancer?.tier || "free"} />
 
       <FreelancerCard
         business_name={branding.business_name}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { showToast } from "../utils/toast";
+import { API_BASE } from "../utils/constants";
 
 export default function FreelancerBranding({ onUpdate }) {
   const [form, setForm] = useState({
@@ -21,7 +22,7 @@ export default function FreelancerBranding({ onUpdate }) {
     if (!freelancerId) return;
 
     axios
-      .get("http://127.0.0.1:5000/freelancer-info", {
+      .get(`${API_BASE}/freelancer-info`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
@@ -84,7 +85,7 @@ export default function FreelancerBranding({ onUpdate }) {
     }
 
     axios
-      .patch("http://127.0.0.1:5000/freelancer/branding", form, {
+      .patch(`${API_BASE}/freelancer/branding`, form, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },

@@ -6,6 +6,9 @@ import ServiceCard from "../components/ServiceCard";
 import NoShowPolicy from "../components/NoShowPolicy";
 import FAQCard from "../components/FAQCard";
 import { DateTime } from "luxon";
+import { API_BASE } from "../utils/constants";
+
+import { useFreelancer } from "../context/FreelancerContext";
 
 const mapTimeZone = (tz) => {
   const zones = {
@@ -19,7 +22,7 @@ const mapTimeZone = (tz) => {
 
 export default function FreelancerProfile() {
   const { freelancerId } = useParams();
-  const [freelancer, setFreelancer] = useState(null);
+  const [publicFreelancer, setPublicFreelancer] = useState(null);
   const [error, setError] = useState("");
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const badgeRef = useRef();
@@ -27,10 +30,10 @@ export default function FreelancerProfile() {
 
   useEffect(() => {
     axios
-      .get(`http://127.0.0.1:5000/freelancer/public-info/${freelancerId}`)
+      .get(`${API_BASE}/freelancer/public-info/${freelancerId}`)
       .then((res) => {
         const data = res.data;
-        setFreelancer(data);
+        setPublicFreelancer(data);
         setNoShowPolicy(data.no_show_policy || "");
       });
   }, [freelancerId]);
@@ -53,12 +56,15 @@ export default function FreelancerProfile() {
       {/* Logo + badge */}
       <div className="relative inline-block w-32 h-32">
         <img
-          src={freelancer.logo_url || "https://placehold.co/128x128?text=Logo"}
+          src={
+            publicFreelancer.logo_url ||
+            "https://placehold.co/128x128?text=Logo"
+          }
           alt="Freelancer Logo"
           className="w-32 h-32 rounded-full object-cover border-2 border-white"
           style={{ boxShadow: "0 0 12px rgba(255,255,255,0.5)" }}
         />
-        {freelancer.is_verified && (
+        {publicFreelancer.is_verified && (
           <div
             ref={badgeRef}
             className="absolute bottom-0 right-0 z-10 translate-x-0 -translate-y-1"
@@ -79,26 +85,26 @@ export default function FreelancerProfile() {
         )}
       </div>
       {/* Tagline */}
-      {freelancer.tagline && (
+      {publicFreelancer.tagline && (
         <p className="text-sm italic text-gray-300 -mt-3">
-          “{freelancer.tagline}”
+          “{publicFreelancer.tagline}”
         </p>
       )}
       {/* Name and bullets */}
       <div>
-        <h1 className="text-2xl font-bold">{freelancer.business_name}</h1>
+        <h1 className="text-2xl font-bold">{publicFreelancer.business_name}</h1>
         <ul className="mt-4 text-left text-sm space-y-2">
-          {freelancer.bio && (
+          {publicFreelancer.bio && (
             <li className="italic text-gray-300">
               <strong className="not-italic text-white">Bio:</strong>{" "}
-              {freelancer.bio}
+              {publicFreelancer.bio}
             </li>
           )}
 
-          {freelancer.timezone && (
+          {publicFreelancer.timezone && (
             <p className="text-sm text-gray-400 text-center mb-2">
               <strong>Current Time Zone:</strong>{" "}
-              {mapTimeZone(freelancer.timezone)}
+              {mapTimeZone(publicFreelancer.timezone)}
             </p>
           )}
 
@@ -107,31 +113,34 @@ export default function FreelancerProfile() {
               Contact Info
             </h2>
             <ul className="space-y-1 text-sm text-gray-300">
-              {freelancer.email && (
+              {publicFreelancer.email && (
                 <li>
                   <strong className="text-white">Email:</strong>{" "}
                   <a
                     className="text-primary"
-                    href={`mailto:${freelancer.email}`}
+                    href={`mailto:${publicFreelancer.email}`}
                   >
-                    {freelancer.email}
+                    {publicFreelancer.email}
                   </a>
                 </li>
               )}
-              {freelancer.phone && (
+              {publicFreelancer.phone && (
                 <li>
                   <strong className="text-white">Phone:</strong>{" "}
-                  <a className="text-primary" href={`tel:${freelancer.phone}`}>
-                    {freelancer.phone}
+                  <a
+                    className="text-primary"
+                    href={`tel:${publicFreelancer.phone}`}
+                  >
+                    {publicFreelancer.phone}
                   </a>
                 </li>
               )}
-              {freelancer.instagram_url && (
+              {publicFreelancer.instagram_url && (
                 <li>
                   <strong className="text-white">Instagram:</strong>{" "}
                   <a
                     className="text-primary"
-                    href={freelancer.instagram_url}
+                    href={publicFreelancer.instagram_url}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -139,12 +148,12 @@ export default function FreelancerProfile() {
                   </a>
                 </li>
               )}
-              {freelancer.twitter_url && (
+              {publicFreelancer.twitter_url && (
                 <li>
                   <strong className="text-white">Twitter/X:</strong>{" "}
                   <a
                     className="text-primary"
-                    href={freelancer.twitter_url}
+                    href={publicFreelancer.twitter_url}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -155,13 +164,13 @@ export default function FreelancerProfile() {
             </ul>
           </div>
 
-          {freelancer.services?.length > 0 && (
+          {publicFreelancer.services?.length > 0 && (
             <div className="mt-6">
               <h2 className="text-lg font-semibold text-white text-center mb-2">
                 Services
               </h2>
               <ul className="space-y-2 px-4">
-                {freelancer.services.map((service) => (
+                {publicFreelancer.services.map((service) => (
                   <ServiceCard
                     key={service.id}
                     service={service}
@@ -171,7 +180,7 @@ export default function FreelancerProfile() {
               </ul>
             </div>
           )}
-          {freelancer.services?.length === 0 && (
+          {publicFreelancer.services?.length === 0 && (
             <div className="mt-6 border border-white/20 bg-white/5 rounded-lg p-4 text-sm text-white text-center backdrop-blur-md shadow-md">
               <strong className="block mb-1 text-white/90 tracking-wide text-xs uppercase">
                 No Services Listed
@@ -186,17 +195,22 @@ export default function FreelancerProfile() {
             <NoShowPolicy policy={noShowPolicy} />
           </li>
           <li>
-            <FAQCard text={freelancer.faq_text} />
+            <FAQCard text={publicFreelancer.faq_text} />
           </li>
         </ul>
       </div>
-      {freelancer.created_at && (
+      {publicFreelancer.created_at && (
         <p className="text-xs text-gray-400">
           Joined{" "}
-          {DateTime.fromISO(freelancer.created_at).toFormat("MMMM d, yyyy")}
+          {DateTime.fromISO(publicFreelancer.created_at).toFormat(
+            "MMMM d, yyyy"
+          )}
         </p>
       )}
-      <Link to={`/book/${freelancer.id}`} className="btn btn-primary mt-4">
+      <Link
+        to={`/book/${publicFreelancer.id}`}
+        className="btn btn-primary mt-4"
+      >
         Click Here to Book Me!
       </Link>
     </div>

@@ -4,6 +4,7 @@ import { showToast } from "../utils/toast";
 import IconDatePicker from "./IconDatePicker";
 import { DateTime } from "luxon";
 import "react-datepicker/dist/react-datepicker.css";
+import { API_BASE } from "../utils/constants";
 
 export default function BatchSlotForm({ onBatchAdd }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -58,7 +59,7 @@ export default function BatchSlotForm({ onBatchAdd }) {
       console.log("📤 Sending batch slot payload:", payload);
 
       const res = await axios.post(
-        "http://127.0.0.1:5000/freelancer/batch-slots",
+        `${API_BASE}/freelancer/batch-slots`,
         payload,
         {
           headers: {

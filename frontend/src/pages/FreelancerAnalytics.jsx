@@ -8,6 +8,7 @@ import BookingsPerServiceChart from "../components/BookingsPerServiceChart";
 import BookingTrendChart from "../components/BookingTrendChart";
 import StatsSummaryCard from "../components/StatsSummaryCard";
 import AnalyticsSkeleton from "../components/AnalyticsSkeleton";
+import { API_BASE } from "../utils/constants";
 
 const colorMap = {
   "Happy Ending Herbal Rubdown": "#EF4444",
@@ -24,7 +25,7 @@ export default function FreelancerAnalytics() {
   const fetchStats = () => {
     console.log("🔁 Refresh button clicked");
     axios
-      .get("http://127.0.0.1:5000/freelancer/analytics", {
+      .get(`${API_BASE}/freelancer/analytics`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },

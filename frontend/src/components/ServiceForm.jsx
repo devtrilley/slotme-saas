@@ -1,11 +1,12 @@
 import { useState } from "react";
 import axios from "axios";
 import { showToast } from "../utils/toast";
+import { API_BASE } from "../utils/constants";
 
 export default function ServiceForm({ onServiceAdded }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [duration, setDuration] = useState("15");
+  const [duration, setDuration] = useState("5");
   const [price, setPrice] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -14,7 +15,7 @@ export default function ServiceForm({ onServiceAdded }) {
     setLoading(true);
     axios
       .post(
-        "http://127.0.0.1:5000/freelancer/services",
+        `${API_BASE}/freelancer/services`,
         {
           name,
           description,

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import FreelancerCard from "../components/FreelancerCard";
 import FreelancerModal from "../components/FreelancerModal";
+import { API_BASE } from "../utils/constants";
 
 export default function DevAdmin() {
   const [freelancers, setFreelancer] = useState([]);
@@ -14,7 +15,7 @@ export default function DevAdmin() {
 
   useEffect(() => {
     axios
-      .get("http://127.0.0.1:5000/dev/freelancers", {
+      .get(`${API_BASE}/dev/freelancers`, {
         headers: {
           "X-Dev-Auth": "secret123",
         },
@@ -54,13 +55,13 @@ export default function DevAdmin() {
 
   const confirmDelete = (freelancerId) => {
     axios
-      .delete(`http://127.0.0.1:5000/dev/freelancers/${freelancerId}`, {
+      .delete(`${API_BASE}/dev/freelancers/${freelancerId}`, {
         headers: {
           "X-Dev-Auth": "secret123",
         },
       })
       .then(() => {
-        return axios.get("http://127.0.0.1:5000/dev/freelancers", {
+        return axios.get(`${API_BASE}/dev/freelancers`, {
           headers: { "X-Dev-Auth": "secret123" },
         });
       })

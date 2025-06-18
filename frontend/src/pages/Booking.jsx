@@ -12,6 +12,7 @@ import IconDatePicker from "../components/IconDatePicker";
 import { showToast } from "../utils/toast";
 import ServiceCard from "../components/ServiceCard";
 import { useNavigate } from "react-router-dom";
+import { API_BASE } from "../utils/constants";
 
 export default function BookingPage() {
   const { freelancerId } = useParams();
@@ -64,7 +65,7 @@ export default function BookingPage() {
     fetchSlots();
 
     axios
-      .get(`http://127.0.0.1:5000/freelancer/public-info/${freelancerId}`)
+      .get(`${API_BASE}/freelancer/public-info/${freelancerId}`)
       .then((res) => {
         setBranding({
           first_name: res.data.first_name || "",
@@ -94,7 +95,7 @@ export default function BookingPage() {
   const fetchSlots = () => {
     setLoading(true);
     axios
-      .get(`http://127.0.0.1:5000/freelancer/slots/${freelancerId}`)
+      .get(`${API_BASE}/freelancer/slots/${freelancerId}`)
       .then((res) => {
         const sorted = [...res.data].sort((a, b) => {
           const toDate = (timeStr) => {
@@ -126,7 +127,7 @@ export default function BookingPage() {
     if (!selectedSlotId) return;
 
     axios
-      .post("http://127.0.0.1:5000/book", {
+      .post(`${API_BASE}/book`, {
         first_name: firstName,
         last_name: lastName,
         email,

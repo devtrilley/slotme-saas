@@ -3,6 +3,7 @@ import axios from "axios";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { DateTime } from "luxon";
+import { API_BASE } from "../utils/constants";
 
 export default function FreelancerBookingList() {
   const [appointments, setAppointments] = useState([]);
@@ -21,7 +22,7 @@ export default function FreelancerBookingList() {
 
   const fetchAppointments = () => {
     axios
-      .get("http://127.0.0.1:5000/appointments", {
+      .get(`${API_BASE}/appointments`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
@@ -67,7 +68,7 @@ export default function FreelancerBookingList() {
 
     try {
       await axios.patch(
-        `http://127.0.0.1:5000/appointments/${id}`,
+        `${API_BASE}/appointments/${id}`,
         {
           status: "cancelled",
         },

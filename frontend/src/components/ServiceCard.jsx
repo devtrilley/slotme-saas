@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { showToast } from "../utils/toast";
+import { API_BASE } from "../utils/constants";
 
 export default function ServiceCard({
   service,
@@ -39,7 +40,7 @@ export default function ServiceCard({
 
     setLoading(true);
     axios
-      .patch(`http://127.0.0.1:5000/freelancer/services/${id}`, payload, {
+      .patch(`${API_BASE}/freelancer/services/${id}`, payload, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
@@ -58,7 +59,7 @@ export default function ServiceCard({
   const handleDelete = () => {
     if (!confirm("Are you sure you want to delete this service?")) return;
     axios
-      .delete(`http://127.0.0.1:5000/freelancer/services/${id}`, {
+      .delete(`${API_BASE}/freelancer/services/${id}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
@@ -76,7 +77,7 @@ export default function ServiceCard({
     const newStatus = !isEnabled;
     axios
       .patch(
-        `http://127.0.0.1:5000/freelancer/services/${id}`,
+        `${API_BASE}/freelancer/services/${id}`,
         { is_enabled: newStatus },
         {
           headers: {

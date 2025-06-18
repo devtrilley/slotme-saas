@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { API_BASE } from "../utils/constants";
 
 export default function NewFreelancer() {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ export default function NewFreelancer() {
   const handleSubmit = (e) => {
     e.preventDefault();
     axios
-      .post("http://127.0.0.1:5000/dev/freelancers", form, {
+      .post(`${API_BASE}/dev/freelancers`, form, {
         headers: {
           "X-Dev-Auth": "secret123",
         },

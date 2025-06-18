@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
+import { API_BASE } from "../utils/constants";
 
 export default function CustomUrlRouter() {
   const { custom_url } = useParams();
@@ -10,7 +11,7 @@ export default function CustomUrlRouter() {
     if (!custom_url) return;
 
     axios
-      .get(`http://127.0.0.1:5000/${custom_url}`)
+      .get(`${API_BASE}/${custom_url}`)
       .then((res) => {
         const freelancerId = res.data.id;
         navigate(`/book/${freelancerId}`);

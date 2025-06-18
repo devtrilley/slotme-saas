@@ -5,6 +5,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import BatchSlotForm from "./BatchSlotForm";
 import SingleSlotForm from "./SingleSlotForm";
+import { API_BASE } from "../utils/constants";
 
 export default function AddSlotForm({ onAdd }) {
   const [mode, setMode] = useState("single");
@@ -23,7 +24,7 @@ export default function AddSlotForm({ onAdd }) {
 
   useEffect(() => {
     axios
-      .get("http://127.0.0.1:5000/master-times", {
+      .get(`${API_BASE}/master-times`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
@@ -67,7 +68,7 @@ export default function AddSlotForm({ onAdd }) {
 
     axios
       .post(
-        "http://127.0.0.1:5000/slots",
+        `${API_BASE}/slots`,
         {
           day: selectedDate.toISOString().split("T")[0],
           master_time_id: match.id,

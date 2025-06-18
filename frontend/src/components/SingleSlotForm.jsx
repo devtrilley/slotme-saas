@@ -5,6 +5,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import IconDatePicker from "./IconDatePicker";
 import { DateTime } from "luxon";
+import { API_BASE } from "../utils/constants";
 
 export default function SingleSlotForm({
   onAdd,
@@ -49,7 +50,7 @@ export default function SingleSlotForm({
 
     axios
       .post(
-        "http://127.0.0.1:5000/slots",
+        `${API_BASE}/slots`,
         {
           day: DateTime.fromJSDate(selectedDate)
             .setZone("America/New_York")

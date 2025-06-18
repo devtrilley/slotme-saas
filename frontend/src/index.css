@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
+/* Errors are only cosmetic, without these 3, Tailwinds silently breaks */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Mobile M - 375px screens specifically, makes slot time slightly larger than timezone (EST), which is more aesthetic */
 @layer utilities {
   @media (min-width: 375px) {

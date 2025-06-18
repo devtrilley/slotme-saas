@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { API_BASE } from "../utils/constants";
 
 export default function Auth() {
   const [mode, setMode] = useState("login"); // "login" or "signup"
@@ -20,7 +21,7 @@ export default function Auth() {
 
     try {
       if (mode === "signup") {
-        const res = await axios.post("http://127.0.0.1:5000/signup", {
+        const res = await axios.post(`${API_BASE}/signup`, {
           first_name: firstName,
           last_name: lastName,
           email,
@@ -30,7 +31,7 @@ export default function Auth() {
         alert("Thanks for signing up! Please check your email to confirm.");
         setMode("login");
       } else {
-        const res = await axios.post("http://127.0.0.1:5000/auth", {
+        const res = await axios.post(`${API_BASE}/auth`, {
           email,
           password,
         });
