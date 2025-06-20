@@ -22,6 +22,7 @@ const mapTimeZone = (tz) => {
 
 export default function FreelancerProfile() {
   const { freelancerId } = useParams();
+  const { freelancer } = useFreelancer();
   const [publicFreelancer, setPublicFreelancer] = useState(null);
   const [error, setError] = useState("");
   const [tooltipVisible, setTooltipVisible] = useState(false);
@@ -49,7 +50,8 @@ export default function FreelancerProfile() {
   }, []);
 
   if (error) return <p className="text-center text-red-500">{error}</p>;
-  if (!freelancer) return <p className="text-center">Loading...</p>;
+  if (!publicFreelancer)
+    return <p className="text-center">Loading profile...</p>;
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-6 text-center text-white">

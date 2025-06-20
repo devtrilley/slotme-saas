@@ -109,7 +109,7 @@ export default function AdminPage() {
           tagline: data.tagline || "",
           bio: data.bio || "",
           timezone: data.timezone || "America/New_York",
-          is_verified: data.is_verified || false,
+          is_verified: data.is_verified,
         });
 
         // ✅ This ensures TierStatusCard uses the latest tier

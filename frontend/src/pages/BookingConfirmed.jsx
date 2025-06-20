@@ -14,7 +14,9 @@ export default function BookingConfirmed() {
     if (!appointmentId) return;
 
     axios
-      .get(`${API_BASE}/appointment/${appointmentId}`)
+      .get(`${API_BASE}/appointment/${appointmentId}`, {
+        withCredentials: false, // 👈 prevent accidental token sending
+      })
       .then((res) => {
         setAppointment(res.data);
       })
@@ -94,11 +96,11 @@ export default function BookingConfirmed() {
         </a>
 
         <a
-  href={`${API_BASE}/download-ics/${appointmentId}`}
-  className="btn btn-sm btn-outline mt-2"
->
-  📄 Download .ics (Apple/Outlook)
-</a>
+          href={`${API_BASE}/download-ics/${appointmentId}`}
+          className="btn btn-sm btn-outline mt-2"
+        >
+          📄 Download .ics (Apple/Outlook)
+        </a>
       </div>
 
       <div className="text-center mt-6">

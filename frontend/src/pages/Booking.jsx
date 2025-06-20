@@ -61,35 +61,27 @@ export default function BookingPage() {
     return map[tz] || "Local";
   };
 
-  useEffect(() => {
-    fetchSlots();
-
+  const fetchFreelancerInfo = () => {
     axios
       .get(`${API_BASE}/freelancer/public-info/${freelancerId}`)
       .then((res) => {
-        setBranding({
-          first_name: res.data.first_name || "",
-          last_name: res.data.last_name || "",
-          business_name: res.data.business_name || "",
-          logo_url: res.data.logo_url || "",
-          tagline: res.data.tagline || "",
-          bio: res.data.bio || "",
-          is_verified: res.data.is_verified || false,
-          faq_text: res.data.faq_text || "",
-        });
+        setBranding({ ...res.data });
         setFreelancerTimeZone(res.data.timezone || "America/New_York");
         setNoShowPolicy(res.data.no_show_policy || "");
-
-        // ✅ Set services here
         const enabled = res.data.services || [];
         setServices(enabled);
         if (enabled.length === 1) {
-          setSelectedServiceId(enabled[0].id); // auto-select if only one
+          setSelectedServiceId(enabled[0].id);
         }
       })
       .catch((err) => {
-        console.error("❌ Failed to load branding/services", err);
+        console.error("❌ Failed to fetch freelancer info", err);
       });
+  };
+
+  useEffect(() => {
+    fetchSlots();
+    fetchFreelancerInfo(); // already does all the branding/service logic
   }, [freelancerId]);
 
   const fetchSlots = () => {
@@ -193,7 +185,10 @@ export default function BookingPage() {
         <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>
         <button
           className="btn btn-sm btn-outline"
-          onClick={fetchSlots}
+          onClick={() => {
+            fetchSlots();
+            fetchFreelancerInfo(); // ✅ add this
+          }}
           disabled={loading}
         >
           🔁 Refresh

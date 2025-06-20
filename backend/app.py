@@ -66,14 +66,23 @@ name_pool = [
 
 load_dotenv()
 
-app = Flask(__name__)
-CORS(
-    app,
-    resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}},
-    supports_credentials=True,
-    allow_headers=["Content-Type", "Authorization", "X-Dev-Auth"],
-)
+FRONTEND_ORIGIN = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
+from flask_cors import CORS
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    os.getenv("FRONTEND_URL", "http://localhost:5173")
+]
+
+
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=True)
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1000)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
     "DATABASE_URL", "sqlite:///scheduler.db"
@@ -129,8 +138,10 @@ def load_freelancer():
         "/dev",
         "/404",
         "/master-times",
+        "/appointment",
         "/freelancer/public-info",
         "/freelancer/slots",
+        "/confirm-booking",
     )
     open_paths = [
         "/book",
@@ -174,7 +185,7 @@ def index():
 
 
 @app.route("/freelancer/slots/<int:freelancer_id>", methods=["GET"])
-@cross_origin(origins="http://localhost:5173", supports_credentials=True)
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def get_public_time_slots(freelancer_id):
     from sqlalchemy.orm import joinedload
 
@@ -267,6 +278,9 @@ def get_public_time_slots(freelancer_id):
 
 
 @app.route("/book", methods=["POST"])
+@cross_origin(
+    origins=[ALLOWED_ORIGINS, "http://localhost:5173", "http://127.0.0.1:5173"]
+)
 def book_slot():
     data = request.get_json()
     first_name = data.get("first_name")
@@ -314,6 +328,22 @@ def book_slot():
             400,
         )
 
+    # ⏳ Define time labels and required_labels before any booking logic
+    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    time_labels = [t.label for t in all_times]
+
+    duration_blocks = service.duration_minutes // 15
+    start_label = slot.master_time.label
+
+    try:
+        start_index = time_labels.index(start_label)
+    except ValueError:
+        return jsonify({"error": "Invalid slot time"}), 400
+
+    required_labels = time_labels[start_index : start_index + duration_blocks]
+    if len(required_labels) < duration_blocks:
+        return jsonify({"error": "Not enough consecutive blocks"}), 400
+
     # Check for any conflicting bookings across the entire service duration
     user_appointments = (
         Appointment.query.join(TimeSlot)
@@ -344,37 +374,6 @@ def book_slot():
                 )
         except ValueError:
             continue
-
-    # Atomic booking logic starts here
-    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
-    time_labels = [t.label for t in all_times]
-    duration_blocks = service.duration_minutes // 15
-    start_label = slot.master_time.label
-
-    try:
-        start_index = time_labels.index(start_label)
-    except ValueError:
-        return jsonify({"error": "Invalid slot time"}), 400
-
-    required_labels = time_labels[start_index : start_index + duration_blocks]
-    if len(required_labels) < duration_blocks:
-        return jsonify({"error": "Not enough consecutive blocks"}), 400
-
-    conflicts = (
-        TimeSlot.query.join(MasterTimeSlot)
-        .filter(
-            TimeSlot.freelancer_id == slot.freelancer_id,
-            TimeSlot.day == slot.day,
-            MasterTimeSlot.label.in_(required_labels),
-            TimeSlot.is_booked == True,
-        )
-        .all()
-    )
-    if conflicts:
-        return (
-            jsonify({"error": "Selected time conflicts with an existing booking."}),
-            400,
-        )
 
     appointment = Appointment(
         slot_id=slot_id,
@@ -407,7 +406,7 @@ def book_slot():
     )  # ✅ make sure this is at the top
 
     token = serializer.dumps({"appointment_id": appointment.id}, salt="booking-confirm")
-    link = f"http://127.0.0.1:5000/confirm-booking/{token}"
+    link = f"{os.getenv('BACKEND_ORIGIN', 'http://127.0.0.1:5000')}/confirm-booking/{token}"
 
     subject = "Confirm Your Appointment – SlotMe"
     body = f"""Hi {first_name},
@@ -433,7 +432,7 @@ def book_slot():
 
 @app.route("/appointments", methods=["GET", "OPTIONS"])
 @cross_origin(
-    origins="http://localhost:5173",
+    origins=ALLOWED_ORIGINS,
     supports_credentials=True,
     allow_headers=["Content-Type", "Authorization"],
 )
@@ -468,7 +467,7 @@ def get_appointments():
 
 
 @app.route("/appointments/<int:id>", methods=["PATCH", "OPTIONS"])
-@cross_origin(origins="http://localhost:5173", supports_credentials=True)
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 @jwt_required()
 def update_appointment(id):
     freelancer_id = int(g.freelancer_id)
@@ -523,7 +522,7 @@ def update_appointment(id):
 
 
 @app.route("/auth", methods=["POST"])
-@cross_origin(origins="http://localhost:5173", supports_credentials=True)
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def freelancer_login():
     data = request.get_json()
     email = data.get("email")
@@ -707,7 +706,7 @@ def get_single_freelancer(freelancer_id):
             "bio": freelancer.bio,
             "instagram_url": freelancer.instagram_url,
             "twitter_url": freelancer.twitter_url,
-            "is_verified": freelancer.is_verified,
+            "is_verified": freelancer.tier in ["pro", "elite"],
             "joined": freelancer.id,  # Replace with created_at if desired
             "services": service_data,
             "faq_text": freelancer.faq_text,
@@ -791,7 +790,7 @@ def delete_freelancer(freelancer_id):
 
 
 @app.route("/freelancer/public-info/<int:freelancer_id>", methods=["GET", "OPTIONS"])
-@cross_origin(origins="http://localhost:5173", supports_credentials=True)
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def get_public_freelancer_info(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200
@@ -827,7 +826,7 @@ def get_public_freelancer_info(freelancer_id):
             "bio": freelancer.bio,
             "faq_text": freelancer.faq_text,
             "timezone": freelancer.timezone,
-            "is_verified": freelancer.is_verified,
+            "is_verified": freelancer.tier in ["pro", "elite"],
             "email": freelancer.contact_email,
             "phone": freelancer.phone,
             "instagram_url": freelancer.instagram_url,
@@ -971,7 +970,7 @@ def verify_booking(token):
 
     appt.status = "confirmed"
     db.session.commit()
-    return redirect("http://localhost:5173/thank-you")  # Adjust if hosted
+    return redirect(f"{FRONTEND_ORIGIN}/thank-you")  # Adjust if hosted
 
 
 @app.route("/master-times", methods=["GET"])
@@ -983,8 +982,8 @@ def get_master_time_slots():
     return jsonify(result)
 
 
-@cross_origin(origins="http://localhost:5173")
 @app.route("/freelancers/<int:freelancer_id>", methods=["GET"])
+@cross_origin(origins=ALLOWED_ORIGINS)
 def public_freelancer_profile(freelancer_id):
     freelancer = Freelancer.query.get(freelancer_id)
     if not freelancer:
@@ -1018,7 +1017,7 @@ def public_freelancer_profile(freelancer_id):
             "phone": freelancer.phone,
             "instagram_url": freelancer.instagram_url,
             "twitter_url": freelancer.twitter_url,
-            "is_verified": freelancer.is_verified,
+            "is_verified": freelancer.tier in ["pro", "elite"],
             "joined": freelancer.id,
             "services": service_data,
             "faq_text": freelancer.faq_text,
@@ -1027,9 +1026,7 @@ def public_freelancer_profile(freelancer_id):
 
 
 @app.route("/freelancer/services", methods=["GET", "OPTIONS"])
-@cross_origin(
-    origins="http://localhost:5173", headers=["Content-Type", "Authorization"]
-)
+@cross_origin(origins=ALLOWED_ORIGINS, headers=["Content-Type", "Authorization"])
 @jwt_required()
 def get_services():
     if request.method == "OPTIONS":
@@ -1055,9 +1052,7 @@ def get_services():
 
 
 @app.route("/freelancer/services", methods=["POST", "OPTIONS"])
-@cross_origin(
-    origins="http://localhost:5173", headers=["Content-Type", "Authorization"]
-)
+@cross_origin(origins=ALLOWED_ORIGINS, headers=["Content-Type", "Authorization"])
 @jwt_required()
 def add_service():
     if request.method == "OPTIONS":
@@ -1092,9 +1087,7 @@ def add_service():
 
 
 @app.route("/freelancer/services/<int:service_id>", methods=["DELETE", "OPTIONS"])
-@cross_origin(
-    origins="http://localhost:5173", headers=["Content-Type", "Authorization"]
-)
+@cross_origin(origins=ALLOWED_ORIGINS, headers=["Content-Type", "Authorization"])
 @jwt_required()
 def delete_service(service_id):
     if request.method == "OPTIONS":
@@ -1107,9 +1100,7 @@ def delete_service(service_id):
 
 
 @app.route("/freelancer/services/<int:service_id>", methods=["PATCH", "OPTIONS"])
-@cross_origin(
-    origins="http://localhost:5173", headers=["Content-Type", "Authorization"]
-)
+@cross_origin(origins=ALLOWED_ORIGINS, headers=["Content-Type", "Authorization"])
 @jwt_required()
 def update_service(service_id):
     if request.method == "OPTIONS":
@@ -1348,7 +1339,7 @@ def public_profile_by_url(custom_url):
             "bio": freelancer.bio,
             "instagram_url": freelancer.instagram_url,
             "twitter_url": freelancer.twitter_url,
-            "is_verified": freelancer.is_verified,
+            "is_verified": freelancer.tier in ["pro", "elite"],
             "joined": freelancer.created_at.strftime("%-m/%-d/%y"),
             "services": service_data,
             "faq_text": freelancer.faq_text,
@@ -1694,7 +1685,7 @@ def seed_everything():
 
 
 @app.route("/freelancer-info", methods=["GET"])
-@cross_origin(origins="http://localhost:5173", supports_credentials=True)
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 @jwt_required()
 def get_freelancer_info():
     freelancer_id = int(g.freelancer_id)
@@ -1714,7 +1705,7 @@ def get_freelancer_info():
                 "tagline": freelancer.tagline,
                 "bio": freelancer.bio,
                 "timezone": freelancer.timezone,
-                "is_verified": freelancer.is_verified,
+                "is_verified": freelancer.tier in ["pro", "elite"],
                 "business_address": freelancer.business_address,
                 "tier": freelancer.tier,
             }
@@ -1767,7 +1758,7 @@ def verify_email():
 
 
 @app.route("/signup", methods=["POST"])
-@cross_origin(origins="http://localhost:5173")  # 👈 Add this decorator
+@cross_origin(origins=ALLOWED_ORIGINS)  # 👈 Add this decorator
 def signup_freelancer():
     data = request.get_json()
     first_name = data.get("first_name")
@@ -1876,7 +1867,7 @@ Message:
 
 
 @app.route("/freelancer/batch-slots", methods=["POST"])
-@cross_origin(origins="http://localhost:5173", supports_credentials=True)
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 @jwt_required()
 def create_batch_slots():
     data = request.get_json()
@@ -1964,9 +1955,9 @@ def confirm_booking_email(token):
         data = serializer.loads(token, salt="booking-confirm", max_age=86400)
         appointment_id = data["appointment_id"]
     except SignatureExpired:
-        return redirect("http://localhost:5173/expired")
+        return redirect(f"{FRONTEND_ORIGIN}/expired")
     except BadSignature:
-        return redirect("http://localhost:5173/invalid")
+        return redirect(f"{FRONTEND_ORIGIN}/invalid")
 
     appointment = Appointment.query.get(appointment_id)
 
@@ -2034,10 +2025,10 @@ If you need to cancel or reschedule, please contact the freelancer directly.
             print("❌ Failed to send booking receipt:", e)
 
         return redirect(
-            f"http://localhost:5173/booking-confirmed?appointment_id={appointment.id}"
+            f"{FRONTEND_ORIGIN}/booking-confirmed?appointment_id={appointment.id}"
         )
     else:
-        return redirect("http://localhost:5173/not-found")
+        return redirect(f"{FRONTEND_ORIGIN}/not-found")
 
 
 @app.route("/resend-confirmation/<int:appointment_id>", methods=["POST"])
@@ -2054,7 +2045,7 @@ def resend_confirmation_email(appointment_id):
 
     user = appointment.user
     token = serializer.dumps({"appointment_id": appointment.id}, salt="booking-confirm")
-    link = f"http://127.0.0.1:5000/confirm-booking/{token}"
+    link = f"{os.getenv('BACKEND_ORIGIN', 'http://127.0.0.1:5000')}/confirm-booking/{token}"
 
     subject = "Confirm Your Appointment – SlotMe (Resend)"
     body = f"""Hi {user.first_name},
@@ -2079,11 +2070,17 @@ If you didn’t request this, feel free to ignore it.
     return jsonify({"message": "Confirmation email resent."}), 200
 
 
-# GET /appointment/<int:appointment_id>
+from flask_jwt_extended import verify_jwt_in_request
+
+
 @app.route("/appointment/<int:appointment_id>")
-def get_appointment(appointment_id):
+@cross_origin(
+    origins=[ALLOWED_ORIGINS, "http://localhost:5173", "http://127.0.0.1:5173"]
+)
+def get_public_appointment(appointment_id):
+
     appt = Appointment.query.get(appointment_id)
-    if not appt:
+    if not appt or appt.status == "cancelled":
         return jsonify({"error": "Not found"}), 404
 
     start_dt = datetime.strptime(
@@ -2104,7 +2101,7 @@ def get_appointment(appointment_id):
     return jsonify(
         {
             "first_name": appt.user.first_name,
-            "last_name": appt.user.last_name,
+            # Removed last name for privacy
             "freelancer_name": appt.freelancer.business_name or "your freelancer",
             "day": appt.slot.day,
             "time": appt.slot.master_time.label,
@@ -2137,19 +2134,19 @@ def cancel_booking(token):
         data = serializer.loads(token, salt="booking-confirm", max_age=86400)
         appointment_id = data["appointment_id"]
     except SignatureExpired:
-        return redirect("http://localhost:5173/expired")
+        return redirect(f"{FRONTEND_ORIGIN}/expired")
     except BadSignature:
-        return redirect("http://localhost:5173/invalid")
+        return redirect(f"{FRONTEND_ORIGIN}/invalid")
 
     appt = Appointment.query.get(appointment_id)
     if not appt or appt.status != "pending":
-        return redirect("http://localhost:5173/not-found")
+        return redirect(f"{FRONTEND_ORIGIN}/not-found")
 
     appt.status = "cancelled"
     appt.slot.is_booked = False
     db.session.commit()
 
-    return redirect("http://localhost:5173/booking-cancelled")
+    return redirect(f"{FRONTEND_ORIGIN}/booking-cancelled")
 
 
 @app.route("/download-ics/<int:appointment_id>")
@@ -2229,7 +2226,7 @@ def create_checkout_session():
                 "http://localhost:5173/upgrade-success?session_id={CHECKOUT_SESSION_ID}"
             )
         freelancer = Freelancer.query.get(freelancer_id)
-        
+
         session = stripe.checkout.Session.create(
             customer_email=freelancer.email,
             success_url=success_url,
