@@ -77,7 +77,7 @@ load_dotenv()
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    os.getenv("FRONTEND_URL", "http://localhost:5173")
+    os.getenv("FRONTEND_URL", "http://localhost:5173"),
 ]
 
 
@@ -438,7 +438,8 @@ def book_slot():
 )
 @jwt_required()
 def get_appointments():
-    freelancer_id = int(g.freelancer_id)
+    g.freelancer_id = get_jwt_identity()
+    freelancer_id = g.freelancer_id
     appointments = Appointment.query.filter_by(freelancer_id=freelancer_id).all()
     result = []
 
@@ -470,12 +471,12 @@ def get_appointments():
 @cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 @jwt_required()
 def update_appointment(id):
-    freelancer_id = int(g.freelancer_id)
+    g.freelancer_id = get_jwt_identity()
+    freelancer_id = g.freelancer_id
     data = request.get_json()
 
     appointment = Appointment.query.get(id)
 
-    # 👇 Insert this block right here
     print("🔎 Attempting to update appointment ID:", id)
     if not appointment:
         print("❌ Appointment not found in SQLAlchemy session.")
@@ -491,7 +492,6 @@ def update_appointment(id):
     if not appointment or appointment.freelancer_id != freelancer_id:
         return jsonify({"error": "Appointment not found or unauthorized"}), 404
 
-    # 🔁 Change status (e.g., to "cancelled")
     if "status" in data:
         new_status = data["status"]
         if new_status not in ["pending", "confirmed", "cancelled"]:
@@ -500,7 +500,6 @@ def update_appointment(id):
         if new_status == "cancelled":
             appointment.slot.is_booked = False  # Free the slot
 
-    # 🔁 Optionally support rescheduling
     if "slot_id" in data:
         new_slot_id = data["slot_id"]
         new_slot = TimeSlot.query.get(new_slot_id)
@@ -509,7 +508,6 @@ def update_appointment(id):
         if new_slot.is_booked:
             return jsonify({"error": "Time slot is already booked"}), 400
 
-        # Swap slots
         old_slot = appointment.slot
         old_slot.is_booked = False
         appointment.slot_id = new_slot_id
@@ -821,6 +819,7 @@ def get_public_freelancer_info(freelancer_id):
             "first_name": freelancer.first_name,
             "last_name": freelancer.last_name,
             "business_name": freelancer.business_name,
+            "custom_url": freelancer.custom_url,
             "logo_url": freelancer.logo_url,
             "tagline": freelancer.tagline,
             "bio": freelancer.bio,

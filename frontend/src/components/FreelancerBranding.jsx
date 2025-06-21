@@ -3,18 +3,22 @@ import axios from "axios";
 import { showToast } from "../utils/toast";
 import { API_BASE } from "../utils/constants";
 
+import { useFreelancer } from "../context/FreelancerContext"; // Add at the top if not already
+
 export default function FreelancerBranding({ onUpdate }) {
   const [form, setForm] = useState({
     business_name: "",
     logo_url: "",
     bio: "",
     tagline: "",
-    timezone: "", // ✅ New
+    timezone: "",
     no_show_policy: "",
     faq_text: "",
-    custom_url: "", // ✅ Add this line
-    business_address: "", // ✅ New
+    custom_url: "",
+    business_address: "",
   });
+
+  const { freelancer, setFreelancer } = useFreelancer();
 
   const freelancerId = localStorage.getItem("freelancer_id");
 
@@ -92,7 +96,22 @@ export default function FreelancerBranding({ onUpdate }) {
       })
       .then(() => {
         showToast("✅ Branding updated!", "success");
-        if (onUpdate) onUpdate();
+
+        // ✅ Update context to reflect latest changes
+        setFreelancer({
+          ...freelancer,
+          custom_url: form.custom_url,
+          business_name: form.business_name,
+          logo_url: form.logo_url,
+          tagline: form.tagline,
+          bio: form.bio,
+          timezone: form.timezone,
+          no_show_policy: form.no_show_policy,
+          faq_text: form.faq_text,
+          business_address: form.business_address,
+        });
+
+        if (onUpdate) onUpdate(); // ✅ still call parent callback if needed
       })
       .catch((err) => {
         console.error("❌ Failed to update branding", err);
