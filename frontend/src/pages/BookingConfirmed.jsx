@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { CalendarCheck } from "lucide-react";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { API_BASE } from "../utils/constants";
 
 export default function BookingConfirmed() {

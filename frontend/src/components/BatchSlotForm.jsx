@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { showToast } from "../utils/toast";
 import IconDatePicker from "./IconDatePicker";
 import { DateTime } from "luxon";
@@ -58,14 +58,25 @@ export default function BatchSlotForm({ onBatchAdd }) {
 
       console.log("📤 Sending batch slot payload:", payload);
 
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        showToast("❌ Session expired. Redirecting to login...", "error");
+
+        import("../utils/tokenChannel").then(
+          ({ tokenChannel, MESSAGE_TYPES }) => {
+            tokenChannel.postMessage({ type: MESSAGE_TYPES.SESSION_EXPIRED });
+          }
+        );
+
+        setTimeout(() => {
+          window.location.href = "/auth";
+        }, 2000);
+        return;
+      }
+
       const res = await axios.post(
         `${API_BASE}/freelancer/batch-slots`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        }
+        payload
       );
 
       const count = res.data.slots.length;

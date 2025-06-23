@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import FreelancerCard from "../components/FreelancerCard";
 import FreelancerModal from "../components/FreelancerModal";
 import { API_BASE } from "../utils/constants";
@@ -21,7 +21,13 @@ export default function DevAdmin() {
         },
       })
       .then((res) =>
-        setFreelancer(res.data.sort((a, b) => a.name.localeCompare(b.name)))
+        setFreelancer(
+          res.data.sort((a, b) =>
+            `${a.first_name} ${a.last_name}`.localeCompare(
+              `${b.first_name} ${b.last_name}`
+            )
+          )
+        )
       )
       .catch((err) => {
         console.error("❌ Failed to load freelancers", err);
@@ -38,7 +44,7 @@ export default function DevAdmin() {
   const handleViewSlots = (freelancer) => {
     navigate(`/dev/slots/${freelancer.id}`, {
       state: {
-        name: freelancer.name,
+        name: `${freelancer.first_name} ${freelancer.last_name}`,
         email: freelancer.email,
       },
     });
@@ -47,7 +53,7 @@ export default function DevAdmin() {
   const handleViewBookings = (freelancer) => {
     navigate(`/dev/appointments/${freelancer.id}`, {
       state: {
-        name: freelancer.name,
+        name: `${freelancer.first_name} ${freelancer.last_name}`,
         email: freelancer.email,
       },
     });
@@ -66,7 +72,13 @@ export default function DevAdmin() {
         });
       })
       .then((res) => {
-        setFreelancer(res.data.sort((a, b) => a.name.localeCompare(b.name)));
+        setFreelancer(
+          res.data.sort((a, b) =>
+            `${a.first_name} ${a.last_name}`.localeCompare(
+              `${b.first_name} ${b.last_name}`
+            )
+          )
+        );
         setShowDeleteModal(null);
       })
       .catch((err) => {
@@ -98,7 +110,9 @@ export default function DevAdmin() {
         {freelancers.map((freelancer) => (
           <div key={freelancer.id}>
             <FreelancerCard
-              name={freelancer.name}
+              first_name={freelancer.first_name}
+              last_name={freelancer.last_name}
+              business_name={freelancer.business_name}
               logoUrl={freelancer.logo_url}
               tagline={freelancer.tagline}
               bio={freelancer.bio}

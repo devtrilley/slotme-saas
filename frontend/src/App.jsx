@@ -27,6 +27,7 @@ import BookingConfirmed from "./pages/BookingConfirmed";
 import SignupConfirmed from "./pages/SignupConfirmed";
 import UpgradeSuccess from "./pages/UpgradeSuccess"; // or wherever the file lives
 import UpgradeCancelled from "./pages/UpgradeCancelled";
+import NavigatorInit from "./components/NavigatorInit";
 
 // Component Imports
 import Navbar from "./components/Navbar";
@@ -37,35 +38,120 @@ import CustomUrlRouter from "./components/CustomUrlRouter";
 // Context Import
 import { FreelancerProvider } from "./context/FreelancerContext";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useFreelancer } from "./context/FreelancerContext";
 import { API_BASE } from "./utils/constants";
 
+import { isTokenExpired } from "./utils/jwt";
+
+import { useLocation, useNavigate } from "react-router-dom";
+
+import { showToast } from "./utils/toast";
+
+import { tokenChannel, MESSAGE_TYPES } from "./utils/tokenChannel";
+
+import { setNavigator } from "./utils/navigation";
+
+import axios from "./utils/axiosInstance"; // If not already at top
+
 export default function App() {
   const { setFreelancer } = useFreelancer();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (!token) return;
+    setNavigator(navigate);
+  }, [navigate]);
 
-    fetch(`${API_BASE}/freelancer-info`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.tier) {
-          setFreelancer(data);
-          localStorage.setItem("freelancer", JSON.stringify(data));
+  useEffect(() => {
+    const storageHandler = (e) => {
+      if (e.key === "access_token" && !e.newValue) {
+        console.warn("🚨 Token deleted manually or expired");
+        showToast("🔒 Session expired. Redirecting to login...", "error");
+        navigate("/auth", { state: { sessionExpired: true } });
+      }
+    };
+    window.addEventListener("storage", storageHandler);
+    return () => window.removeEventListener("storage", storageHandler);
+  }, [navigate]);
+
+  useEffect(() => {
+    const checkTokenAndRefresh = async () => {
+      const token = localStorage.getItem("access_token");
+
+      // 🛑 Skip if no token OR already on auth page
+      if (!token || location.pathname === "/auth") return;
+
+      if (isTokenExpired(token)) {
+        console.warn("⏳ Token is expired — refreshing...");
+      }
+
+      try {
+        const res = await axios.post("/refresh");
+        const data = res.data;
+
+        if (
+          data.access_token &&
+          typeof data.access_token === "string" &&
+          data.access_token.length > 50
+        ) {
+          localStorage.setItem("access_token", data.access_token);
+          console.log("🔁 Token refreshed and saved to localStorage");
+
+          // 📢 Notify other tabs
+          tokenChannel.postMessage({
+            type: MESSAGE_TYPES.TOKEN_REFRESH,
+            payload: data.access_token,
+          });
+        } else {
+          console.warn("⚠️ Invalid or missing access token in response:", data);
+          showToast("❌ No valid token returned from refresh", "error");
+          handleSessionExpired();
         }
-      })
-      .catch((err) =>
-        console.error("❌ Failed to fetch freelancer-info on load:", err)
-      );
-  }, [setFreelancer]);
+      } catch (err) {
+        console.error("❌ Token refresh failed", err);
+        handleSessionExpired();
+      }
+    };
+
+    const handleSessionExpired = () => {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("freelancer_id");
+      localStorage.removeItem("freelancer_logged_in");
+
+      tokenChannel.postMessage({ type: MESSAGE_TYPES.SESSION_EXPIRED });
+
+      navigate("/auth", { state: { sessionExpired: true } });
+    };
+
+    checkTokenAndRefresh();
+    const interval = setInterval(checkTokenAndRefresh, 14 * 60 * 1000); // 14 min
+
+    const handleMessage = (e) => {
+      const { type, payload } = e.data;
+
+      if (type === MESSAGE_TYPES.TOKEN_REFRESH && payload) {
+        console.log("📡 Token updated from another tab");
+        localStorage.setItem("access_token", payload);
+      }
+
+      if (type === MESSAGE_TYPES.SESSION_EXPIRED) {
+        console.log("📡 Session expired in another tab");
+        handleSessionExpired();
+      }
+    };
+
+    tokenChannel.addEventListener("message", handleMessage);
+
+    return () => {
+      clearInterval(interval);
+      tokenChannel.removeEventListener("message", handleMessage);
+    };
+  }, [navigate, setFreelancer, location.pathname]);
+
   return (
     <div className="h-full bg-base-200">
+      <NavigatorInit />
       <Navbar />
 
       <div

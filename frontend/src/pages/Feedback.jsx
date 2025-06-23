@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../utils/constants";

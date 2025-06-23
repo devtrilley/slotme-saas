@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { showToast } from "../utils/toast";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -24,11 +24,7 @@ export default function AddSlotForm({ onAdd }) {
 
   useEffect(() => {
     axios
-      .get(`${API_BASE}/master-times`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
-      })
+      .get(`${API_BASE}/master-times`, {})
       .then((res) => setMasterTimes(res.data))
       .catch((err) => {
         console.error("❌ Failed to fetch master times", err);
@@ -74,11 +70,6 @@ export default function AddSlotForm({ onAdd }) {
           master_time_id: match.id,
           timezone,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        }
       )
       .then(() => {
         showToast("Time slot added!");

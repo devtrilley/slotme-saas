@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { DateTime } from "luxon";
@@ -22,15 +22,12 @@ export default function FreelancerBookingList() {
 
   const fetchAppointments = () => {
     axios
-      .get(`${API_BASE}/appointments`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
-      })
+      .get(`${API_BASE}/appointments`)
       .then((res) => {
         const sorted = [...res.data].sort(
           (a, b) => convertToDate(a.slot_time) - convertToDate(b.slot_time)
         );
+        console.log("📥 Raw appointments:", res.data);
         setAppointments(sorted);
       })
       .catch((err) => {
@@ -67,17 +64,9 @@ export default function FreelancerBookingList() {
     if (!confirmCancel) return;
 
     try {
-      await axios.patch(
-        `${API_BASE}/appointments/${id}`,
-        {
-          status: "cancelled",
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        }
-      );
+      await axios.patch(`${API_BASE}/appointments/${id}`, {
+        status: "cancelled",
+      });
       alert("Appointment canceled.");
       fetchAppointments();
     } catch (err) {

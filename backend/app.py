@@ -34,6 +34,11 @@ import secrets
 import os
 import stripe
 
+import logging
+
+# DEV ONLY: enable detailed CORS logging
+logging.getLogger("flask_cors").level = logging.DEBUG
+
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
@@ -82,8 +87,13 @@ ALLOWED_ORIGINS = [
 
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=True)
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1000)
+CORS(
+    app,
+    resources={r"/*": {"origins": ALLOWED_ORIGINS}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization", "X-Dev-Auth"],
+)
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=15)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
     "DATABASE_URL", "sqlite:///scheduler.db"
 )
@@ -91,6 +101,17 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 jwt = JWTManager(app)
+
+
+@jwt.unauthorized_loader
+def custom_unauthorized_response(callback):
+    return jsonify({"error": "Missing or invalid token"}), 401
+
+
+@jwt.expired_token_loader
+def custom_expired_token_response(jwt_header, jwt_payload):
+    return jsonify({"error": "Token has expired"}), 401
+
 
 with app.app_context():
     db.create_all()
@@ -468,30 +489,40 @@ def get_appointments():
 
 
 @app.route("/appointments/<int:id>", methods=["PATCH", "OPTIONS"])
-@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
+@cross_origin(
+    origins=ALLOWED_ORIGINS,
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+)
 @jwt_required()
 def update_appointment(id):
-    g.freelancer_id = get_jwt_identity()
-    freelancer_id = g.freelancer_id
+    freelancer_id = int(get_jwt_identity())  # force int immediately
     data = request.get_json()
+
+    print("🔎 Attempting to update appointment ID:", id)
 
     appointment = Appointment.query.get(id)
 
-    print("🔎 Attempting to update appointment ID:", id)
+    # Exit early if appointment doesn't exist
     if not appointment:
         print("❌ Appointment not found in SQLAlchemy session.")
-    else:
+        return jsonify({"error": "Appointment not found"}), 404
+
+    print("🧠 Auth JWT freelancer ID:", freelancer_id)
+    print("📦 Appointment ID:", appointment.id)
+    print("📦 Appointment freelancer_id:", appointment.freelancer_id)
+
+    if appointment.freelancer_id != freelancer_id:
         print(
-            f"✅ Found appointment. ID: {appointment.id}, Freelancer ID: {appointment.freelancer_id}, Status: {appointment.status}"
+            f"🚫 Auth mismatch: JWT freelancer {freelancer_id} does not match appointment.freelancer_id {appointment.freelancer_id}"
         )
-        if appointment.freelancer_id != freelancer_id:
-            print(
-                f"🚫 Auth mismatch: JWT freelancer {freelancer_id} does not match appointment.freelancer_id {appointment.freelancer_id}"
-            )
+        return jsonify({"error": "Unauthorized"}), 403
 
-    if not appointment or appointment.freelancer_id != freelancer_id:
-        return jsonify({"error": "Appointment not found or unauthorized"}), 404
+    print(
+        f"✅ Found appointment. ID: {appointment.id}, Freelancer ID: {appointment.freelancer_id}, Status: {appointment.status}"
+    )
 
+    # Handle status update
     if "status" in data:
         new_status = data["status"]
         if new_status not in ["pending", "confirmed", "cancelled"]:
@@ -500,6 +531,7 @@ def update_appointment(id):
         if new_status == "cancelled":
             appointment.slot.is_booked = False  # Free the slot
 
+    # Handle optional slot change
     if "slot_id" in data:
         new_slot_id = data["slot_id"]
         new_slot = TimeSlot.query.get(new_slot_id)
@@ -559,7 +591,8 @@ def get_all_freelancers():
         result.append(
             {
                 "id": c.id,
-                "name": c.name,
+                "first_name": c.first_name,
+                "last_name": c.last_name,
                 "email": c.email,
                 "logo_url": c.logo_url,
                 "tagline": c.tagline,
@@ -724,11 +757,11 @@ def get_dev_appointments_for_freelancer(freelancer_id):
     appointments = Appointment.query.filter_by(freelancer_id=freelancer_id).all()
     result = []
     for a in appointments:
+        user = a.user
         result.append(
             {
                 "id": a.id,
-                "name": a.user.name if a.user else None,
-                "email": a.user.email if a.user else None,
+                "name": f"{user.first_name} {user.last_name}" if user else None,                "email": a.user.email if a.user else None,
                 "slot_day": a.slot.day,
                 "slot_time": a.slot.master_time.label,  # ✅ FIXED: use master_time.label
                 "status": a.status,
@@ -768,6 +801,7 @@ def create_freelancer():
 
 
 @app.route("/dev/freelancers/<int:freelancer_id>", methods=["DELETE", "OPTIONS"])
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True, allow_headers=["Content-Type", "X-Dev-Auth"])
 def delete_freelancer(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200  # Preflight OK
@@ -780,11 +814,10 @@ def delete_freelancer(freelancer_id):
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
 
-    Appointment.query.filter_by(freelancer_id=freelancer_id).delete()
-    TimeSlot.query.filter_by(freelancer_id=freelancer_id).delete()
     db.session.delete(freelancer)
     db.session.commit()
-    return jsonify({"message": "Freelancer deleted"})
+
+    return jsonify({"message": "Freelancer deleted"}), 200
 
 
 @app.route("/freelancer/public-info/<int:freelancer_id>", methods=["GET", "OPTIONS"])
@@ -1062,17 +1095,37 @@ def add_service():
         return jsonify({"error": "Missing freelancer ID"}), 403
 
     data = request.get_json()
-    name = data.get("name")
-    description = data.get("description", "")
-    duration_minutes = data.get("duration_minutes")
-    price_usd = data.get("price_usd")
+    print("🧪 Incoming service data:", data)
 
-    if not name or not duration_minutes:
-        return jsonify({"error": "Missing required fields"}), 400
+    # Extract and sanitize
+    name = data.get("name", "").strip()
+    description = data.get("description", "").strip()
+    duration_raw = data.get("duration_minutes")
+    price_raw = data.get("price_usd")
 
-    if price_usd is None:
-        return jsonify({"error": "Price is required"}), 400
+    # Validate name + description
+    if not name:
+        return jsonify({"error": "Name is required"}), 422
+    if not description:
+        return jsonify({"error": "Description is required"}), 422
 
+    # Validate duration
+    try:
+        duration_minutes = int(duration_raw)
+        if duration_minutes < 15 or duration_minutes % 15 != 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid duration — must be a multiple of 15"}), 422
+
+    # Validate price
+    try:
+        price_usd = float(price_raw)
+        if price_usd < 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid price"}), 422
+
+    # Create service
     service = Service(
         freelancer_id=freelancer_id,
         name=name,
@@ -1080,6 +1133,7 @@ def add_service():
         duration_minutes=duration_minutes,
         price_usd=price_usd,
     )
+
     db.session.add(service)
     db.session.commit()
     return jsonify({"message": "Service added!"}), 201
@@ -1704,9 +1758,12 @@ def get_freelancer_info():
                 "tagline": freelancer.tagline,
                 "bio": freelancer.bio,
                 "timezone": freelancer.timezone,
-                "is_verified": freelancer.tier in ["pro", "elite"],
                 "business_address": freelancer.business_address,
+                "custom_url": freelancer.custom_url,  # ✅ added
+                "no_show_policy": freelancer.no_show_policy,  # ✅ added
+                "faq_text": freelancer.faq_text,  # ✅ added
                 "tier": freelancer.tier,
+                "is_verified": freelancer.tier in ["pro", "elite"],
             }
         ),
         200,
@@ -2301,6 +2358,36 @@ def check_session_status(session_id):
     except Exception as e:
         print("❌ Failed to verify session:", e)
         return jsonify({"error": "Failed to verify session"}), 500
+
+
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
+
+from flask_jwt_extended import verify_jwt_in_request, get_jwt
+from flask_jwt_extended.exceptions import NoAuthorizationError
+from flask import abort
+
+
+@app.route("/refresh", methods=["POST"])
+@cross_origin()
+def refresh_token():
+    try:
+        verify_jwt_in_request(optional=True)  # Let us inspect token safely
+        identity = get_jwt_identity()
+
+        if not identity:
+            print("❌ No identity found in token")
+            return jsonify({"error": "Invalid token"}), 401
+
+        print(f"🔁 Refreshing token for identity: {identity}")
+        new_token = create_access_token(identity=identity)
+        return jsonify(access_token=new_token), 200
+
+    except NoAuthorizationError as e:
+        print("❌ No token found:", e)
+        return jsonify({"error": "Missing token"}), 401
+    except Exception as e:
+        print("❌ Token refresh failed:", str(e))
+        return jsonify({"error": "Token invalid or expired"}), 401
 
 
 def purge_old_pending():

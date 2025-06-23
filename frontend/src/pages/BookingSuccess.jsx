@@ -1,7 +1,7 @@
 import { MailCheck, Smile } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 
 export default function BookingSuccess() {
   const navigate = useNavigate();

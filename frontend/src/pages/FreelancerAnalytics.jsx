@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { useNavigate } from "react-router-dom";
 import { ResponsiveLine } from "@nivo/line";
 import ServiceRevenueChart from "../components/ServiceRevenueChart";
@@ -25,11 +25,7 @@ export default function FreelancerAnalytics() {
   const fetchStats = () => {
     console.log("🔁 Refresh button clicked");
     axios
-      .get(`${API_BASE}/freelancer/analytics`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
-      })
+      .get(`${API_BASE}/freelancer/analytics`)
       .then((res) => {
         console.log("📊 Refetched stats:", res.data);
         setStats(res.data);

@@ -5,6 +5,7 @@ import { API_BASE } from "../utils/constants";
 import { showToast } from "../utils/toast";
 
 import { useFreelancer } from "../context/FreelancerContext";
+import axios from "../utils/axiosInstance";
 
 export default function Upgrade() {
   const { freelancer, setFreelancer } = useFreelancer();
@@ -105,16 +106,9 @@ export default function Upgrade() {
         return;
       }
 
-      const res = await fetch(`${API_BASE}/create-checkout-session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          plan,
-          success_url: `${window.location.origin}/upgrade-success`,
-        }),
+      const res = await axios.post(`/create-checkout-session`, {
+        plan,
+        success_url: `${window.location.origin}/upgrade-success`,
       });
 
       const data = await res.json();

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { DateTime } from "luxon";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";

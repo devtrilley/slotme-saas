@@ -38,4 +38,6 @@ export function showToast(message, type = "success", duration = 6000) {
       toast.remove();
     }, 300); // match duration-300
   }, duration);
+
+  console.log("📢 Showing toast:", message);
 }

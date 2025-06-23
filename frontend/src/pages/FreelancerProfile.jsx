@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { FaCheck } from "react-icons/fa";
 import ServiceCard from "../components/ServiceCard";
 import NoShowPolicy from "../components/NoShowPolicy";

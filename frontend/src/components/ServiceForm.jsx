@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { showToast } from "../utils/toast";
 import { API_BASE } from "../utils/constants";
 
@@ -14,20 +14,12 @@ export default function ServiceForm({ onServiceAdded }) {
     e.preventDefault();
     setLoading(true);
     axios
-      .post(
-        `${API_BASE}/freelancer/services`,
-        {
-          name,
-          description,
-          duration_minutes: Number(duration),
-          price_usd: Number(price),
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        }
-      )
+      .post(`${API_BASE}/freelancer/services`, {
+        name,
+        description,
+        duration_minutes: Number(duration),
+        price_usd: Number(price),
+      })
       .then(() => {
         showToast("Service added!");
         setName("");
@@ -37,6 +29,7 @@ export default function ServiceForm({ onServiceAdded }) {
         if (onServiceAdded) onServiceAdded();
       })
       .catch((err) => {
+        console.warn("🔥 Full error response:", err.response?.data);
         console.error("❌ Failed to add service", err);
         showToast("Failed to add service", "error");
       })

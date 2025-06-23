@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { API_BASE } from "../utils/constants";
 
 export default function DevFreelancerSlots() {
@@ -46,7 +46,7 @@ export default function DevFreelancerSlots() {
         })
         .then((res) => {
           setFreelancerInfo({
-            name: res.data.name,
+            name: `${res.data.first_name} ${res.data.last_name}`,
             email: res.data.email,
           });
         })
@@ -62,11 +62,22 @@ export default function DevFreelancerSlots() {
         {freelancerInfo.name}'s Time Slots
       </h2>
       {freelancerInfo.email && (
-        <p className="text-center text-sm text-gray-400">{freelancerInfo.email}</p>
+        <p className="text-center text-sm text-gray-400">
+          {freelancerInfo.email}
+        </p>
       )}
+      
+      <button
+        onClick={() => navigate("/dev-admin")}
+        className="btn btn-sm btn-outline w-full mt-4"
+      >
+        ⬅ Back to Admin Panel
+      </button>
 
       {loading && <p className="text-center">Loading slots...</p>}
-      {freelancerError && <p className="text-center text-red-500">{freelancerError}</p>}
+      {freelancerError && (
+        <p className="text-center text-red-500">{freelancerError}</p>
+      )}
 
       <div className="space-y-3">
         {slots.map((slot) => (

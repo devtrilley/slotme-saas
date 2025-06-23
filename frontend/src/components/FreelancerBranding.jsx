@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { showToast } from "../utils/toast";
 import { API_BASE } from "../utils/constants";
 
@@ -26,32 +26,21 @@ export default function FreelancerBranding({ onUpdate }) {
     if (!freelancerId) return;
 
     axios
-      .get(`${API_BASE}/freelancer-info`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
-      })
+      .get(`${API_BASE}/freelancer-info`)
       .then((res) => {
-        const {
-          business_name,
-          logo_url,
-          bio,
-          tagline,
-          timezone,
-          no_show_policy,
-          faq_text,
-          business_address, // ✅ Add this
-        } = res.data;
+        const data = res.data;
+        console.log("🔍 Loaded branding data:", data); // debug log
+
         setForm({
-          business_name: business_name || "",
-          logo_url: logo_url || "",
-          bio: bio || "",
-          tagline: tagline || "",
-          timezone: timezone || "America/New_York", // ✅ default fallback
-          no_show_policy: no_show_policy || "",
-          faq_text: faq_text || "",
-          custom_url: res.data.custom_url || "", // ✅ Add this line
-          business_address: business_address || "", // ✅ Add this
+          business_name: data.business_name || "",
+          logo_url: data.logo_url || "",
+          bio: data.bio || "",
+          tagline: data.tagline || "",
+          timezone: data.timezone || "America/New_York",
+          no_show_policy: data.no_show_policy || "",
+          faq_text: data.faq_text || "",
+          custom_url: data.custom_url || "",
+          business_address: data.business_address || "",
         });
 
         localStorage.setItem("branding_updated", Date.now());
@@ -80,7 +69,7 @@ export default function FreelancerBranding({ onUpdate }) {
     e.preventDefault();
     console.log("🔁 Submitting form:", form);
 
-    if (!isValidSlug(form.custom_url)) {
+    if (form.custom_url && !isValidSlug(form.custom_url)) {
       showToast(
         "❌ Invalid custom URL. Use 3–30 letters, numbers, dashes or underscores.",
         "error"
@@ -89,15 +78,10 @@ export default function FreelancerBranding({ onUpdate }) {
     }
 
     axios
-      .patch(`${API_BASE}/freelancer/branding`, form, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
-      })
+      .patch(`${API_BASE}/freelancer/branding`, form)
       .then(() => {
         showToast("✅ Branding updated!", "success");
 
-        // ✅ Update context to reflect latest changes
         setFreelancer({
           ...freelancer,
           custom_url: form.custom_url,
@@ -111,13 +95,15 @@ export default function FreelancerBranding({ onUpdate }) {
           business_address: form.business_address,
         });
 
-        if (onUpdate) onUpdate(); // ✅ still call parent callback if needed
+        if (onUpdate) onUpdate();
       })
       .catch((err) => {
         console.error("❌ Failed to update branding", err);
         showToast("❌ Failed to update branding", "error");
       });
   };
+
+  console.log("🧪 Final form state before render:", form);
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-4">
@@ -163,7 +149,11 @@ export default function FreelancerBranding({ onUpdate }) {
         ) : (
           <p className="text-xs text-white mt-1">
             Your booking page will be available at:{" "}
-            <strong>slotme.com/{form.custom_url || "<custom_url>"}</strong>
+            <strong>
+              {form.custom_url
+                ? `http://localhost:5173/${form.custom_url}`
+                : `http://localhost:5173/book/${freelancer?.id || "..."}`}
+            </strong>
           </p>
         )}
 

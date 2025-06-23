@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { showToast } from "../utils/toast";
 import { API_BASE } from "../utils/constants";
 
@@ -40,11 +40,7 @@ export default function ServiceCard({
 
     setLoading(true);
     axios
-      .patch(`${API_BASE}/freelancer/services/${id}`, payload, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
-      })
+      .patch(`${API_BASE}/freelancer/services/${id}`, payload)
       .then(() => {
         showToast("Service updated!");
         setEditing(false);
@@ -59,11 +55,7 @@ export default function ServiceCard({
   const handleDelete = () => {
     if (!confirm("Are you sure you want to delete this service?")) return;
     axios
-      .delete(`${API_BASE}/freelancer/services/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
-      })
+      .delete(`${API_BASE}/freelancer/services/${id}`)
       .then(() => {
         showToast("Service deleted");
       })
@@ -76,15 +68,7 @@ export default function ServiceCard({
   const handleToggle = () => {
     const newStatus = !isEnabled;
     axios
-      .patch(
-        `${API_BASE}/freelancer/services/${id}`,
-        { is_enabled: newStatus },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        }
-      )
+      .patch(`${API_BASE}/freelancer/services/${id}`, { is_enabled: newStatus })
       .then(() => {
         setEnabled(newStatus);
         showToast(`Service ${newStatus ? "enabled" : "disabled"}`);

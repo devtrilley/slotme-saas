@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { useNavigate } from "react-router-dom";
 import { MessageSquare } from "lucide-react";
 import { API_BASE } from "../utils/constants";
@@ -15,19 +15,10 @@ export default function PrioritySupportPage() {
     setStatus("loading");
 
     try {
-      await axios.post(
-        `${API_BASE}/freelancer/support`,
-        {
-          subject,
-          message,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        }
-      );
+      await axios.post(`${API_BASE}/freelancer/support`, {
+        subject,
+        message,
+      });
 
       setStatus("success");
       setSubject("");

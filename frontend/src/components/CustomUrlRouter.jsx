@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { API_BASE } from "../utils/constants";
 
 export default function CustomUrlRouter() {
@@ -20,7 +20,9 @@ export default function CustomUrlRouter() {
         const status = err.response?.status;
 
         if (status === 404 || status === 403) {
-          console.warn(`❌ Custom URL '${custom_url}' not found or forbidden. Redirecting to /404.`);
+          console.warn(
+            `❌ Custom URL '${custom_url}' not found or forbidden. Redirecting to /404.`
+          );
           navigate("/404");
         } else {
           console.error("❌ Unexpected error resolving custom URL:", err);

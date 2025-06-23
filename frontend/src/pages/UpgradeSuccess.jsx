@@ -26,17 +26,13 @@ export default function UpgradeSuccess() {
       }
 
       try {
-        const res = await fetch(`${API_BASE}/check-session/${sessionId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(`${API_BASE}/check-session/${sessionId}`);
 
         const data = await res.json();
 
         if (res.ok && (data.tier === "pro" || data.tier === "elite")) {
           // 🔄 Refetch full freelancer info and update localStorage
-          const infoRes = await fetch(`${API_BASE}/freelancer-info`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const infoRes = await fetch(`${API_BASE}/freelancer-info`);
           const infoData = await infoRes.json();
           localStorage.setItem("freelancer", JSON.stringify(infoData));
           setFreelancer(infoData);

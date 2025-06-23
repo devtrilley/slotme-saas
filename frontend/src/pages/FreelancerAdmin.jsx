@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import FreelancerBranding from "../components/FreelancerBranding";
 import { showToast } from "../utils/toast";
 import AddSlotForm from "../components/AddSlotForm";
@@ -59,11 +59,7 @@ export default function AdminPage() {
 
     setLoading(true);
     axios
-      .get(`${API_BASE}/freelancer/slots/${freelancerId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      .get(`${API_BASE}/freelancer/slots/${freelancerId}`)
       .then((res) => {
         const sorted = [...res.data].sort((a, b) => {
           const dateA = new Date(`${a.day} ${a.time}`);
@@ -82,22 +78,14 @@ export default function AdminPage() {
 
   const fetchServices = () => {
     axios
-      .get(`${API_BASE}/freelancer/services`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
-      })
+      .get(`${API_BASE}/freelancer/services`)
       .then((res) => setServices(res.data))
       .catch((err) => console.error("❌ Failed to fetch services", err));
   };
 
   const fetchBranding = () => {
     axios
-      .get(`${API_BASE}/freelancer-info`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
-      })
+      .get(`${API_BASE}/freelancer-info`)
       .then((res) => {
         const data = res.data;
         setBranding({
@@ -118,10 +106,6 @@ export default function AdminPage() {
       })
       .catch((err) => {
         console.error("❌ Failed to load branding", err);
-        if (err.response?.status === 401) {
-          localStorage.clear();
-          window.location.href = "/auth";
-        }
       });
   };
 
@@ -129,11 +113,7 @@ export default function AdminPage() {
     if (!confirm("Are you sure you want to delete this time slot?")) return;
 
     axios
-      .delete(`${API_BASE}/slots/${slotId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
-      })
+      .delete(`${API_BASE}/slots/${slotId}`)
       .then(() => {
         showToast("Slot deleted");
         fetchSlots();
@@ -147,11 +127,7 @@ export default function AdminPage() {
 
   const handleDeleteService = (serviceId) => {
     axios
-      .delete(`${API_BASE}/freelancer/services/${serviceId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
-      })
+      .delete(`${API_BASE}/freelancer/services/${serviceId}`)
       .then(() => {
         showToast("Service deleted");
         fetchServices();
@@ -164,17 +140,9 @@ export default function AdminPage() {
 
   const handleUpdatePrice = (serviceId, newPrice) => {
     axios
-      .patch(
-        `${API_BASE}/freelancer/services/${serviceId}`,
-        {
-          price_usd: newPrice,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        }
-      )
+      .patch(`${API_BASE}/freelancer/services/${serviceId}`, {
+        price_usd: newPrice,
+      })
       .then(() => {
         showToast("Price updated");
         fetchServices();

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 import { showToast } from "../utils/toast";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -48,6 +48,23 @@ export default function SingleSlotForm({
       timezone,
     });
 
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      showToast("❌ Session expired. Redirecting to login...", "error");
+
+      // Notify other tabs
+      import("../utils/tokenChannel").then(
+        ({ tokenChannel, MESSAGE_TYPES }) => {
+          tokenChannel.postMessage({ type: MESSAGE_TYPES.SESSION_EXPIRED });
+        }
+      );
+
+      setTimeout(() => {
+        window.location.href = "/auth"; // hard redirect for safety
+      }, 2000);
+      return;
+    }
+
     axios
       .post(
         `${API_BASE}/slots`,
@@ -58,11 +75,6 @@ export default function SingleSlotForm({
           master_time_id: match.id,
           timezone,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        }
       )
       .then(() => {
         showToast("Time slot added!");

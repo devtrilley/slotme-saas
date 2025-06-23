@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import axios from "../utils/axiosInstance";
 import { API_BASE } from "../utils/constants";
+import { resetSessionFlag } from "../utils/axiosInstance";
 
-export default function Auth() {
+export default function Auth({ clearSession }) {
   const [mode, setMode] = useState("login"); // "login" or "signup"
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -13,6 +14,8 @@ export default function Auth() {
   const [submitting, setSubmitting] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const showSessionExpired = location.state?.sessionExpired === true;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,6 +42,16 @@ export default function Auth() {
         localStorage.setItem("access_token", res.data.access_token);
         localStorage.setItem("freelancer_id", res.data.freelancer_id);
         localStorage.setItem("freelancer_logged_in", "true");
+
+        console.log("✅ Logged in, received token:", res.data.access_token);
+        console.log("🧠 Stored freelancer ID:", res.data.freelancer_id);
+        console.log(
+          "📦 LocalStorage token (immediate check):",
+          localStorage.getItem("access_token")
+        );
+
+        if (clearSession) clearSession();
+
         navigate("/freelancer-admin");
       }
     } catch (err) {
@@ -48,6 +61,12 @@ export default function Auth() {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (showSessionExpired) {
+      resetSessionFlag(); // Only reset, no toast from page itself
+    }
+  }, [showSessionExpired]);
 
   return (
     <div className="max-w-sm mx-auto p-6 space-y-6">
@@ -74,6 +93,13 @@ export default function Auth() {
       <h2 className="text-2xl font-bold text-center">
         {mode === "login" ? "Log In to" : "Sign Up for"} SlotMe as a Freelancer
       </h2>
+
+      {showSessionExpired && (
+        <div className="alert alert-error shadow-lg text-center">
+          🔒 Your session expired for security reasons. No worries — please log
+          in to continue.
+        </div>
+      )}
 
       {/* Auth Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
