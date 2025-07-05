@@ -92,7 +92,7 @@ export default function BookingConfirmed() {
           rel="noopener noreferrer"
           className="btn btn-sm btn-outline mt-4"
         >
-          📆 Add to Calendar
+          📆 Add to Google Calendar
         </a>
 
         <a

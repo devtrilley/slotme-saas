@@ -15,8 +15,9 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../utils/constants";
 import HoneypotInput from "../components/HoneypotInput";
 
-export default function BookingPage() {
-  const { freelancerId } = useParams();
+export default function BookingPage({ useCustomUrl = false }) {
+  const params = useParams();
+  const freelancerId = useCustomUrl ? params.custom_url : params.freelancerId;
   const [slots, setSlots] = useState([]);
   const [selectedSlotId, setSelectedSlotId] = useState(null);
   const [firstName, setFirstName] = useState("");
@@ -589,14 +590,15 @@ export default function BookingPage() {
                   type="button"
                 >
                   <span className="text-xs w-full text-center">
-                    {convertToUserTime(
+                    {/* {convertToUserTime(
                       slot.time,
                       freelancerTimeZone,
                       userTimeZone
                     )}{" "}
                     <span className="text-[10px] text-gray-400">
                       {getTZAbbreviation(userTimeZone)}
-                    </span>
+                    </span> */}
+                    {slot.time} UTC
                   </span>
                 </button>
                 {slot.is_booked && (

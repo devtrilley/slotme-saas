@@ -76,6 +76,19 @@ name_pool = [
     ("Isaac", "Diaz"),
 ]
 
+RESERVED_ROUTES = {
+    "404",
+    "slots",
+    "book",
+    "auth",
+    "seed",
+    "verify",
+    "master-times",
+    "freelancer",
+    "freelancers",
+    "dev",
+}
+
 FRONTEND_ORIGIN = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 BACKEND_ORIGIN = os.getenv("BACKEND_ORIGIN", "http://127.0.0.1:5000")
@@ -127,12 +140,15 @@ serializer = URLSafeTimedSerializer(os.getenv("SECRET_KEY"))
 
 def is_valid_public_slug(path):
     """
-    Only match slugs like '/ambercafe' if they exist in DB.
+    Only match slugs like '/ambercafe' if they exist in DB, avoid reserved routes.
     """
     if not re.fullmatch(r"/[a-z0-9_-]{3,30}", path):
         return False
 
     slug = path.lstrip("/")
+    if slug in RESERVED_ROUTES:
+        return False
+
     return Freelancer.query.filter_by(custom_url=slug).first() is not None
 
 
@@ -193,6 +209,7 @@ def load_freelancer():
         "/check-booking-status",
         "/resend-confirmation",
         "/check-session-status",
+        "/download-ics",
     )
     open_paths = [
         "/book",
@@ -210,7 +227,7 @@ def load_freelancer():
         any(request.path.startswith(prefix) for prefix in open_prefixes)
         or request.path in open_paths
         or request.endpoint == "public_profile_by_url"
-        or is_valid_public_slug(request.path)
+        or is_valid_public_slug(request.path.lower())
         or request.path == "/404"
     ):
         print("✅ Skipping auth for open or public path.")
@@ -234,10 +251,18 @@ def index():
     return jsonify({"message": "Server is running!"})
 
 
-@app.route("/freelancer/slots/<int:freelancer_id>", methods=["GET"])
+@app.route("/freelancer/slots/<identifier>", methods=["GET"])
 @cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
-def get_public_time_slots(freelancer_id):
+def get_public_time_slots(identifier):
     from sqlalchemy.orm import joinedload
+
+    if identifier.isdigit():
+        freelancer_id = int(identifier)
+    else:
+        freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
+        if not freelancer:
+            return jsonify({"error": "Freelancer not found"}), 404
+        freelancer_id = freelancer.id
 
     if request.method == "OPTIONS":
         return jsonify({}), 200
@@ -618,7 +643,7 @@ def get_appointments():
                 "slot_day": a.slot.day,
                 "slot_time": a.slot.master_time.label,
                 "status": a.status,
-                "freelancer_timezone": "America/New_York",  # or dynamic later
+                "freelancer_timezone": "UTC",
                 "service": a.service.name if a.service else None,  # ✅ add this
                 "service_duration_minutes": (
                     a.service.duration_minutes if a.service else None
@@ -951,13 +976,17 @@ def delete_freelancer(freelancer_id):
     return jsonify({"message": "Freelancer deleted"}), 200
 
 
-@app.route("/freelancer/public-info/<int:freelancer_id>", methods=["GET", "OPTIONS"])
+@app.route("/freelancer/public-info/<identifier>", methods=["GET", "OPTIONS"])
 @cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
-def get_public_freelancer_info(freelancer_id):
+def get_public_freelancer_info(identifier):
     if request.method == "OPTIONS":
         return jsonify({}), 200
 
-    freelancer = Freelancer.query.get(freelancer_id)
+    freelancer = None
+    if identifier.isdigit():
+        freelancer = Freelancer.query.get(int(identifier))
+    else:
+        freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
 
@@ -995,7 +1024,9 @@ def get_public_freelancer_info(freelancer_id):
             "instagram_url": freelancer.instagram_url,
             "twitter_url": freelancer.twitter_url,
             "no_show_policy": freelancer.no_show_policy,
-            "created_at": freelancer.created_at.isoformat(),
+            "created_at": (
+                freelancer.created_at.isoformat() if freelancer.created_at else None
+            ),
             "services": service_data,  # ✅ ADD THIS
         }
     )
@@ -1146,10 +1177,14 @@ def get_master_time_slots():
     return jsonify(result)
 
 
-@app.route("/freelancers/<int:freelancer_id>", methods=["GET"])
+@app.route("/freelancers/<identifier>", methods=["GET"])
 @cross_origin(origins=ALLOWED_ORIGINS)
-def public_freelancer_profile(freelancer_id):
-    freelancer = Freelancer.query.get(freelancer_id)
+def public_freelancer_profile(identifier):
+    if identifier.isdigit():
+        freelancer = Freelancer.query.get(int(identifier))
+    else:
+        freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
+
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
 
@@ -1476,24 +1511,10 @@ def reply_to_customer():
 
 @app.route("/<string:custom_url>", methods=["GET"])
 def public_profile_by_url(custom_url):
-    # 👇 Prevent conflict with real routes like /404
-    reserved_routes = {
-        "404",
-        "slots",
-        "book",
-        "auth",
-        "seed",
-        "verify",
-        "master-times",
-        "freelancer",
-        "freelancers",
-        "dev",
-    }
-
-    if custom_url in reserved_routes:
+    if custom_url in RESERVED_ROUTES:
         return handle_404(None)
 
-    freelancer = Freelancer.query.filter_by(custom_url=custom_url).first()
+    freelancer = Freelancer.query.filter_by(custom_url=custom_url.lower()).first()
     if not freelancer:
         return handle_404(None)
 
@@ -1558,7 +1579,7 @@ def update_freelancer_branding():
 
     # ✅ Handle custom URL update
     if "custom_url" in data:
-        new_url = data["custom_url"].strip().lower()
+        new_url = re.sub(r"[^a-z0-9_-]", "", data.get("custom_url", "").strip().lower())
 
         if new_url:  # Only validate if it's not empty
             if not re.match(r"^[a-z0-9_-]{3,30}$", new_url):
@@ -2268,12 +2289,10 @@ def confirm_booking_email(token):
         )
         formatted_time = slot.master_time.label
 
-        est = pytz.timezone("US/Eastern")
         naive_start = datetime.strptime(
             f"{slot.day} {slot.master_time.time_24h}", "%Y-%m-%d %H:%M"
         )
-        aware_start = est.localize(naive_start)
-        utc_start = aware_start.astimezone(pytz.utc)
+        utc_start = naive_start.replace(tzinfo=timezone.utc)
         utc_end = utc_start + timedelta(minutes=service.duration_minutes)
 
         start_str = utc_start.strftime("%Y%m%dT%H%M%SZ")
@@ -2297,7 +2316,7 @@ Thanks for confirming your booking!
 • Freelancer: {freelancer.business_name or "your freelancer"}
 • Service: {service.name}
 • Date: {formatted_date}
-• Time: {formatted_time} (EST)
+• Time: {formatted_time} (UTC)
 """
 
         if freelancer.business_address:
@@ -2393,7 +2412,7 @@ def get_public_appointment(appointment_id):
             "freelancer_name": appt.freelancer.business_name or "your freelancer",
             "day": appt.slot.day,
             "time": appt.slot.master_time.label,
-            "timezone": appt.freelancer.timezone or "America/New_York",
+            "timezone": "UTC",
             "service_name": appt.service.name,
             "business_address": appt.freelancer.business_address or None,
             "calendar_url": calendar_url,
@@ -2477,6 +2496,7 @@ def freelancer_login():
 
 
 @app.route("/download-ics/<int:appointment_id>")
+@cross_origin(origins=ALLOWED_ORIGINS)
 def download_ics(appointment_id):
     appt = Appointment.query.get(appointment_id)
     if not appt:
@@ -2488,14 +2508,10 @@ def download_ics(appointment_id):
     slot = appt.slot
 
     # Parse naive time assuming it's in Eastern Time (local UI-facing label)
-    est = pytz.timezone("US/Eastern")
     naive_start = datetime.strptime(
         f"{slot.day} {slot.master_time.time_24h}", "%Y-%m-%d %H:%M"
     )
-    aware_start = est.localize(naive_start)
-
-    # Convert to UTC
-    utc_start = aware_start.astimezone(pytz.utc)
+    utc_start = naive_start.replace(tzinfo=timezone.utc)
     utc_end = utc_start + timedelta(minutes=service.duration_minutes)
 
     # Format for ICS (UTC Zulu time format)
@@ -2630,9 +2646,17 @@ def check_session_status(session_id):
         return jsonify({"error": "Failed to verify session"}), 500
 
 
-@app.route("/check-booking-status/<int:freelancer_id>", methods=["GET", "OPTIONS"])
+@app.route("/check-booking-status/<identifier>", methods=["GET", "OPTIONS"])
 @cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
-def check_booking_status(freelancer_id):
+def check_booking_status(identifier):
+    if identifier.isdigit():
+        freelancer_id = int(identifier)
+    else:
+        freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
+        if not freelancer:
+            return jsonify({"error": "Freelancer not found"}), 404
+        freelancer_id = freelancer.id
+
     if request.method == "OPTIONS":
         return jsonify({}), 200
 

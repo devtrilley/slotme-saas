@@ -5,7 +5,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { DateTime } from "luxon";
 import { API_BASE } from "../utils/constants";
 
-export default function FreelancerBookingList() {
+export default function CRM() {
   const [appointments, setAppointments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
@@ -288,10 +288,10 @@ export default function FreelancerBookingList() {
                 }`}
               >
                 {a.status === "confirmed"
-                  ? "✔ Verified"
+                  ? "✔ Confirmed"
                   : a.status === "cancelled"
                   ? "✖ Cancelled"
-                  : "⚠ Unverified"}
+                  : "⚠ Pending"}
               </p>
               {a.status === "confirmed" && (
                 <button

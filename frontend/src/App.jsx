@@ -4,7 +4,7 @@ import { Routes, Route } from "react-router-dom";
 // Page Imports
 import Home from "./pages/Home";
 import BookingPage from "./pages/Booking";
-import FreelancerBookingList from "./pages/FreelancerBookingList";
+import CRM from "./pages/crm";
 import FreelancerAdmin from "./pages/FreelancerAdmin";
 import DevLogin from "./pages/DevLogin";
 import DevAdmin from "./pages/DevAdmin";
@@ -174,7 +174,7 @@ export default function App() {
             path="/freelancer-bookings"
             element={
               <RequireFreelancerAuth>
-                <FreelancerBookingList />
+                <CRM />
               </RequireFreelancerAuth>
             }
           />
@@ -236,7 +236,10 @@ export default function App() {
             }
           />
           <Route path="/404" element={<NotFound />} />
-          <Route path="/:custom_url" element={<CustomUrlRouter />} />
+          <Route
+            path="/:custom_url"
+            element={<BookingPage useCustomUrl={true} />}
+          />
           <Route path="*" element={<NotFound />} />
           <Route
             path="/qr-code"
