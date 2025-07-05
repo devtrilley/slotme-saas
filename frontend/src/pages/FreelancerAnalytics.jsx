@@ -20,7 +20,17 @@ export default function FreelancerAnalytics() {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState("");
   const navigate = useNavigate();
-  const freelancerId = localStorage.getItem("freelancer_id");
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    const freelancerId = localStorage.getItem("freelancer_id");
+
+    if (!token || !freelancerId) {
+      navigate("/auth");
+      return;
+    }
+
+    fetchStats();
+  }, [navigate]);
 
   const fetchStats = () => {
     console.log("🔁 Refresh button clicked");
@@ -35,14 +45,6 @@ export default function FreelancerAnalytics() {
         setError("Failed to load analytics.");
       });
   };
-
-  useEffect(() => {
-    if (!freelancerId) {
-      navigate("/auth");
-      return;
-    }
-    fetchStats(); // initial load
-  }, [freelancerId, navigate]);
 
   if (error) return <p className="text-center text-red-500">{error}</p>;
   if (!stats) return <AnalyticsSkeleton />;

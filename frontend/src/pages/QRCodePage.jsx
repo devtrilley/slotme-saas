@@ -9,28 +9,31 @@ export default function QRCodePage() {
   const qrRef = useRef();
 
   useEffect(() => {
+    const token = localStorage.getItem("access_token");
     const id = localStorage.getItem("freelancer_id");
-    if (!id) return navigate("/login");
+  
+    if (!token || !id) return navigate("/auth");
+  
     setFreelancerId(id);
-
+  
     const fetchUrl = async () => {
       try {
         const res = await fetch(
           `${import.meta.env.VITE_API_BASE}/freelancer/public-info/${id}`
         );
         const data = await res.json();
-
+  
         const base = import.meta.env.VITE_PUBLIC_URL;
         const link = data.custom_url
           ? `${base}/${data.custom_url}`
           : `${base}/freelancers/${id}`;
-
+  
         setQrUrl(link);
       } catch (err) {
         alert("❌ Failed to fetch public link. Please try again.");
       }
     };
-
+  
     fetchUrl();
   }, [navigate]);
 

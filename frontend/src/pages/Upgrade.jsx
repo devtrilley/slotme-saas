@@ -3,12 +3,14 @@ import TierStatusCard from "../components/TierStatusCard";
 import { useEffect, useState } from "react";
 import { API_BASE } from "../utils/constants";
 import { showToast } from "../utils/toast";
+import GeneralModal from "../components/GeneralModal";
 
 import { useFreelancer } from "../context/FreelancerContext";
 import axios from "../utils/axiosInstance";
 
 export default function Upgrade() {
   const { freelancer, setFreelancer } = useFreelancer();
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const tiers = [
     {
@@ -96,22 +98,23 @@ export default function Upgrade() {
     }
   }, []);
 
-  const branding = { tier: (freelancer?.tier || "free").toLowerCase() };
+  const isLoggedIn = !!localStorage.getItem("access_token");
+  const currentTier = (freelancer?.tier || "").toLowerCase();
 
   async function upgrade(plan) {
     try {
       const token = localStorage.getItem("access_token");
       if (!token) {
-        alert("Please log in to upgrade your plan.");
+        setShowLoginModal(true);
         return;
       }
 
       const res = await axios.post(`/create-checkout-session`, {
         plan,
-        success_url: `${window.location.origin}/upgrade-success`,
+        success_url: `${window.location.origin}/upgrade-success?session_id={CHECKOUT_SESSION_ID}`,
       });
 
-      const data = await res.json();
+      const data = res.data;
       if (data.url) {
         showToast("Redirecting you to Stripe...", "success", 4000); // ✅ Toast here
         setTimeout(() => {
@@ -132,7 +135,19 @@ export default function Upgrade() {
         Upgrade Your <span className="text-indigo-400">SlotMe</span> Experience
       </h1>
 
-      <TierStatusCard tier={freelancer?.tier || "free"} />
+      {isLoggedIn && <TierStatusCard tier={freelancer?.tier} />}
+
+      {showLoginModal && (
+        <GeneralModal
+          title="Log in Required"
+          body="Please log in to upgrade your plan."
+          confirmText="Go to Login"
+          onClose={() => {
+            setShowLoginModal(false);
+            window.location.href = "/auth?next=/upgrade";
+          }}
+        />
+      )}
 
       {/* Cards: visible only on mobile */}
       <div className="flex flex-col md:hidden gap-6">
@@ -143,31 +158,44 @@ export default function Upgrade() {
             className={`rounded-2xl shadow-lg p-6 flex-1 text-center ${
               tier.bg
             } ${tier.text} ${
-              branding.tier &&
-              branding.tier === tier.name.split(" ")[0].toLowerCase()
+              isLoggedIn &&
+              currentTier === tier.name.split(" ")[0].toLowerCase()
                 ? "ring-2 ring-yellow-400 ring-offset-2"
                 : ""
             }`}
           >
             <h2 className="text-2xl font-extrabold mb-4">{tier.name}</h2>
-            {tier.name.includes("PRO") &&
-              branding.tier !== "pro" &&
-              branding.tier !== "elite" && (
-                <button
-                  onClick={() => upgrade("pro")}
-                  className="bg-white text-black font-semibold py-2 px-4 rounded-full mb-2"
-                >
-                  Upgrade to PRO
-                </button>
-              )}
-
-            {tier.name.includes("ELITE") && branding.tier !== "elite" && (
+            {!isLoggedIn ? (
               <button
-                onClick={() => upgrade("elite")}
+                onClick={() => setShowLoginModal(true)}
                 className="bg-white text-black font-semibold py-2 px-4 rounded-full mb-2"
               >
-                Upgrade to ELITE
+                {tier.name.includes("FREE")
+                  ? "Try for Free"
+                  : "Upgrade to " + tier.name.split(" ")[0]}
               </button>
+            ) : (
+              <>
+                {tier.name.includes("PRO") &&
+                  currentTier !== "pro" &&
+                  currentTier !== "elite" && (
+                    <button
+                      onClick={() => upgrade("pro")}
+                      className="bg-white text-black font-semibold py-2 px-4 rounded-full mb-2"
+                    >
+                      Upgrade to PRO
+                    </button>
+                  )}
+
+                {tier.name.includes("ELITE") && currentTier !== "elite" && (
+                  <button
+                    onClick={() => upgrade("elite")}
+                    className="bg-white text-black font-semibold py-2 px-4 rounded-full mb-2"
+                  >
+                    Upgrade to ELITE
+                  </button>
+                )}
+              </>
             )}
             <ul className="space-y-2 text-left text-lg">
               {[...tier.features]
@@ -209,29 +237,54 @@ export default function Upgrade() {
             ))}
             <tr>
               <td className="py-4 px-4 font-bold text-left">Upgrade</td>
-              {tiers.map((t) => (
-                <td key={t.name} className="py-4 px-4">
-                  {t.name.includes("PRO") &&
-                    branding.tier !== "pro" &&
-                    branding.tier !== "elite" && (
+              {tiers.map((t) => {
+                const tierKey = t.name.split(" ")[0].toLowerCase();
+
+                if (!isLoggedIn) {
+                  return (
+                    <td key={t.name} className="py-4 px-4">
+                      <button
+                        onClick={() => setShowLoginModal(true)}
+                        className="bg-white text-black font-semibold py-2 px-4 rounded-full"
+                      >
+                        {tierKey === "free" ? "Try for Free" : "Upgrade"}
+                      </button>
+                    </td>
+                  );
+                }
+
+                if (
+                  tierKey === "pro" &&
+                  currentTier !== "pro" &&
+                  currentTier !== "elite"
+                ) {
+                  return (
+                    <td key={t.name} className="py-4 px-4">
                       <button
                         onClick={() => upgrade("pro")}
                         className="bg-white text-black font-semibold py-2 px-4 rounded-full"
                       >
                         Upgrade
                       </button>
-                    )}
+                    </td>
+                  );
+                }
 
-                  {t.name.includes("ELITE") && branding.tier !== "elite" && (
-                    <button
-                      onClick={() => upgrade("elite")}
-                      className="bg-white text-black font-semibold py-2 px-4 rounded-full"
-                    >
-                      Upgrade
-                    </button>
-                  )}
-                </td>
-              ))}
+                if (tierKey === "elite" && currentTier !== "elite") {
+                  return (
+                    <td key={t.name} className="py-4 px-4">
+                      <button
+                        onClick={() => upgrade("elite")}
+                        className="bg-white text-black font-semibold py-2 px-4 rounded-full"
+                      >
+                        Upgrade
+                      </button>
+                    </td>
+                  );
+                }
+
+                return <td key={t.name} className="py-4 px-4"></td>;
+              })}
             </tr>
           </tbody>
         </table>

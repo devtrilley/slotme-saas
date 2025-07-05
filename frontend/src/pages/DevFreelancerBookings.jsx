@@ -93,6 +93,21 @@ export default function DevFreelancerBookings() {
             <p>
               <strong>Time:</strong> {booking.slot_time}
             </p>
+            <p>
+              <strong>Status:</strong>{" "}
+              <span
+                className={
+                  booking.status === "confirmed"
+                    ? "text-green-500"
+                    : booking.status === "pending"
+                    ? "text-yellow-500"
+                    : "text-red-500"
+                }
+              >
+                {booking.status.charAt(0).toUpperCase() +
+                  booking.status.slice(1)}
+              </span>
+            </p>
           </div>
         ))}
       </div>

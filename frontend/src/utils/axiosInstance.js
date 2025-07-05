@@ -4,6 +4,24 @@ import { showToast } from "./toast";
 import { tokenChannel, MESSAGE_TYPES } from "./tokenChannel";
 import { redirectToAuth } from "./navigation";
 
+// 🔓 Routes that are public—booking side, matching open_paths & open_prefixes
+const publicEndpoints = [
+  "/book",
+  "/freelancer/public-info",
+  "/freelancer/slots",
+  "/check-booking-status",
+  "/resend-confirmation",
+  "/confirm-booking",
+  "/appointment/", // Only allows /appointment with trailing slash (specific appointment routes)
+  "/download-ics",
+  "/feedback",
+  "/upgrade-success",
+  "/upgrade-cancelled",
+  "/test-email",
+  "/webhook",
+  "/check-session-status",
+];
+
 let hasShownSessionExpired = false;
 
 export function resetSessionFlag() {
@@ -16,16 +34,26 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
-  if (token) {
+
+  const urlPath = config.url.replace(API_BASE, "");
+
+  // Improved public detection:
+  const isPublic =
+    publicEndpoints.some((endpoint) => urlPath.startsWith(endpoint)) ||
+    urlPath === "/appointment"; // Exact match for bare /appointment
+
+  if (token && !isPublic) {
     config.headers.Authorization = `Bearer ${token}`;
     console.log("📤 Attaching token to request:", token);
+  } else if (!isPublic) {
+    console.log("⚠️ No token found — unauthenticated protected request");
   } else {
-    console.log("⚠️ No token found — unauthenticated request");
+    console.log("🌐 Public request — no auth header attached");
   }
+
   return config;
 });
 
-// ✅ Unified response interceptor
 axiosInstance.interceptors.response.use(
   (res) => res,
   (err) => {
@@ -47,7 +75,11 @@ axiosInstance.interceptors.response.use(
           message.includes("expired") ||
           message.includes("not enough segments")));
 
-    if (isTokenError && !hasShownSessionExpired) {
+    const attemptedUrl = err.config?.url?.replace(API_BASE, "") || "";
+    const isPublic = publicEndpoints.some((p) => attemptedUrl.startsWith(p));
+    const isAuthPage = window.location.pathname.startsWith("/auth");
+
+    if (isTokenError && !hasShownSessionExpired && !isPublic && !isAuthPage) {
       console.warn("❌ Token invalid or expired — broadcasting logout");
       hasShownSessionExpired = true;
       showToast("🔒 Session expired — redirecting you to log in.", "error");
@@ -58,7 +90,7 @@ axiosInstance.interceptors.response.use(
 
       tokenChannel.postMessage({ type: MESSAGE_TYPES.SESSION_EXPIRED });
 
-      redirectToAuth(); // Clean redirect
+      redirectToAuth();
     }
 
     return Promise.reject(err);

@@ -23,8 +23,11 @@ export default function AddSlotForm({ onAdd }) {
   const [userChangedDate, setUserChangedDate] = useState(false);
 
   useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+
     axios
-      .get(`${API_BASE}/master-times`, {})
+      .get(`${API_BASE}/master-times`)
       .then((res) => setMasterTimes(res.data))
       .catch((err) => {
         console.error("❌ Failed to fetch master times", err);
@@ -63,14 +66,11 @@ export default function AddSlotForm({ onAdd }) {
     }
 
     axios
-      .post(
-        `${API_BASE}/slots`,
-        {
-          day: selectedDate.toISOString().split("T")[0],
-          master_time_id: match.id,
-          timezone,
-        },
-      )
+      .post(`${API_BASE}/slots`, {
+        day: selectedDate.toISOString().split("T")[0],
+        master_time_id: match.id,
+        timezone,
+      })
       .then(() => {
         showToast("Time slot added!");
         if (!userChangedDate) {

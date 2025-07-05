@@ -22,7 +22,7 @@ export default function FreelancerBookingList() {
 
   const fetchAppointments = () => {
     axios
-      .get(`${API_BASE}/appointments`)
+      .get("/appointments")
       .then((res) => {
         const sorted = [...res.data].sort(
           (a, b) => convertToDate(a.slot_time) - convertToDate(b.slot_time)
@@ -36,6 +36,8 @@ export default function FreelancerBookingList() {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return; // Prevent background fetch without token
     fetchAppointments();
   }, []);
 
@@ -63,8 +65,11 @@ export default function FreelancerBookingList() {
     );
     if (!confirmCancel) return;
 
+    const token = localStorage.getItem("access_token");
+    if (!token) return; // Block unauthorized cancellation
+
     try {
-      await axios.patch(`${API_BASE}/appointments/${id}`, {
+      await axios.patch(`/appointments/${id}`, {
         status: "cancelled",
       });
       alert("Appointment canceled.");
@@ -224,7 +229,14 @@ export default function FreelancerBookingList() {
       </div>
 
       <div className="flex justify-center">
-        <button className="btn btn-sm btn-outline" onClick={fetchAppointments}>
+        <button
+          className="btn btn-sm btn-outline"
+          onClick={() => {
+            const token = localStorage.getItem("access_token");
+            if (!token) return; // Guard manual Refresh click too
+            fetchAppointments();
+          }}
+        >
           🔁 Refresh
         </button>
       </div>
@@ -281,12 +293,14 @@ export default function FreelancerBookingList() {
                   ? "✖ Cancelled"
                   : "⚠ Unverified"}
               </p>
-              <button
-                className="btn btn-error btn-sm"
-                onClick={() => handleCancel(a.id)}
-              >
-                Cancel
-              </button>
+              {a.status === "confirmed" && (
+                <button
+                  className="btn btn-error btn-sm"
+                  onClick={() => handleCancel(a.id)}
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           ))
         )}

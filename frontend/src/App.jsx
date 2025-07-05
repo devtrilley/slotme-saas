@@ -28,6 +28,8 @@ import SignupConfirmed from "./pages/SignupConfirmed";
 import UpgradeSuccess from "./pages/UpgradeSuccess"; // or wherever the file lives
 import UpgradeCancelled from "./pages/UpgradeCancelled";
 import NavigatorInit from "./components/NavigatorInit";
+import { PUBLIC_SAFE_PATHS } from "./utils/constants";
+import AlreadyTaken from "./pages/AlreadyTaken";
 
 // Component Imports
 import Navbar from "./components/Navbar";
@@ -55,7 +57,7 @@ import { setNavigator } from "./utils/navigation";
 import axios from "./utils/axiosInstance"; // If not already at top
 
 export default function App() {
-  const { setFreelancer } = useFreelancer();
+  const { setFreelancer = () => {} } = useFreelancer() || {};
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -63,65 +65,62 @@ export default function App() {
     setNavigator(navigate);
   }, [navigate]);
 
+  const isPublicSafePage = (pathname) =>
+    PUBLIC_SAFE_PATHS.some((p) => pathname.startsWith(p));
+
+  const handleSessionExpired = () => {
+    if (isPublicSafePage(location.pathname)) {
+      console.warn(
+        "✅ Session expired but staying on public page:",
+        location.pathname
+      );
+      showToast("🔒 Session expired. You can continue browsing.", "info");
+      return;
+    }
+    console.warn("🚪 Session expired — redirecting to login");
+    showToast("🔒 Session expired. Redirecting to login...", "error");
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("freelancer_id");
+    localStorage.removeItem("freelancer_logged_in");
+    navigate("/auth", { state: { sessionExpired: true } });
+  };
+
   useEffect(() => {
     const storageHandler = (e) => {
       if (e.key === "access_token" && !e.newValue) {
         console.warn("🚨 Token deleted manually or expired");
-        showToast("🔒 Session expired. Redirecting to login...", "error");
-        navigate("/auth", { state: { sessionExpired: true } });
+        handleSessionExpired();
       }
     };
     window.addEventListener("storage", storageHandler);
     return () => window.removeEventListener("storage", storageHandler);
-  }, [navigate]);
+  }, [navigate, location.pathname]);
 
   useEffect(() => {
-    const checkTokenAndRefresh = async () => {
+    const checkTokenAndRefresh = () => {
       const token = localStorage.getItem("access_token");
 
-      // 🛑 Skip if no token OR already on auth page
       if (!token || location.pathname === "/auth") return;
 
+      const protectedRoutes = [
+        "/freelancer-admin",
+        "/freelancer-bookings",
+        "/freelancer-analytics",
+        "/priority-support",
+        "/qr-code",
+        "/upgrade",
+      ];
+
+      const isProtected = protectedRoutes.some((path) =>
+        location.pathname.startsWith(path)
+      );
+
+      if (!isProtected) return;
+
       if (isTokenExpired(token)) {
-        console.warn("⏳ Token is expired — refreshing...");
-      }
-
-      try {
-        const res = await axios.post("/refresh");
-        const data = res.data;
-
-        if (
-          data.access_token &&
-          typeof data.access_token === "string" &&
-          data.access_token.length > 50
-        ) {
-          localStorage.setItem("access_token", data.access_token);
-          console.log("🔁 Token refreshed and saved to localStorage");
-
-          // 📢 Notify other tabs
-          tokenChannel.postMessage({
-            type: MESSAGE_TYPES.TOKEN_REFRESH,
-            payload: data.access_token,
-          });
-        } else {
-          console.warn("⚠️ Invalid or missing access token in response:", data);
-          showToast("❌ No valid token returned from refresh", "error");
-          handleSessionExpired();
-        }
-      } catch (err) {
-        console.error("❌ Token refresh failed", err);
+        console.warn("⏳ Token expired — redirecting to login");
         handleSessionExpired();
       }
-    };
-
-    const handleSessionExpired = () => {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("freelancer_id");
-      localStorage.removeItem("freelancer_logged_in");
-
-      tokenChannel.postMessage({ type: MESSAGE_TYPES.SESSION_EXPIRED });
-
-      navigate("/auth", { state: { sessionExpired: true } });
     };
 
     checkTokenAndRefresh();
@@ -136,7 +135,6 @@ export default function App() {
       }
 
       if (type === MESSAGE_TYPES.SESSION_EXPIRED) {
-        console.log("📡 Session expired in another tab");
         handleSessionExpired();
       }
     };
@@ -190,11 +188,19 @@ export default function App() {
           />
           <Route
             path="/dev/slots/:freelancerId"
-            element={<DevFreelancerSlots />}
+            element={
+              <RequireDevAuth>
+                <DevFreelancerSlots />
+              </RequireDevAuth>
+            }
           />
           <Route
             path="/dev/appointments/:freelancerId"
-            element={<DevFreelancerBookings />}
+            element={
+              <RequireDevAuth>
+                <DevFreelancerBookings />
+              </RequireDevAuth>
+            }
           />
           <Route
             path="/dev/new-freelancer"
@@ -220,11 +226,26 @@ export default function App() {
               </RequireFreelancerAuth>
             }
           />
-          <Route path="/priority-support" element={<PrioritySupport />} />
+
+          <Route
+            path="/priority-support"
+            element={
+              <RequireFreelancerAuth>
+                <PrioritySupport />
+              </RequireFreelancerAuth>
+            }
+          />
           <Route path="/404" element={<NotFound />} />
           <Route path="/:custom_url" element={<CustomUrlRouter />} />
           <Route path="*" element={<NotFound />} />
-          <Route path="/qr-code" element={<QRCodePage />} />
+          <Route
+            path="/qr-code"
+            element={
+              <RequireFreelancerAuth>
+                <QRCodePage />
+              </RequireFreelancerAuth>
+            }
+          />
 
           <Route path="/feedback" element={<Feedback />} />
 
@@ -236,6 +257,8 @@ export default function App() {
 
           <Route path="/upgrade-success" element={<UpgradeSuccess />} />
           <Route path="/upgrade-cancelled" element={<UpgradeCancelled />} />
+
+          <Route path="/already-taken" element={<AlreadyTaken />} />
         </Routes>
       </div>
     </div>

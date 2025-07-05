@@ -52,6 +52,9 @@ export default function FreelancerBranding({ onUpdate }) {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return; // Prevent background API spam
+
     loadBranding();
   }, [freelancerId]);
 

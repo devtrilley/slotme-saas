@@ -48,7 +48,6 @@ export default function AdminPage() {
 
   const navigate = useNavigate();
 
-  const token = localStorage.getItem("access_token");
   const freelancerId = localStorage.getItem("freelancer_id");
 
   const fetchSlots = () => {
@@ -156,6 +155,9 @@ export default function AdminPage() {
   const [brandingUpdated, setBrandingUpdated] = useState(0);
 
   useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return; // Prevent background calls when not logged in
+
     fetchSlots();
     fetchBranding();
     fetchServices();

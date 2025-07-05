@@ -1,7 +1,6 @@
 # This file is pretty much like a .app file in Express that holds all of our routes
 
-from flask import Flask, request, jsonify, redirect, Response
-from flask import g
+from flask import Flask, request, jsonify, redirect, Response, g, make_response, abort
 from flask_cors import CORS, cross_origin
 from models import db, TimeSlot, Appointment, Freelancer, User, MasterTimeSlot, Service
 from dotenv import load_dotenv
@@ -9,32 +8,40 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import re  # Regular Expression
-from werkzeug.security import check_password_hash  # At top with imports
-from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from datetime import datetime, timedelta
-
-from email_utils import send_priority_support_ticket
-from email_utils import send_branded_customer_reply
-from email_utils import send_feedback_submission
-
-from flask_jwt_extended import JWTManager
-from flask_jwt_extended import create_access_token
-from datetime import timedelta
-from datetime import datetime
-
-
+from flask_jwt_extended import (
+    verify_jwt_in_request,
+    jwt_required,
+    get_jwt_identity,
+    JWTManager,
+    create_access_token,
+    get_jwt,
+)
 from flask_jwt_extended.exceptions import NoAuthorizationError
 
+from datetime import timezone
 
-import pytz
 
-import secrets
+from email_utils import (
+    send_priority_support_ticket,
+    send_branded_customer_reply,
+    send_feedback_submission,
+)
 
-import os
-import stripe
 
-import logging
+from collections import defaultdict
+import time
+
+
+import pytz, os, secrets, stripe, logging, threading
+
+
+load_dotenv()  # Keep at very top below imports
+
+
+ip_attempts = defaultdict(list)  # Track booking timestamps by IP
 
 # DEV ONLY: enable detailed CORS logging
 logging.getLogger("flask_cors").level = logging.DEBUG
@@ -69,22 +76,20 @@ name_pool = [
     ("Isaac", "Diaz"),
 ]
 
-load_dotenv()
-
 FRONTEND_ORIGIN = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
-from flask_cors import CORS
-from dotenv import load_dotenv
-import os
+BACKEND_ORIGIN = os.getenv("BACKEND_ORIGIN", "http://127.0.0.1:5000")
 
-load_dotenv()
-
+# Default origins
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    os.getenv("FRONTEND_URL", "http://localhost:5173"),
 ]
 
+# Optional: add env if defined and not already included
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url and frontend_url not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append(frontend_url)
 
 app = Flask(__name__)
 CORS(
@@ -93,6 +98,7 @@ CORS(
     supports_credentials=True,
     allow_headers=["Content-Type", "Authorization", "X-Dev-Auth"],
 )
+
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=15)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
     "DATABASE_URL", "sqlite:///scheduler.db"
@@ -116,7 +122,7 @@ def custom_expired_token_response(jwt_header, jwt_payload):
 with app.app_context():
     db.create_all()
 
-serializer = URLSafeTimedSerializer(os.getenv("SECRET_KEY", "super-secret"))
+serializer = URLSafeTimedSerializer(os.getenv("SECRET_KEY"))
 
 
 def is_valid_public_slug(path):
@@ -130,16 +136,36 @@ def is_valid_public_slug(path):
     return Freelancer.query.filter_by(custom_url=slug).first() is not None
 
 
-def eastern_today():
-    est = pytz.timezone("US/Eastern")
-    return datetime.now(est).date()
+def utc_today():
+    return datetime.now(timezone.utc).date()
 
 
-from flask import make_response
+def clear_inherited_blocks(freelancer_id, day, start_label, duration_minutes):
+    """
+    Clears inherited booked blocks for a specific appointment start time.
+    """
+    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    time_labels = [t.label for t in all_times]
 
-from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
-from flask_jwt_extended.exceptions import NoAuthorizationError
-from flask_jwt_extended import jwt_required
+    try:
+        start_index = time_labels.index(start_label)
+        blocks = duration_minutes // 15
+        inherited_labels = time_labels[start_index + 1 : start_index + blocks]
+
+        for label in inherited_labels:
+            inherited_slot = TimeSlot.query.filter_by(
+                freelancer_id=freelancer_id,
+                day=day,
+                master_time_id=next(
+                    (mt.id for mt in all_times if mt.label == label), None
+                ),
+            ).first()
+
+            if inherited_slot:
+                inherited_slot.is_booked = False
+
+    except Exception as e:
+        print("⚠️ Error clearing inherited blocks:", e)
 
 
 @app.before_request
@@ -147,6 +173,7 @@ def load_freelancer():
     request.path = request.path.rstrip("/")
     print("🔥 Path:", request.path)
     print("🔥 Headers:", dict(request.headers))
+    print(f"🔥 Incoming {request.method} {request.path}")
 
     if request.method == "OPTIONS":
         return
@@ -163,6 +190,9 @@ def load_freelancer():
         "/freelancer/public-info",
         "/freelancer/slots",
         "/confirm-booking",
+        "/check-booking-status",
+        "/resend-confirmation",
+        "/check-session-status",
     )
     open_paths = [
         "/book",
@@ -172,7 +202,6 @@ def load_freelancer():
         "/appointment",
         "/download-ics",
         "/webhook",
-        "/check-session-status",
         "/upgrade-success",
         "/upgrade-cancelled",
     ]
@@ -221,8 +250,7 @@ def get_public_time_slots(freelancer_id):
     # Precompute inherited slot IDs
     inherited_ids = set()
     appointments = (
-        Appointment.query.filter_by(freelancer_id=freelancer_id)
-        .filter(Appointment.status != "cancelled")
+        Appointment.query.filter_by(freelancer_id=freelancer_id, status="confirmed")
         .options(
             joinedload(Appointment.slot).joinedload(TimeSlot.master_time),
             joinedload(Appointment.service),
@@ -263,16 +291,19 @@ def get_public_time_slots(freelancer_id):
 
     result = []
     for slot in slots:
-        is_booked = slot.is_booked
         is_inherited = slot.id in inherited_ids
-        appointment = slot.appointment
+        confirmed_appt = Appointment.query.filter_by(
+            slot_id=slot.id, status="confirmed"
+        ).first()
+        is_root_booked = confirmed_appt and not is_inherited
+
         user_info = None
         service_name = None
         duration_minutes = None
 
-        if is_booked and appointment and not is_inherited:
-            user = appointment.user
-            service = appointment.service
+        if is_root_booked:
+            user = confirmed_appt.user
+            service = confirmed_appt.service
             if user:
                 user_info = {
                     "name": f"{user.first_name} {user.last_name}",
@@ -287,7 +318,7 @@ def get_public_time_slots(freelancer_id):
                 "id": slot.id,
                 "time": slot.master_time.label,
                 "day": slot.day,
-                "is_booked": is_booked,
+                "is_booked": is_root_booked,
                 "is_inherited_block": is_inherited,
                 "appointment": user_info,
                 "service_name": service_name,
@@ -299,11 +330,73 @@ def get_public_time_slots(freelancer_id):
 
 
 @app.route("/book", methods=["POST"])
-@cross_origin(
-    origins=[ALLOWED_ORIGINS, "http://localhost:5173", "http://127.0.0.1:5173"]
-)
+@cross_origin(origins=ALLOWED_ORIGINS)
 def book_slot():
     data = request.get_json()
+    print(f"🔥 Incoming payload: {data}")
+
+    # Honeypot Strict Trap — Block any non-empty website field
+    honeypot = str(data.get("website", "")).strip()
+    if honeypot:
+        return jsonify({"error": "Spam detected"}), 400
+
+    # Expected fields only
+    HUMAN_FIELDS = {
+        "first_name",
+        "last_name",
+        "email",
+        "phone",
+        "slot_id",
+        "service_id",
+        "website",  # explicitly allowed
+    }
+
+    # Dynamic trap — Any extra unexpected field triggers block if filled
+    unexpected = [key for key in data.keys() if key not in HUMAN_FIELDS]
+    for key in unexpected:
+        if str(data.get(key, "")).strip():
+            return jsonify({"error": "Spam detected"}), 400
+
+    client_ip = request.remote_addr
+    now = time.time()
+    window = 180 if app.debug else 600  # IP TEST: 3 min dev, 10 min prod
+
+    # Clean expired booking logs
+    ip_attempts[client_ip] = [
+        ts for ts in ip_attempts.get(client_ip, []) if now - ts < window
+    ]
+
+    if app.debug:
+        print(
+            f"📊 IP {client_ip} booking attempts: {len(ip_attempts.get(client_ip, []))} / 2 allowed within {window} sec window."
+        )
+
+    # Block after 2 successful bookings from same IP in window
+    if len(ip_attempts[client_ip]) >= 2:
+        return jsonify({"error": "Too many booking attempts, please wait"}), 429
+
+    # 🛡️ Honeypot Silent Bot Trap (Dynamic Field + Extra Key Detection)
+    HUMAN_FIELDS = {
+        "first_name",
+        "last_name",
+        "email",
+        "phone",
+        "slot_id",
+        "service_id",
+    }
+
+    # Separate unexpected keys
+    unexpected = [key for key in data.keys() if key not in HUMAN_FIELDS]
+
+    # Classic fixed trap for legacy bots
+    if data.get("website"):
+        return jsonify({"error": "Spam detected"}), 400
+
+    # Dynamic trap — ANY extra field with value = bot
+    for key in unexpected:
+        if data.get(key):
+            return jsonify({"error": "Spam detected"}), 400
+
     first_name = data.get("first_name")
     last_name = data.get("last_name")
     email = data.get("email")
@@ -311,16 +404,58 @@ def book_slot():
     slot_id = data.get("slot_id")
     service_id = data.get("service_id")
 
+    # Validate required fields
     if not first_name or not last_name or not email or not slot_id or not service_id:
         return jsonify({"error": "Missing required fields"}), 400
 
+    # Simple but effective email format check
+    email_regex = r"^[\w\.-]+@[\w\.-]+\.[A-Za-z]{2,}$"
+    if not re.match(email_regex, email):
+        return jsonify({"error": "Invalid email format"}), 400
+
     slot = TimeSlot.query.get(slot_id)
-    if not slot or slot.is_booked:
+    if not slot:
         return jsonify({"error": "Slot is unavailable"}), 400
 
     service = Service.query.get(service_id)
     if not service:
         return jsonify({"error": "Invalid service selected"}), 400
+
+    # Prepare time label logic BEFORE conflict check
+    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    time_labels = [t.label for t in all_times]
+
+    duration_blocks = service.duration_minutes // 15
+    start_label = slot.master_time.label
+
+    try:
+        start_index = time_labels.index(start_label)
+    except ValueError:
+        return jsonify({"error": "Invalid slot time"}), 400
+
+    required_labels = time_labels[start_index : start_index + duration_blocks]
+    # Allow end-of-day partial bookings
+    if len(required_labels) < duration_blocks:
+        remaining_labels = time_labels[start_index:]
+        if len(remaining_labels) < 1:
+            return jsonify({"error": "Invalid slot time"}), 400
+        required_labels = remaining_labels
+
+    # ✅ Conflict check
+    confirmed_conflict = (
+        Appointment.query.join(TimeSlot)
+        .join(MasterTimeSlot)
+        .filter(
+            Appointment.freelancer_id == slot.freelancer_id,
+            Appointment.status == "confirmed",
+            TimeSlot.day == slot.day,
+            MasterTimeSlot.label.in_(required_labels),
+        )
+        .first()
+    )
+
+    if confirmed_conflict:
+        return jsonify({"error": "Slot is unavailable"}), 400
 
     user = User.query.filter_by(email=email).first()
     if user:
@@ -336,34 +471,27 @@ def book_slot():
     db.session.commit()
 
     # 🛡️ Prevent multiple pending bookings for same freelancer
-    existing_unconfirmed = Appointment.query.filter_by(
-        user_id=user.id, freelancer_id=slot.freelancer_id, status="pending"
+    # 🛡️ Prevent abuse: only 1 active booking per email per freelancer
+    existing_active = Appointment.query.filter(
+        Appointment.user_id == user.id,
+        Appointment.freelancer_id == slot.freelancer_id,
+        Appointment.status.in_(["pending", "confirmed"]),
     ).first()
-    if existing_unconfirmed:
+
+    if existing_active:
         return (
             jsonify(
                 {
-                    "error": "You already have a pending booking. Please confirm or cancel it before making another."
+                    "error": "You already have a booking with this freelancer. Cancel or reschedule before making another.",
+                    "appointment_id": existing_active.id,
+                    "status": existing_active.status,
                 }
             ),
             400,
         )
 
-    # ⏳ Define time labels and required_labels before any booking logic
-    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
-    time_labels = [t.label for t in all_times]
-
-    duration_blocks = service.duration_minutes // 15
-    start_label = slot.master_time.label
-
-    try:
-        start_index = time_labels.index(start_label)
-    except ValueError:
-        return jsonify({"error": "Invalid slot time"}), 400
-
-    required_labels = time_labels[start_index : start_index + duration_blocks]
-    if len(required_labels) < duration_blocks:
-        return jsonify({"error": "Not enough consecutive blocks"}), 400
+    # required_labels already computed earlier — reuse them
+    # all_times, time_labels also already loaded
 
     # Check for any conflicting bookings across the entire service duration
     user_appointments = (
@@ -404,11 +532,13 @@ def book_slot():
         status="pending",
         email=email,  # <- NEW
         phone=phone,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
     )
     db.session.add(appointment)
 
-    for label in required_labels:
+    # Do NOT book slots yet — booking finalizes after confirmation
+    # Only inherited blocks get flagged visually for pending UX clarity
+    for i, label in enumerate(required_labels):
         mt = next((m for m in all_times if m.label == label), None)
         if not mt:
             continue
@@ -418,7 +548,7 @@ def book_slot():
             master_time_id=mt.id,
         ).first()
         if s:
-            s.is_booked = True
+            s.is_inherited_block = i != 0  # Only inherited blocks flagged
 
     db.session.commit()
 
@@ -427,28 +557,39 @@ def book_slot():
     )  # ✅ make sure this is at the top
 
     token = serializer.dumps({"appointment_id": appointment.id}, salt="booking-confirm")
-    link = f"{os.getenv('BACKEND_ORIGIN', 'http://127.0.0.1:5000')}/confirm-booking/{token}"
+    link = f"{BACKEND_ORIGIN}/confirm-booking/{token}"
 
     subject = "Confirm Your Appointment – SlotMe"
     body = f"""Hi {first_name},
 
-    Thanks for booking with SlotMe!
+    Thanks for booking with SlotMe! You're one step away from confirming your appointment.
 
-    You're one step away from confirming your appointment. Just click the link below:
+    ✅ Confirm here: {link}
 
-    {link}
-
-    If you didn’t make this request, feel free to ignore this email.
+    If you didn’t request this, feel free to ignore it.
 
     – The SlotMe Team
     """
 
+    ip_attempts.setdefault(client_ip, []).append(now)  # Count all booking attempts
+
     try:
         send_branded_customer_reply(subject, body, email)
     except Exception as e:
-        print("❌ Failed to send confirmation email:", e)
+        db.session.delete(appointment)  # Undo pending booking
+        db.session.commit()
+        print(f"❌ Failed to send booking confirmation email to {email}: {e}")
+        return (
+            jsonify({"error": "Failed to send confirmation email. Please try again."}),
+            500,
+        )
 
-    return jsonify({"message": "Verification email sent."}), 200
+    return (
+        jsonify(
+            {"message": "Verification email sent.", "appointment_id": appointment.id}
+        ),
+        200,
+    )
 
 
 @app.route("/appointments", methods=["GET", "OPTIONS"])
@@ -496,45 +637,50 @@ def get_appointments():
 )
 @jwt_required()
 def update_appointment(id):
-    freelancer_id = int(get_jwt_identity())  # force int immediately
+    freelancer_id = int(get_jwt_identity())
     data = request.get_json()
 
-    print("🔎 Attempting to update appointment ID:", id)
+    print(f"🔧 Updating appointment {id}...")
 
     appointment = Appointment.query.get(id)
-
-    # Exit early if appointment doesn't exist
     if not appointment:
-        print("❌ Appointment not found in SQLAlchemy session.")
+        print("❌ Appointment not found.")
         return jsonify({"error": "Appointment not found"}), 404
-
-    print("🧠 Auth JWT freelancer ID:", freelancer_id)
-    print("📦 Appointment ID:", appointment.id)
-    print("📦 Appointment freelancer_id:", appointment.freelancer_id)
 
     if appointment.freelancer_id != freelancer_id:
         print(
-            f"🚫 Auth mismatch: JWT freelancer {freelancer_id} does not match appointment.freelancer_id {appointment.freelancer_id}"
+            f"🚫 Unauthorized. JWT freelancer {freelancer_id} does not match appointment.freelancer_id {appointment.freelancer_id}"
         )
         return jsonify({"error": "Unauthorized"}), 403
 
-    print(
-        f"✅ Found appointment. ID: {appointment.id}, Freelancer ID: {appointment.freelancer_id}, Status: {appointment.status}"
-    )
-
-    # Handle status update
+    # Handle status change
     if "status" in data:
         new_status = data["status"]
-        if new_status not in ["pending", "confirmed", "cancelled"]:
-            return jsonify({"error": "Invalid status value"}), 400
-        appointment.status = new_status
-        if new_status == "cancelled":
-            appointment.slot.is_booked = False  # Free the slot
 
-    # Handle optional slot change
+        # ✅ Only allow cancelling via CRM, no manual confirming
+        if new_status not in ["pending", "cancelled"]:
+            return jsonify({"error": "Invalid status value"}), 400
+
+        if new_status == "confirmed":
+            return (
+                jsonify({"error": "Appointments can only be confirmed by email link."}),
+                403,
+            )
+
+        appointment.status = new_status
+
+        if new_status == "cancelled":
+            appointment.slot.is_booked = False
+            clear_inherited_blocks(
+                freelancer_id=freelancer_id,
+                day=appointment.slot.day,
+                start_label=appointment.slot.master_time.label,
+                duration_minutes=appointment.service.duration_minutes,
+            )
+
+    # Handle slot change
     if "slot_id" in data:
-        new_slot_id = data["slot_id"]
-        new_slot = TimeSlot.query.get(new_slot_id)
+        new_slot = TimeSlot.query.get(data["slot_id"])
         if not new_slot or new_slot.freelancer_id != freelancer_id:
             return jsonify({"error": "Invalid new slot"}), 404
         if new_slot.is_booked:
@@ -542,41 +688,21 @@ def update_appointment(id):
 
         old_slot = appointment.slot
         old_slot.is_booked = False
-        appointment.slot_id = new_slot_id
+
+        # Clear inherited blocks from old slot
+        clear_inherited_blocks(
+            freelancer_id=freelancer_id,
+            day=appointment.slot.day,
+            start_label=appointment.slot.master_time.label,
+            duration_minutes=appointment.service.duration_minutes,
+        )
+
+        appointment.slot_id = new_slot.id
         new_slot.is_booked = True
 
-    print(f"🛠 Appointment {id} updated to status: {appointment.status}")
-
     db.session.commit()
+    print(f"✅ Appointment {id} updated. New status: {appointment.status}")
     return jsonify({"message": "Appointment updated successfully."}), 200
-
-
-@app.route("/auth", methods=["POST"])
-@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
-def freelancer_login():
-    data = request.get_json()
-    email = data.get("email")
-    password = data.get("password")
-
-    if not email or not password:
-        return jsonify({"error": "Missing email or password"}), 400
-
-    freelancer = Freelancer.query.filter_by(email=email).first()
-    if not freelancer or not check_password_hash(freelancer.password, password):
-        return jsonify({"error": "Invalid login"}), 401
-
-    # ✅ Issue JWT token
-    access_token = create_access_token(identity=str(freelancer.id))
-
-    return (
-        jsonify(
-            {
-                "access_token": access_token,
-                "freelancer_id": freelancer.id,  # optional, for convenience
-            }
-        ),
-        200,
-    )
 
 
 @app.route("/dev/freelancers", methods=["GET"])
@@ -761,7 +887,8 @@ def get_dev_appointments_for_freelancer(freelancer_id):
         result.append(
             {
                 "id": a.id,
-                "name": f"{user.first_name} {user.last_name}" if user else None,                "email": a.user.email if a.user else None,
+                "name": f"{user.first_name} {user.last_name}" if user else None,
+                "email": a.user.email if a.user else None,
                 "slot_day": a.slot.day,
                 "slot_time": a.slot.master_time.label,  # ✅ FIXED: use master_time.label
                 "status": a.status,
@@ -801,7 +928,11 @@ def create_freelancer():
 
 
 @app.route("/dev/freelancers/<int:freelancer_id>", methods=["DELETE", "OPTIONS"])
-@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True, allow_headers=["Content-Type", "X-Dev-Auth"])
+@cross_origin(
+    origins=ALLOWED_ORIGINS,
+    supports_credentials=True,
+    allow_headers=["Content-Type", "X-Dev-Auth"],
+)
 def delete_freelancer(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200  # Preflight OK
@@ -904,30 +1035,30 @@ def create_time_slot():
     )
 
     is_booked = False
+    is_inherited_block = False
 
     if target_index != -1:
-        from sqlalchemy.orm import joinedload
-
         appointments = (
-            Appointment.query.options(
-                joinedload(Appointment.slot).joinedload(TimeSlot.master_time),
-                joinedload(Appointment.service),
-            )
-            .filter_by(freelancer_id=freelancer_id)
+            Appointment.query.join(TimeSlot, Appointment.slot_id == TimeSlot.id)
+            .join(MasterTimeSlot, TimeSlot.master_time_id == MasterTimeSlot.id)
+            .filter(TimeSlot.day == day)
+            .filter(Appointment.freelancer_id == freelancer_id)
             .filter(Appointment.status != "cancelled")
             .all()
         )
 
         for appt in appointments:
-            slot_time = appt.slot.master_time.label
-            duration = appt.service.duration_minutes
-            blocks = duration // 15
+            appt_start_label = appt.slot.master_time.label
+            duration_blocks = appt.service.duration_minutes // 15
 
             try:
-                appt_start = time_labels.index(slot_time)
-                appt_labels = time_labels[appt_start : appt_start + blocks]
+                appt_index = time_labels.index(appt_start_label)
+                appt_labels = time_labels[appt_index : appt_index + duration_blocks]
+
                 if target_label in appt_labels:
                     is_booked = True
+                    if target_label != appt_labels[0]:
+                        is_inherited_block = True
                     break
             except ValueError:
                 continue
@@ -988,21 +1119,22 @@ def delete_time_slot(slot_id):
         return jsonify({"error": "Internal server error"}), 500
 
 
-@app.route("/verify/<token>", methods=["GET"])
-def verify_booking(token):
-    try:
-        data = serializer.loads(token, max_age=3600)  # 1 hour expiry
-        appointment_id = data["appointment_id"]
-    except:
-        return jsonify({"error": "Invalid or expired token"}), 400
+# DELETED ROUTE
+# @app.route("/verify/<token>", methods=["GET"])
+# def verify_booking(token):
+#     try:
+#         data = serializer.loads(token, max_age=3600)  # 1 hour expiry
+#         appointment_id = data["appointment_id"]
+#     except:
+#         return jsonify({"error": "Invalid or expired token"}), 400
 
-    appt = Appointment.query.get(appointment_id)
-    if not appt:
-        return jsonify({"error": "Appointment not found"}), 404
+#     appt = Appointment.query.get(appointment_id)
+#     if not appt:
+#         return jsonify({"error": "Appointment not found"}), 404
 
-    appt.status = "confirmed"
-    db.session.commit()
-    return redirect(f"{FRONTEND_ORIGIN}/thank-you")  # Adjust if hosted
+#     appt.status = "confirmed"
+#     db.session.commit()
+#     return redirect(f"{FRONTEND_ORIGIN}/thank-you")  # Adjust if hosted
 
 
 @app.route("/master-times", methods=["GET"])
@@ -1517,13 +1649,22 @@ def seed_everything():
         db.session.add(f1)
         db.session.commit()
 
+    # Clear old slots, bookings, and services
     Appointment.query.filter_by(freelancer_id=f1.id).delete()
     TimeSlot.query.filter_by(freelancer_id=f1.id).delete()
     Service.query.filter_by(freelancer_id=f1.id).delete()
     db.session.commit()
 
+    # Seed demo services
     db.session.add_all(
         [
+            Service(
+                freelancer_id=f1.id,
+                name="Quick Espresso Shot",
+                description="Fast 15-minute pickup.",
+                duration_minutes=15,
+                price_usd=25.00,
+            ),
             Service(
                 freelancer_id=f1.id,
                 name="Café au Lay",
@@ -1542,7 +1683,36 @@ def seed_everything():
     )
     db.session.commit()
 
-    today = eastern_today()
+    # Seed empty slots from 1:00 PM to 4:00 PM
+    today = utc_today()
+    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+
+    empty_labels = []
+    for hour in range(13, 16):  # 1PM to 3:45PM
+        for minute in [0, 15, 30, 45]:
+            time_obj = datetime.strptime(f"{hour}:{minute:02d}", "%H:%M").replace(
+                tzinfo=timezone.utc
+            )
+            label = time_obj.strftime(
+                "%I:%M %p"
+            )  # Always matches master slot label format
+            empty_labels.append(label)
+
+    for label in empty_labels:
+        mt = next((t for t in all_times if t.label == label), None)
+        if not mt:
+            continue
+        db.session.add(
+            TimeSlot(
+                day=today.isoformat(),
+                freelancer_id=f1.id,
+                master_time_id=mt.id,
+                is_booked=False,
+            )
+        )
+    db.session.commit()
+
+    today = utc_today()
     demo_bookings = [
         ("Jane", "Doe", "jane.doe@mail.com", "09:00 AM", 45),
         ("John", "Doe", "john.doe@mail.com", "10:00 AM", 30),
@@ -1582,7 +1752,7 @@ def seed_everything():
             user_id=user.id,
             service_id=service.id,
             status="confirmed",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
         )
         db.session.add(appt)
 
@@ -1655,7 +1825,7 @@ def seed_everything():
 
     services = Service.query.filter_by(freelancer_id=f2.id).all()
     elite_bookings = [
-        (datetime.now().date() + timedelta(days=i)).isoformat()
+        (datetime.now(timezone.utc).date() + timedelta(days=i)).isoformat()
         for i in range(5)
         for _ in range(3)
     ]
@@ -1692,7 +1862,7 @@ def seed_everything():
             user_id=user.id,
             service_id=service.id,
             status="confirmed",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
         )
         db.session.add(appt)
 
@@ -1985,13 +2155,30 @@ def create_batch_slots():
         if not master_id or master_id in existing_ids:
             continue
 
-        is_booked = label in booked_labels
+        is_booked = False
+        is_inherited_block = False
+
+        for appt in appointments:
+            start_label = MasterTimeSlot.query.get(appt.slot.master_time_id).label
+            blocks = appt.service.duration_minutes // 15
+            try:
+                start_index = time_labels.index(start_label)
+                appt_labels = time_labels[start_index : start_index + blocks]
+
+                if label in appt_labels:
+                    is_booked = True
+                    if label != appt_labels[0]:
+                        is_inherited_block = True
+                    break
+            except:
+                continue
 
         new_slot = TimeSlot(
             freelancer_id=freelancer_id,
             day=day,
             master_time_id=master_id,
             is_booked=is_booked,
+            is_inherited_block=is_inherited_block,
         )
         db.session.add(new_slot)
         created.append(label)
@@ -2000,15 +2187,11 @@ def create_batch_slots():
     return jsonify({"message": f"{len(created)} slots created", "slots": created}), 201
 
 
-# Create serializer (add near your config)
-serializer = URLSafeTimedSerializer(os.getenv("SECRET_KEY"))
-
-
 @app.route("/confirm-booking/<token>", methods=["GET"])
 @cross_origin(origins="*")
 def confirm_booking_email(token):
     try:
-        data = serializer.loads(token, salt="booking-confirm", max_age=86400)
+        data = serializer.loads(token, salt="booking-confirm", max_age=600)
         appointment_id = data["appointment_id"]
     except SignatureExpired:
         return redirect(f"{FRONTEND_ORIGIN}/expired")
@@ -2018,27 +2201,83 @@ def confirm_booking_email(token):
     appointment = Appointment.query.get(appointment_id)
 
     if appointment and appointment.status == "pending":
+        slot = appointment.slot
+
+        # Load all master times and compute required labels FIRST
+        all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+        time_labels = [t.label for t in all_times]
+
+        duration_blocks = appointment.service.duration_minutes // 15
+        start_label = slot.master_time.label
+
+        try:
+            start_index = time_labels.index(start_label)
+        except ValueError:
+            return redirect(f"{FRONTEND_ORIGIN}/invalid")
+
+        required_labels = time_labels[start_index : start_index + duration_blocks]
+
+        if len(required_labels) < duration_blocks:
+            remaining_labels = time_labels[start_index:]
+            if len(remaining_labels) < 1:
+                return redirect(f"{FRONTEND_ORIGIN}/invalid")
+            required_labels = remaining_labels
+
+        # ✅ Check all inherited blocks for conflicts BEFORE confirming
+        for label in required_labels:
+            mt = next((m for m in all_times if m.label == label), None)
+            if not mt:
+                continue
+            s = TimeSlot.query.filter_by(
+                day=slot.day,
+                freelancer_id=slot.freelancer_id,
+                master_time_id=mt.id,
+            ).first()
+            if s and s.is_booked:
+                return redirect(
+                    f"{FRONTEND_ORIGIN}/already-taken?freelancer_id={slot.freelancer_id}"
+                )
+
+        # No conflicts, safe to confirm
         appointment.status = "confirmed"
+        slot.is_booked = True
+
+        # Book inherited blocks properly
+        for label in required_labels:
+            mt = next((m for m in all_times if m.label == label), None)
+            if not mt:
+                continue
+            s = TimeSlot.query.filter_by(
+                day=slot.day,
+                freelancer_id=slot.freelancer_id,
+                master_time_id=mt.id,
+            ).first()
+            if s:
+                s.is_booked = True
+                s.is_inherited_block = label != start_label
+
         db.session.commit()
 
         # ✅ Send confirmation receipt email
         user = appointment.user
         freelancer = appointment.freelancer
         service = appointment.service
-        slot = appointment.slot
 
         formatted_date = datetime.strptime(slot.day, "%Y-%m-%d").strftime(
             "%A, %B %d, %Y"
         )
         formatted_time = slot.master_time.label
 
-        # ⏰ Google Calendar Link
-        start_datetime = f"{slot.day}T{slot.master_time.time_24h}:00"
-        duration = service.duration_minutes
-        end_dt = datetime.strptime(start_datetime, "%Y-%m-%dT%H:%M:%S") + timedelta(
-            minutes=duration
+        est = pytz.timezone("US/Eastern")
+        naive_start = datetime.strptime(
+            f"{slot.day} {slot.master_time.time_24h}", "%Y-%m-%d %H:%M"
         )
-        end_datetime = end_dt.strftime("%Y-%m-%dT%H:%M:%S")
+        aware_start = est.localize(naive_start)
+        utc_start = aware_start.astimezone(pytz.utc)
+        utc_end = utc_start + timedelta(minutes=service.duration_minutes)
+
+        start_str = utc_start.strftime("%Y%m%dT%H%M%SZ")
+        end_str = utc_end.strftime("%Y%m%dT%H%M%SZ")
 
         title = f"{freelancer.business_name or 'Appointment'} with {user.first_name}"
         details = f"Service: {service.name}\\nBooked via SlotMe"
@@ -2046,10 +2285,7 @@ def confirm_booking_email(token):
 
         calendar_url = (
             "https://calendar.google.com/calendar/render?action=TEMPLATE"
-            f"&text={title}"
-            f"&dates={start_datetime.replace('-', '').replace(':', '')}/{end_datetime.replace('-', '').replace(':', '')}"
-            f"&details={details}"
-            f"&location={location}"
+            f"&text={title}&dates={start_str}/{end_str}&details={details}&location={location}"
         )
 
         subject = "📅 Your Appointment is Confirmed – SlotMe"
@@ -2067,13 +2303,7 @@ Thanks for confirming your booking!
         if freelancer.business_address:
             body += f"• Location: {freelancer.business_address}\n"
         body += f"\n📅 Add to your calendar: {calendar_url}\n"
-        body += """
-        
-
-If you need to cancel or reschedule, please contact the freelancer directly.
-
-– The SlotMe Team
-"""
+        body += "\nIf you need to cancel or reschedule, please contact the freelancer directly.\n– The SlotMe Team"
 
         try:
             send_branded_customer_reply(subject, body, user.email)
@@ -2083,8 +2313,8 @@ If you need to cancel or reschedule, please contact the freelancer directly.
         return redirect(
             f"{FRONTEND_ORIGIN}/booking-confirmed?appointment_id={appointment.id}"
         )
-    else:
-        return redirect(f"{FRONTEND_ORIGIN}/not-found")
+
+    return redirect(f"{FRONTEND_ORIGIN}/not-found")
 
 
 @app.route("/resend-confirmation/<int:appointment_id>", methods=["POST"])
@@ -2093,15 +2323,22 @@ def resend_confirmation_email(appointment_id):
     if not appointment:
         return jsonify({"error": "Appointment not found"}), 404
 
-    if appointment.status != "pending":
+    if appointment.status == "confirmed":
+        return jsonify({"error": "This appointment is already confirmed."}), 400
+
+    if appointment.status == "cancelled":
         return (
-            jsonify({"error": "This appointment is already confirmed or cancelled."}),
+            jsonify(
+                {
+                    "error": "This appointment was already cancelled. Please refresh and book again."
+                }
+            ),
             400,
         )
 
     user = appointment.user
     token = serializer.dumps({"appointment_id": appointment.id}, salt="booking-confirm")
-    link = f"{os.getenv('BACKEND_ORIGIN', 'http://127.0.0.1:5000')}/confirm-booking/{token}"
+    link = f"{BACKEND_ORIGIN}/confirm-booking/{token}"
 
     subject = "Confirm Your Appointment – SlotMe (Resend)"
     body = f"""Hi {user.first_name},
@@ -2123,16 +2360,11 @@ If you didn’t request this, feel free to ignore it.
         print("❌ Failed to resend confirmation email:", e)
         return jsonify({"error": "Failed to send email"}), 500
 
-    return jsonify({"message": "Confirmation email resent."}), 200
-
-
-from flask_jwt_extended import verify_jwt_in_request
+    return jsonify({"success": True}), 200
 
 
 @app.route("/appointment/<int:appointment_id>")
-@cross_origin(
-    origins=[ALLOWED_ORIGINS, "http://localhost:5173", "http://127.0.0.1:5173"]
-)
+@cross_origin(origins=ALLOWED_ORIGINS)
 def get_public_appointment(appointment_id):
 
     appt = Appointment.query.get(appointment_id)
@@ -2161,7 +2393,7 @@ def get_public_appointment(appointment_id):
             "freelancer_name": appt.freelancer.business_name or "your freelancer",
             "day": appt.slot.day,
             "time": appt.slot.master_time.label,
-            "timezone": "EST",
+            "timezone": appt.freelancer.timezone or "America/New_York",
             "service_name": appt.service.name,
             "business_address": appt.freelancer.business_address or None,
             "calendar_url": calendar_url,
@@ -2171,7 +2403,7 @@ def get_public_appointment(appointment_id):
 
 @app.route("/dev/cleanup-pending", methods=["POST"])
 def cleanup_pending():
-    ten_minutes_ago = datetime.utcnow() - timedelta(minutes=10)
+    ten_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=10)
     expired = Appointment.query.filter(
         Appointment.status == "pending", Appointment.timestamp < ten_minutes_ago
     ).all()
@@ -2187,22 +2419,61 @@ def cleanup_pending():
 @app.route("/cancel-booking/<token>", methods=["GET"])
 def cancel_booking(token):
     try:
-        data = serializer.loads(token, salt="booking-confirm", max_age=86400)
+        data = serializer.loads(
+            token, salt="booking-confirm", max_age=600
+        )  # 600 seconds = 10 min
         appointment_id = data["appointment_id"]
     except SignatureExpired:
         return redirect(f"{FRONTEND_ORIGIN}/expired")
     except BadSignature:
         return redirect(f"{FRONTEND_ORIGIN}/invalid")
 
-    appt = Appointment.query.get(appointment_id)
-    if not appt or appt.status != "pending":
+    appointment = Appointment.query.get(appointment_id)
+    if not appointment or appointment.status != "pending":
         return redirect(f"{FRONTEND_ORIGIN}/not-found")
 
-    appt.status = "cancelled"
-    appt.slot.is_booked = False
-    db.session.commit()
+    appointment.status = "cancelled"
+    appointment.slot.is_booked = False
 
-    return redirect(f"{FRONTEND_ORIGIN}/booking-cancelled")
+    clear_inherited_blocks(
+        freelancer_id=appointment.freelancer_id,
+        day=appointment.slot.day,
+        start_label=appointment.slot.master_time.label,
+        duration_minutes=appointment.service.duration_minutes,
+    )
+
+    db.session.commit()
+    return redirect(
+        f"{FRONTEND_ORIGIN}/booking-page/{appointment.freelancer_id}?cancelled=true"
+    )
+
+
+@app.route("/auth", methods=["POST"])
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
+def freelancer_login():
+    data = request.get_json()
+    email = data.get("email")
+    password = data.get("password")
+
+    if not email or not password:
+        return jsonify({"error": "Missing email or password"}), 400
+
+    freelancer = Freelancer.query.filter_by(email=email).first()
+    if not freelancer or not check_password_hash(freelancer.password, password):
+        return jsonify({"error": "Invalid login"}), 401
+
+    # ✅ Issue JWT token
+    access_token = create_access_token(identity=str(freelancer.id))
+
+    return (
+        jsonify(
+            {
+                "access_token": access_token,
+                "freelancer_id": freelancer.id,  # optional, for convenience
+            }
+        ),
+        200,
+    )
 
 
 @app.route("/download-ics/<int:appointment_id>")
@@ -2334,8 +2605,7 @@ def stripe_webhook():
     return jsonify(success=True), 200
 
 
-@app.route("/check-session/<session_id>", methods=["GET"])
-@jwt_required()
+@app.route("/check-session-status/<session_id>", methods=["GET"])
 def check_session_status(session_id):
     try:
         session = stripe.checkout.Session.retrieve(session_id)
@@ -2360,40 +2630,36 @@ def check_session_status(session_id):
         return jsonify({"error": "Failed to verify session"}), 500
 
 
-from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
+@app.route("/check-booking-status/<int:freelancer_id>", methods=["GET", "OPTIONS"])
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
+def check_booking_status(freelancer_id):
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
 
-from flask_jwt_extended import verify_jwt_in_request, get_jwt
-from flask_jwt_extended.exceptions import NoAuthorizationError
-from flask import abort
+    email = request.args.get("email")
+    if not email:
+        return jsonify({"error": "Missing email"}), 400
 
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"status": "none"})
 
-@app.route("/refresh", methods=["POST"])
-@cross_origin()
-def refresh_token():
-    try:
-        verify_jwt_in_request(optional=True)  # Let us inspect token safely
-        identity = get_jwt_identity()
+    active = (
+        Appointment.query.filter_by(freelancer_id=freelancer_id, user_id=user.id)
+        .filter(Appointment.status.in_(["pending", "confirmed"]))
+        .first()
+    )
 
-        if not identity:
-            print("❌ No identity found in token")
-            return jsonify({"error": "Invalid token"}), 401
+    if not active:
+        return jsonify({"status": "none"})
 
-        print(f"🔁 Refreshing token for identity: {identity}")
-        new_token = create_access_token(identity=identity)
-        return jsonify(access_token=new_token), 200
-
-    except NoAuthorizationError as e:
-        print("❌ No token found:", e)
-        return jsonify({"error": "Missing token"}), 401
-    except Exception as e:
-        print("❌ Token refresh failed:", str(e))
-        return jsonify({"error": "Token invalid or expired"}), 401
+    return jsonify({"status": active.status})
 
 
 def purge_old_pending():
     with app.app_context():
         print("🧹 Running startup cleanup for expired pending bookings...")
-        cutoff = datetime.utcnow() - timedelta(minutes=10)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
         expired = Appointment.query.filter(
             Appointment.status == "pending", Appointment.timestamp < cutoff
         ).all()
@@ -2405,6 +2671,21 @@ def purge_old_pending():
         db.session.commit()
         print(f"✅ Cleaned {len(expired)} expired pending bookings.")
 
+
+def start_pending_cleanup_loop():
+    def run_cleanup():
+        with app.app_context():
+            while True:
+                purge_old_pending()
+                print("🧹 Pending cleanup ran automatically")
+                time.sleep(120)  # Run every 2 minutes (120 sec)
+
+    thread = threading.Thread(target=run_cleanup, daemon=True)
+    thread.start()
+
+
+# Call this BEFORE app.run()
+start_pending_cleanup_loop()
 
 # Run once at startup
 purge_old_pending()

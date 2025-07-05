@@ -13,6 +13,7 @@ import { showToast } from "../utils/toast";
 import ServiceCard from "../components/ServiceCard";
 import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../utils/constants";
+import HoneypotInput from "../components/HoneypotInput";
 
 export default function BookingPage() {
   const { freelancerId } = useParams();
@@ -42,6 +43,11 @@ export default function BookingPage() {
   const [selectedServiceId, setSelectedServiceId] = useState(null);
   const [selectedServiceDuration, setSelectedServiceDuration] = useState(0);
   const [noShowPolicy, setNoShowPolicy] = useState("");
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const [honeypot, setHoneypot] = useState(""); // Test honeypot by changing default value
+  const [submitting, setSubmitting] = useState(false);
+  const [bookingStatus, setBookingStatus] = useState(null);
+  // null = unknown, "pending", "confirmed", "none"
 
   const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const getRequiredBlocks = (durationMinutes) =>
@@ -61,6 +67,23 @@ export default function BookingPage() {
     return map[tz] || "Local";
   };
 
+  const parseTimeToDate = (timeStr) => {
+    const [h, m] = timeStr.split(/[: ]/);
+    let hour = parseInt(h),
+      minute = parseInt(m);
+    if (timeStr.includes("PM") && hour !== 12) hour += 12;
+    if (timeStr.includes("AM") && hour === 12) hour = 0;
+    const date = new Date();
+    date.setHours(hour, minute, 0, 0);
+    return date;
+  };
+
+  const sortSlots = (slots) => {
+    return [...slots].sort((a, b) => {
+      return parseTimeToDate(a.time) - parseTimeToDate(b.time);
+    });
+  };
+
   const fetchFreelancerInfo = () => {
     axios
       .get(`${API_BASE}/freelancer/public-info/${freelancerId}`)
@@ -72,6 +95,7 @@ export default function BookingPage() {
         setServices(enabled);
         if (enabled.length === 1) {
           setSelectedServiceId(enabled[0].id);
+          setSelectedServiceDuration(enabled[0].duration_minutes || 0);
         }
       })
       .catch((err) => {
@@ -79,66 +103,233 @@ export default function BookingPage() {
       });
   };
 
-  useEffect(() => {
-    fetchSlots();
-    fetchFreelancerInfo(); // already does all the branding/service logic
-  }, [freelancerId]);
+  const checkBookingStatus = async (targetEmail) => {
+    try {
+      const res = await axios.get(
+        `${API_BASE}/check-booking-status/${freelancerId}`,
+        { params: { email: targetEmail } }
+      );
 
-  const fetchSlots = () => {
-    setLoading(true);
+      if (res.data.status === "confirmed") {
+        setBookingStatus("confirmed");
+        return "confirmed";
+      } else if (res.data.status === "pending") {
+        setBookingStatus("pending");
+        return "pending";
+      } else {
+        setBookingStatus("none");
+        return "none";
+      }
+    } catch (err) {
+      console.error("Booking status check failed", err);
+      setBookingStatus("none"); // Explicitly reset to known state
+      return "none";
+    }
+  };
+
+  const [resendLoading, setResendLoading] = useState(false);
+
+  const resendConfirmation = (appointmentId) => {
+    if (resendLoading) return;
+    setResendLoading(true);
+
     axios
-      .get(`${API_BASE}/freelancer/slots/${freelancerId}`)
-      .then((res) => {
-        const sorted = [...res.data].sort((a, b) => {
-          const toDate = (timeStr) => {
-            const [h, m] = timeStr.split(/[: ]/);
-            let hour = parseInt(h),
-              minute = parseInt(m);
-            const isPM = timeStr.includes("PM");
-            if (isPM && hour !== 12) hour += 12;
-            if (!isPM && hour === 12) hour = 0;
-            const date = new Date();
-            date.setHours(hour, minute, 0, 0);
-            return date;
-          };
-          return toDate(a.time) - toDate(b.time);
-        });
-        setSlots(sorted);
+      .post(`${API_BASE}/resend-confirmation/${appointmentId}`)
+      .then(() => {
+        showToast("✅ Confirmation email sent.", "success");
       })
       .catch((err) => {
-        console.error("❌ Failed to fetch slots", err);
-        setError("Booking page unavailable.");
+        const msg = err.response?.data?.error || "Resend failed.";
+
+        if (msg.includes("already cancelled")) {
+          showToast(
+            "This appointment was already cancelled. Please refresh and book again.",
+            "warning",
+            3000
+          );
+        } else if (msg.includes("already confirmed")) {
+          showToast(
+            "This appointment is already confirmed. No further action needed.",
+            "info",
+            3000
+          );
+        } else {
+          showToast(msg, "error", 3000);
+        }
       })
-      .finally(() => setLoading(false));
+      .finally(() => setResendLoading(false));
+  };
+
+  useEffect(() => {
+    fetchSlots();
+    fetchFreelancerInfo();
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("cancelled") === "true") {
+      showToast("✅ Your booking was cancelled.", "success");
+      fetchSlots();
+      setBookingStatus("none");
+    }
+
+    const interval = setInterval(() => {
+      const lastBookingTime = localStorage.getItem("last_booking_time");
+      if (lastBookingTime) {
+        const elapsed = Date.now() - lastBookingTime;
+        // const remaining = Math.max(0, 120000 - elapsed); // 120000ms = 2 minutes, 120 seconds
+        const remaining = Math.max(0, 20000 - elapsed); // 20 second cooldown
+        setCooldownRemaining(Math.ceil(remaining / 1000));
+      } else {
+        setCooldownRemaining(0);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [freelancerId]);
+
+  useEffect(() => {
+    if (!email) return;
+    const timeout = setTimeout(() => {
+      checkBookingStatus(email); // Always check status — backend handles auth protection
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [email]);
+
+  const fetchSlots = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(
+        `${API_BASE}/freelancer/slots/${freelancerId}`
+      );
+      setSlots(sortSlots(res.data));
+    } catch (err) {
+      console.error("❌ Failed to fetch slots", err);
+      setError("Booking page unavailable.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const navigate = useNavigate(); // ⬅ place this inside BookingPage()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedSlotId) return;
+    if (submitting || !selectedSlotId) return;
+    setSubmitting(true);
 
-    axios
-      .post(`${API_BASE}/book`, {
+    const res = await axios.get(`${API_BASE}/freelancer/slots/${freelancerId}`);
+    const sorted = sortSlots(res.data);
+
+    const latestSlot = sorted.find((s) => s.id === selectedSlotId);
+    if (!latestSlot || latestSlot.is_booked || latestSlot.is_inherited_block) {
+      showToast(
+        "❌ That slot is no longer available. Please refresh.",
+        "error"
+      );
+      setSelectedSlotId(null);
+      setSubmitting(false);
+      return;
+    }
+
+    const lastBookingTime = localStorage.getItem("last_booking_time");
+    const now = Date.now();
+
+    // Testing, switch between 20 seconds and 120 seconds (2 min)
+    if (lastBookingTime && now - lastBookingTime < 20 * 1000) {
+      showToast("⏳ Please wait before booking again.", "error");
+      setSubmitting(false);
+      return;
+    }
+
+    const emailRegex = /^[A-Za-z0-9]+[\w.-]*@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+    if (!emailRegex.test(email)) {
+      showToast("❌ Please enter a valid email address.", "error");
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      const status = await checkBookingStatus(email);
+
+      const payload = {
         first_name: firstName,
         last_name: lastName,
         email,
         phone,
         slot_id: selectedSlotId,
         service_id: selectedServiceId,
-      })
-      .then((res) => {
-        showToast("📨 Redirecting you now...", "info", 3000); // 3 sec blue toast
-        const appointmentId = res.data.appointment_id;
-        setTimeout(() => {
-          navigate(`/booking-success?appointment_id=${appointmentId}`);
-        }, 1000); // wait 1 sec before redirect
-      })
-      .catch((err) => {
-        const msg = err.response?.data?.error || "Booking failed";
-        showToast(msg, "error");
-        console.error("❌", msg);
-      });
+      };
+
+      payload.website = honeypot?.trim() || "";
+
+      axios
+        .post(`${API_BASE}/book`, payload)
+        .then((res) => {
+          if (res?.status !== 200 || !res?.data?.appointment_id) {
+            throw new Error("Booking failed. Please try again.");
+          }
+          localStorage.setItem("last_booking_time", Date.now());
+          setCooldownRemaining(90);
+          showToast("📨 Booking successful, updating slots...", "info", 1500);
+          fetchSlots();
+          setSelectedSlotId(null);
+          setSubmitting(false);
+          setTimeout(() => {
+            navigate(
+              `/booking-success?appointment_id=${res.data.appointment_id}`
+            );
+          }, 1500);
+        })
+        .catch((err) => {
+          const msg =
+            err.response?.data?.error || err.message || "Booking failed";
+
+          if (msg.includes("already have a booking")) {
+            const wrapper = document.createElement("div");
+            const text1 = document.createElement("p");
+            text1.textContent =
+              "You're already booked with this freelancer! You'll need to cancel first.";
+            text1.style.fontWeight = "bold";
+            text1.style.fontSize = "0.95rem";
+            text1.style.marginBottom = "0.5rem";
+            wrapper.appendChild(text1);
+
+            const appointmentId = err.response?.data?.appointment_id;
+            const extractedId = !appointmentId && msg?.match(/ID: (\d+)/)?.[1];
+            const safeAppointmentId = appointmentId || extractedId;
+
+            if (status === "pending" && safeAppointmentId) {
+              const resendBtn = document.createElement("button");
+              resendBtn.textContent = "Resend confirmation email";
+              resendBtn.className =
+                "underline text-purple-800 cursor-pointer text-sm";
+              resendBtn.disabled = resendLoading;
+              resendBtn.onclick = () => resendConfirmation(safeAppointmentId);
+              wrapper.appendChild(resendBtn);
+            } else if (status === "confirmed") {
+              const msgElem = document.createElement("p");
+              msgElem.textContent =
+                "This appointment is already confirmed. You're good to go!";
+              msgElem.className = "text-white text-sm mt-1";
+              wrapper.appendChild(msgElem);
+            } else {
+              const fallback = document.createElement("p");
+              fallback.textContent =
+                "Status unknown — please check your email.";
+              fallback.className = "text-yellow-400 text-sm mt-1";
+              wrapper.appendChild(fallback);
+            }
+
+            showToast(wrapper, "error", 8000);
+          } else {
+            showToast(msg, "error");
+          }
+          setSubmitting(false);
+          console.error("❌", msg);
+        });
+    } catch (err) {
+      console.error("Booking status check failed", err);
+      setSubmitting(false);
+    }
   };
 
   const convertToUserTime = (time, sourceTZ, userTZ) => {
@@ -215,6 +406,36 @@ export default function BookingPage() {
                   onClick={() => {
                     setSelectedServiceId(service.id);
                     setSelectedServiceDuration(service.duration_minutes);
+
+                    const requiredBlocks = getRequiredBlocks(
+                      service.duration_minutes
+                    );
+                    const index = filteredSlots.findIndex(
+                      (s) => s.id === selectedSlotId
+                    );
+
+                    if (index === -1) {
+                      setSelectedSlotId(null);
+                      return;
+                    }
+
+                    const futureSlots = filteredSlots.slice(index);
+                    const relevantSlice = futureSlots.slice(0, requiredBlocks);
+
+                    const visibleFree = relevantSlice.every(
+                      (s) => !s.is_booked && !s.is_inherited_block
+                    );
+
+                    const missingBlocks = requiredBlocks - relevantSlice.length;
+                    const startSlot = futureSlots[0];
+                    const lastSlotId =
+                      filteredSlots[filteredSlots.length - 1]?.id;
+                    const isLastSlot = startSlot?.id === lastSlotId;
+
+                    const valid =
+                      visibleFree && (missingBlocks <= 0 || isLastSlot);
+
+                    if (!valid) setSelectedSlotId(null);
                   }}
                 />
               </div>
@@ -246,9 +467,35 @@ export default function BookingPage() {
                 const selectedService = services.find(
                   (s) => s.id === serviceId
                 );
-                setSelectedServiceDuration(
-                  selectedService?.duration_minutes || 0
+                const newDuration = selectedService?.duration_minutes || 0;
+                setSelectedServiceDuration(newDuration);
+
+                // Recalculate if current slot still valid
+                const requiredBlocks = getRequiredBlocks(newDuration);
+                const index = filteredSlots.findIndex(
+                  (s) => s.id === selectedSlotId
                 );
+
+                if (index === -1) {
+                  setSelectedSlotId(null);
+                  return;
+                }
+
+                const futureSlots = filteredSlots.slice(index);
+                const relevantSlice = futureSlots.slice(0, requiredBlocks);
+
+                const visibleFree = relevantSlice.every(
+                  (s) => !s.is_booked && !s.is_inherited_block
+                );
+
+                const missingBlocks = requiredBlocks - relevantSlice.length;
+                const startSlot = futureSlots[0];
+                const lastSlotId = filteredSlots[filteredSlots.length - 1]?.id;
+                const isLastSlot = startSlot?.id === lastSlotId;
+
+                const valid = visibleFree && (missingBlocks <= 0 || isLastSlot);
+
+                if (!valid) setSelectedSlotId(null);
               }}
               required
             >
@@ -277,17 +524,24 @@ export default function BookingPage() {
 
             const handleSelectSlot = () => {
               const requiredBlocks = getRequiredBlocks(selectedServiceDuration);
-              const futureSlots = filteredSlots.slice(index); // all slots from this point on
+              const futureSlots = filteredSlots.slice(index);
 
-              // Get the slice we need for this booking
               const relevantSlice = futureSlots.slice(0, requiredBlocks);
 
-              // Check if all blocks that exist are free
-              const allAreFree = relevantSlice.every(
+              // NEW LOGIC: Allow booking even if inherited blocks go beyond seeded slots
+              const visibleFree = relevantSlice.every(
                 (s) => !s.is_booked && !s.is_inherited_block
               );
 
-              if (!allAreFree) {
+              const slotsExist = relevantSlice.length;
+              const missingSlots = requiredBlocks - slotsExist;
+
+              const startSlot = futureSlots[0];
+              if (
+                !startSlot ||
+                startSlot.is_booked ||
+                startSlot.is_inherited_block
+              ) {
                 showToast(
                   "❌ That time overlaps with an existing booking. Try a different time slot.",
                   "error"
@@ -295,7 +549,21 @@ export default function BookingPage() {
                 return;
               }
 
-              // ✅ Even if there aren't enough future blocks, we'll allow it — assume free time
+              if (!visibleFree) {
+                showToast(
+                  "❌ That time overlaps with an existing booking. Try a different time slot.",
+                  "error"
+                );
+                return;
+              }
+
+              // ⚡ If slots run out but it's the last visible slot — allow inherited blocks to fall off map
+              if (missingSlots > 0 && !isSelected) {
+                console.warn(
+                  "⚠️ Booking extends beyond visible slots — inherited blocks will apply server-side."
+                );
+              }
+
               setSelectedSlotId((prev) => (prev === slot.id ? null : slot.id));
             };
 
@@ -311,6 +579,7 @@ export default function BookingPage() {
                   }`}
                   onClick={() => {
                     if (slot.is_booked || slot.is_inherited_block) return;
+                    if (loading) return;
                     if (!selectedServiceId) {
                       showToast("❌ Please select a service first.", "error");
                       return;
@@ -354,6 +623,11 @@ export default function BookingPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {cooldownRemaining > 0 && (
+          <p className="text-center text-yellow-400 text-sm mb-2">
+            ⏳ You can book again in {cooldownRemaining} seconds.
+          </p>
+        )}
         <h3 className="text-lg font-semibold text-center border-b pb-1">
           Your Name & Contact Info
         </h3>
@@ -380,7 +654,7 @@ export default function BookingPage() {
           placeholder="Your email"
           className="input input-bordered w-full"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => setEmail(e.target.value.trim())}
           required
         />
 
@@ -393,13 +667,24 @@ export default function BookingPage() {
           required
         />
 
+        <HoneypotInput value={honeypot} setValue={setHoneypot} />
+
         <button
-          className={`btn w-full btn-primary ${
-            !selectedSlotId ? "opacity-50 cursor-not-allowed" : ""
+          className={`btn w-full ${
+            submitting || !selectedSlotId
+              ? "opacity-50 cursor-not-allowed btn-primary"
+              : cooldownRemaining > 0
+              ? "btn-outline text-white border-yellow-500"
+              : "btn-primary"
           }`}
-          disabled={!selectedSlotId}
+          disabled={!selectedSlotId || submitting}
+          type="submit"
         >
-          Book Appointment
+          {submitting
+            ? "Submitting..."
+            : cooldownRemaining > 0
+            ? `Please wait (${cooldownRemaining}s)`
+            : "Book Appointment"}
         </button>
       </form>
 

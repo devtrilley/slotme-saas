@@ -5,6 +5,7 @@ import { API_BASE } from "../utils/constants";
 import { showToast } from "../utils/toast";
 
 import { useFreelancer } from "../context/FreelancerContext";
+import axios from "../utils/axiosInstance"; // ✅ at the top
 
 export default function UpgradeSuccess() {
   const { freelancer, setFreelancer } = useFreelancer();
@@ -26,14 +27,27 @@ export default function UpgradeSuccess() {
       }
 
       try {
-        const res = await fetch(`${API_BASE}/check-session/${sessionId}`);
+        const res = await fetch(
+          `${API_BASE}/check-session-status/${sessionId}`
+        );
 
         const data = await res.json();
 
         if (res.ok && (data.tier === "pro" || data.tier === "elite")) {
           // 🔄 Refetch full freelancer info and update localStorage
-          const infoRes = await fetch(`${API_BASE}/freelancer-info`);
-          const infoData = await infoRes.json();
+
+          // Inside your try block:
+          const infoRes = await axios.get("/freelancer-info");
+          const infoData = infoRes.data;
+
+          if (infoData.tier !== data.tier) {
+            console.warn(
+              "⚠️ Mismatch between backend tier and Stripe tier:",
+              infoData.tier,
+              data.tier
+            );
+          }
+
           localStorage.setItem("freelancer", JSON.stringify(infoData));
           setFreelancer(infoData);
 

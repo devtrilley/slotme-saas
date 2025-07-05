@@ -87,6 +87,9 @@ class TimeSlot(db.Model):
     )
     is_booked = db.Column(db.Boolean, default=False)
 
+    # ✅ New field to track inherited block status
+    is_inherited_block = db.Column(db.Boolean, default=False)
+
     master_time = db.relationship("MasterTimeSlot", back_populates="slots")
     appointment = db.relationship("Appointment", back_populates="slot", uselist=False)
 

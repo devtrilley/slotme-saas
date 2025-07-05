@@ -15,6 +15,9 @@ export default function PrioritySupportPage() {
     setStatus("loading");
 
     try {
+      const token = localStorage.getItem("access_token");
+      if (!token) return; // Prevent firing unauthenticated
+
       await axios.post(`${API_BASE}/freelancer/support`, {
         subject,
         message,

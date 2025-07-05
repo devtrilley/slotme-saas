@@ -12,6 +12,12 @@ export default function ServiceForm({ onServiceAdded }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      showToast("Please log in to add a service.", "error");
+      return;
+    }
+
     setLoading(true);
     axios
       .post(`${API_BASE}/freelancer/services`, {

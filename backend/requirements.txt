@@ -1,0 +1,9 @@
+flask
+flask-cors
+python-dotenv
+itsdangerous
+werkzeug
+flask-jwt-extended
+pytz
+stripe
+sqlalchemyflask_sqlalchemy

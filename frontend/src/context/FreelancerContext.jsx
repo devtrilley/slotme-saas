@@ -16,5 +16,5 @@ export function FreelancerProvider({ children }) {
 }
 
 export function useFreelancer() {
-  return useContext(FreelancerContext);
+  return useContext(FreelancerContext) || {};
 }

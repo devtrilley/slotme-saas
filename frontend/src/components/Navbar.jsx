@@ -10,7 +10,6 @@ export default function Navbar() {
   const handleLogout = (type) => {
     if (type === "dev") {
       localStorage.removeItem("dev_logged_in");
-      closeTokenChannel();
       navigate("/dev-login");
     } else if (type === "freelancer") {
       localStorage.removeItem("freelancer_logged_in");
@@ -18,14 +17,20 @@ export default function Navbar() {
       localStorage.removeItem("freelancer_id");
       localStorage.removeItem("branding_updated");
       localStorage.removeItem("client_id");
-      closeTokenChannel();
-      showToast("👋 Logged out successfully", "success");
       navigate("/auth");
     }
+
+    closeTokenChannel();
+    showToast(
+      `👋 Logged out as ${type === "dev" ? "Dev" : "Freelancer"}`,
+      "success"
+    );
   };
 
   const renderLinks = () => (
     <>
+      {/* Section 1: General Public Links */}
+      <li className="menu-title text-xs text-gray-400 px-2">Public Tabs</li>
       <li>
         <Link to="/">Home</Link>
       </li>
@@ -38,9 +43,15 @@ export default function Navbar() {
       <li>
         <Link to="/feedback">Feedback</Link>
       </li>
-
+  
+      {(isFreelancerLoggedIn || isDevLoggedIn) && (
+        <div className="my-2 h-px bg-gray-600 opacity-40" />
+      )}
+  
+      {/* Section 2: Freelancer Links */}
       {isFreelancerLoggedIn && (
         <>
+          <li className="menu-title text-xs text-gray-400 px-2">My Account Tabs</li>
           <li>
             <Link to="/freelancer-admin">Dashboard</Link>
           </li>
@@ -51,24 +62,35 @@ export default function Navbar() {
             <Link to="/qr-code">QR Code</Link>
           </li>
           <li>
+            <Link to={`/freelancers/${localStorage.getItem("freelancer_id")}`}>
+              My Public Profile
+            </Link>
+          </li>
+          <li>
             <Link to="/freelancer-analytics">Analytics</Link>
           </li>
           <li>
             <Link to="/priority-support">Priority Support</Link>
           </li>
           <li>
-            <button onClick={() => handleLogout("freelancer")}>Logout</button>
+            <button onClick={() => handleLogout("freelancer")}>
+              Logout as Freelancer
+            </button>
           </li>
+  
+          {isDevLoggedIn && <div className="my-2 h-px bg-gray-600 opacity-40" />}
         </>
       )}
-
+  
+      {/* Section 3: Developer Tools */}
       {isDevLoggedIn && (
         <>
+          <li className="menu-title text-xs text-gray-400 px-2">Developer Tabs</li>
           <li>
             <Link to="/dev-admin">Dev Panel</Link>
           </li>
           <li>
-            <button onClick={() => handleLogout("dev")}>Logout</button>
+            <button onClick={() => handleLogout("dev")}>Logout as Dev</button>
           </li>
         </>
       )}

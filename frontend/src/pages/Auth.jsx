@@ -15,6 +15,8 @@ export default function Auth({ clearSession }) {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const nextPage = params.get("next") || "/freelancer-admin";
   const showSessionExpired = location.state?.sessionExpired === true;
 
   const handleSubmit = async (e) => {
@@ -52,7 +54,7 @@ export default function Auth({ clearSession }) {
 
         if (clearSession) clearSession();
 
-        navigate("/freelancer-admin");
+        navigate(nextPage);
       }
     } catch (err) {
       const msg = err.response?.data?.error || "Something went wrong.";
