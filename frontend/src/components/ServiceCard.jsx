@@ -85,7 +85,26 @@ export default function ServiceCard({
         if (isPublicView && onClick) {
           setIsFlashing(true);
           onClick();
-          setTimeout(() => setIsFlashing(false), 500); // keep your preferred duration
+
+          const wrapper = document.getElementById("service-select-wrapper");
+          if (wrapper) {
+            wrapper.classList.add(
+              "ring-2",
+              "ring-blue-400",
+              "ring-offset-2",
+              "ring-offset-black"
+            );
+            setTimeout(() => {
+              wrapper.classList.remove(
+                "ring-2",
+                "ring-blue-400",
+                "ring-offset-2",
+                "ring-offset-black"
+              );
+            }, 1000);
+          }
+
+          setTimeout(() => setIsFlashing(false), 1000);
         }
       }}
       className={`bg-white/10 backdrop-blur-md rounded-xl px-4 py-4 list-none space-y-2 cursor-pointer transition-all duration-300 border ${

@@ -10,9 +10,15 @@ import { API_BASE } from "../utils/constants";
 export default function AddSlotForm({ onAdd }) {
   const [mode, setMode] = useState("single");
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [hour, setHour] = useState("12");
-  const [minute, setMinute] = useState("00");
-  const [ampm, setAmpm] = useState("AM");
+  const [hour, setHour] = useState(
+    () => localStorage.getItem("slot_hour") || "12"
+  );
+  const [minute, setMinute] = useState(
+    () => localStorage.getItem("slot_minute") || "00"
+  );
+  const [ampm, setAmpm] = useState(
+    () => localStorage.getItem("slot_ampm") || "AM"
+  );
   const [timezone, setTimezone] = useState(
     Intl.DateTimeFormat().resolvedOptions().timeZone
   );
@@ -119,11 +125,20 @@ export default function AddSlotForm({ onAdd }) {
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
           hour={hour}
-          setHour={setHour}
+          setHour={(h) => {
+            setHour(h);
+            localStorage.setItem("slot_hour", h);
+          }}
           minute={minute}
-          setMinute={setMinute}
+          setMinute={(m) => {
+            setMinute(m);
+            localStorage.setItem("slot_minute", m);
+          }}
           ampm={ampm}
-          setAmpm={setAmpm}
+          setAmpm={(a) => {
+            setAmpm(a);
+            localStorage.setItem("slot_ampm", a);
+          }}
           timezone={timezone}
           setTimezone={setTimezone}
           masterTimes={masterTimes}

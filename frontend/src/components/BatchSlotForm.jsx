@@ -9,13 +9,30 @@ import { API_BASE } from "../utils/constants";
 export default function BatchSlotForm({ onBatchAdd }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  const [startHour, setStartHour] = useState("12");
-  const [startMinute, setStartMinute] = useState("00");
-  const [startAMPM, setStartAMPM] = useState("PM");
+  const [startHour, setStartHour] = useState(
+    () => localStorage.getItem("slot_hour") || "12"
+  );
+  const [startMinute, setStartMinute] = useState(
+    () => localStorage.getItem("slot_minute") || "00"
+  );
+  const [startAMPM, setStartAMPM] = useState(
+    () => localStorage.getItem("slot_ampm") || "AM"
+  );
 
-  const [endHour, setEndHour] = useState("07");
+  const [endHour, setEndHour] = useState(() => {
+    const h = parseInt(localStorage.getItem("slot_hour") || "12", 10);
+    const newH = h === 12 ? 1 : h + 1;
+    return String(newH).padStart(2, "0");
+  });
   const [endMinute, setEndMinute] = useState("00");
-  const [endAMPM, setEndAMPM] = useState("PM");
+  const [endAMPM, setEndAMPM] = useState(() => {
+    const lastAMPM = localStorage.getItem("slot_ampm") || "AM";
+    const h = parseInt(localStorage.getItem("slot_hour") || "12", 10);
+    if (h === 11 || h === 12) {
+      return lastAMPM === "AM" ? "PM" : "AM";
+    }
+    return lastAMPM;
+  });
 
   const [interval, setInterval] = useState("15");
   const [loading, setLoading] = useState(false);
@@ -116,7 +133,10 @@ export default function BatchSlotForm({ onBatchAdd }) {
           <select
             className="select select-bordered w-1/3"
             value={startHour}
-            onChange={(e) => setStartHour(e.target.value)}
+            onChange={(e) => {
+              setStartHour(e.target.value);
+              localStorage.setItem("slot_hour", e.target.value);
+            }}
           >
             {[...Array(12)].map((_, i) => (
               <option key={i + 1}>{String(i + 1).padStart(2, "0")}</option>
@@ -126,7 +146,10 @@ export default function BatchSlotForm({ onBatchAdd }) {
           <select
             className="select select-bordered w-1/3"
             value={startMinute}
-            onChange={(e) => setStartMinute(e.target.value)}
+            onChange={(e) => {
+              setStartMinute(e.target.value);
+              localStorage.setItem("slot_minute", e.target.value);
+            }}
           >
             {["00", "15", "30", "45"].map((m) => (
               <option key={m}>{m}</option>

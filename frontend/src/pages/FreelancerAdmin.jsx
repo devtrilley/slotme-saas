@@ -324,9 +324,7 @@ export default function AdminPage() {
               </p>
               <p className="text-lg font-semibold flex items-center gap-1">
                 {slot.time}
-                <span className="text-xs text-gray-400">
-                  {branding.timezone?.split("/")[1]?.replace("_", " ") || "EST"}
-                </span>
+                <span className="text-xs text-gray-400">UTC</span>
               </p>
 
               {slot.is_booked || slot.is_inherited_block ? (

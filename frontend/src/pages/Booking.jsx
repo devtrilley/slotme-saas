@@ -459,57 +459,64 @@ export default function BookingPage({ useCustomUrl = false }) {
             <label className="text-sm text-gray-400 block text-center">
               Select a service:
             </label>
-            <select
-              className="select select-bordered w-full"
-              value={selectedServiceId || ""}
-              onChange={(e) => {
-                const serviceId = Number(e.target.value);
-                setSelectedServiceId(serviceId);
-                const selectedService = services.find(
-                  (s) => s.id === serviceId
-                );
-                const newDuration = selectedService?.duration_minutes || 0;
-                setSelectedServiceDuration(newDuration);
-
-                // Recalculate if current slot still valid
-                const requiredBlocks = getRequiredBlocks(newDuration);
-                const index = filteredSlots.findIndex(
-                  (s) => s.id === selectedSlotId
-                );
-
-                if (index === -1) {
-                  setSelectedSlotId(null);
-                  return;
-                }
-
-                const futureSlots = filteredSlots.slice(index);
-                const relevantSlice = futureSlots.slice(0, requiredBlocks);
-
-                const visibleFree = relevantSlice.every(
-                  (s) => !s.is_booked && !s.is_inherited_block
-                );
-
-                const missingBlocks = requiredBlocks - relevantSlice.length;
-                const startSlot = futureSlots[0];
-                const lastSlotId = filteredSlots[filteredSlots.length - 1]?.id;
-                const isLastSlot = startSlot?.id === lastSlotId;
-
-                const valid = visibleFree && (missingBlocks <= 0 || isLastSlot);
-
-                if (!valid) setSelectedSlotId(null);
-              }}
-              required
+            <div
+              id="service-select-wrapper"
+              className="relative transition-all duration-300 rounded-lg overflow-hidden"
             >
-              <option value="" disabled>
-                -- Choose a service --
-              </option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.duration_minutes} min) - $
-                  {s.price_usd?.toFixed(2) || "0.00"}
+              <select
+                className="select select-bordered w-full rounded-lg"
+                value={selectedServiceId || ""}
+                onChange={(e) => {
+                  const serviceId = Number(e.target.value);
+                  setSelectedServiceId(serviceId);
+                  const selectedService = services.find(
+                    (s) => s.id === serviceId
+                  );
+                  const newDuration = selectedService?.duration_minutes || 0;
+                  setSelectedServiceDuration(newDuration);
+
+                  // Recalculate slot logic
+                  const requiredBlocks = getRequiredBlocks(newDuration);
+                  const index = filteredSlots.findIndex(
+                    (s) => s.id === selectedSlotId
+                  );
+
+                  if (index === -1) {
+                    setSelectedSlotId(null);
+                    return;
+                  }
+
+                  const futureSlots = filteredSlots.slice(index);
+                  const relevantSlice = futureSlots.slice(0, requiredBlocks);
+
+                  const visibleFree = relevantSlice.every(
+                    (s) => !s.is_booked && !s.is_inherited_block
+                  );
+
+                  const missingBlocks = requiredBlocks - relevantSlice.length;
+                  const startSlot = futureSlots[0];
+                  const lastSlotId =
+                    filteredSlots[filteredSlots.length - 1]?.id;
+                  const isLastSlot = startSlot?.id === lastSlotId;
+
+                  const valid =
+                    visibleFree && (missingBlocks <= 0 || isLastSlot);
+
+                  if (!valid) setSelectedSlotId(null);
+                }}
+                required
+              >
+                <option value="" disabled>
+                  -- Choose a service --
                 </option>
-              ))}
-            </select>
+                {services.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.duration_minutes} min) - $
+                    {s.price_usd?.toFixed(2) || "0.00"}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         )}
       </div>
@@ -672,7 +679,7 @@ export default function BookingPage({ useCustomUrl = false }) {
         <HoneypotInput value={honeypot} setValue={setHoneypot} />
 
         <button
-          className={`btn w-full ${
+          className={`btn w-full flex items-center justify-center gap-2 ${
             submitting || !selectedSlotId
               ? "opacity-50 cursor-not-allowed btn-primary"
               : cooldownRemaining > 0
@@ -682,6 +689,9 @@ export default function BookingPage({ useCustomUrl = false }) {
           disabled={!selectedSlotId || submitting}
           type="submit"
         >
+          {submitting && (
+            <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-white border-opacity-60"></span>
+          )}
           {submitting
             ? "Submitting..."
             : cooldownRemaining > 0
