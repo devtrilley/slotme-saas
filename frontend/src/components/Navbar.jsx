@@ -1,6 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 import { closeTokenChannel } from "../utils/tokenChannel";
 import { showToast } from "../utils/toast";
+import { useLocation } from "react-router-dom";
+// (Add this to your imports at the top)
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -43,15 +45,17 @@ export default function Navbar() {
       <li>
         <Link to="/feedback">Feedback</Link>
       </li>
-  
+
       {(isFreelancerLoggedIn || isDevLoggedIn) && (
         <div className="my-2 h-px bg-gray-600 opacity-40" />
       )}
-  
+
       {/* Section 2: Freelancer Links */}
       {isFreelancerLoggedIn && (
         <>
-          <li className="menu-title text-xs text-gray-400 px-2">My Account Tabs</li>
+          <li className="menu-title text-xs text-gray-400 px-2">
+            My Account Tabs
+          </li>
           <li>
             <Link to="/freelancer-admin">Dashboard</Link>
           </li>
@@ -77,15 +81,19 @@ export default function Navbar() {
               Logout as Freelancer
             </button>
           </li>
-  
-          {isDevLoggedIn && <div className="my-2 h-px bg-gray-600 opacity-40" />}
+
+          {isDevLoggedIn && (
+            <div className="my-2 h-px bg-gray-600 opacity-40" />
+          )}
         </>
       )}
-  
+
       {/* Section 3: Developer Tools */}
       {isDevLoggedIn && (
         <>
-          <li className="menu-title text-xs text-gray-400 px-2">Developer Tabs</li>
+          <li className="menu-title text-xs text-gray-400 px-2">
+            Developer Tabs
+          </li>
           <li>
             <Link to="/dev-admin">Dev Panel</Link>
           </li>
@@ -97,8 +105,16 @@ export default function Navbar() {
     </>
   );
 
+  const location = useLocation();
+  const stickyExceptions = ["/booking", "/upgrade"];
+  const isSticky = !stickyExceptions.includes(location.pathname);
+
   return (
-    <div className="navbar bg-base-100 shadow-md px-4">
+    <div
+      className={`navbar bg-base-100 shadow-md px-4 ${
+        isSticky ? "sticky top-0 z-50" : ""
+      }`}
+    >
       <div className="navbar-start">
         {/* Mobile Dropdown */}
         <div className="dropdown">

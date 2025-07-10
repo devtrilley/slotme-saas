@@ -7,9 +7,26 @@ import BatchSlotForm from "./BatchSlotForm";
 import SingleSlotForm from "./SingleSlotForm";
 import { API_BASE } from "../utils/constants";
 
-export default function AddSlotForm({ onAdd }) {
+export default function AddSlotForm({ onAdd, syncWith, setSyncDate }) {
   const [mode, setMode] = useState("single");
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(syncWith || new Date());
+
+  // Sync DOWN from admin page
+  useEffect(() => {
+    if (syncWith && syncWith.toDateString() !== selectedDate.toDateString()) {
+      setSelectedDate(syncWith);
+    }
+  }, [syncWith]);
+
+  // Sync UP to admin page when user selects a date
+  useEffect(() => {
+    if (
+      setSyncDate &&
+      selectedDate.toDateString() !== syncWith?.toDateString()
+    ) {
+      setSyncDate(selectedDate);
+    }
+  }, [selectedDate]);
   const [hour, setHour] = useState(
     () => localStorage.getItem("slot_hour") || "12"
   );
@@ -27,6 +44,11 @@ export default function AddSlotForm({ onAdd }) {
   const [error, setError] = useState("");
   const [timesLoading, setTimesLoading] = useState(true);
   const [userChangedDate, setUserChangedDate] = useState(false);
+  const [date, setDate] = useState(syncWith || new Date());
+
+  useEffect(() => {
+    if (syncWith) setDate(syncWith);
+  }, [syncWith]);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -147,7 +169,16 @@ export default function AddSlotForm({ onAdd }) {
         />
       )}
 
-      {mode === "batch" && <BatchSlotForm onBatchAdd={onAdd} />}
+      {mode === "batch" && (
+        <BatchSlotForm
+          onBatchAdd={onAdd}
+          selectedDate={selectedDate}
+          setSelectedDate={(newDate) => {
+            setSelectedDate(newDate);
+            if (setSyncDate) setSyncDate(newDate);
+          }}
+        />
+      )}
     </div>
   );
 }

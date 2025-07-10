@@ -398,7 +398,14 @@ def book_slot():
 
     # Block after 2 successful bookings from same IP in window
     if len(ip_attempts[client_ip]) >= 2:
-        return jsonify({"error": "Too many booking attempts, please wait"}), 429
+        return (
+            jsonify(
+                {
+                    "error": "You're booking too fast — please wait a few moments before trying again."
+                }
+            ),
+            429,
+        )
 
     # 🛡️ Honeypot Silent Bot Trap (Dynamic Field + Extra Key Detection)
     HUMAN_FIELDS = {
@@ -1467,7 +1474,7 @@ def send_support_request():
 
         body = f"""
         Tier: {freelancer.tier}
-        Name: {freelancer.name}
+        Name: {freelancer.first_name} {freelancer.last_name}
         Email: {freelancer.email}
 
         Message:
@@ -1972,7 +1979,7 @@ def send_confirmation_email(freelancer_id):
     freelancer.confirmation_token = token
     db.session.commit()
 
-    confirm_url = f"http://localhost:5173/verify-freelancer?token={token}"
+    confirm_url = f"{FRONTEND_ORIGIN}/verify-freelancer?token={token}"
     print(f"🔗 Confirmation link: {confirm_url}")
 
     send_feedback_submission(
@@ -2038,7 +2045,7 @@ def signup_freelancer():
     new_freelancer.confirmation_token = token
     db.session.commit()
 
-    confirm_url = f"http://localhost:5173/verify-freelancer?token={token}"
+    confirm_url = f"{FRONTEND_ORIGIN}/verify-freelancer?token={token}"
     print(f"📨 Confirmation URL: {confirm_url}")
 
     # ✅ Send verification email
@@ -2050,7 +2057,7 @@ def signup_freelancer():
     Thanks for signing up for SlotMe!
 
     Before you can log in, please confirm your email address by clicking the link below:
-    http://localhost:5173/signup-confirmed
+    {FRONTEND_ORIGIN}/signup-confirmed
 
     Once confirmed, you’ll have access to your dashboard and can start booking clients.
 
@@ -2119,10 +2126,13 @@ Message:
 def create_batch_slots():
     data = request.get_json()
     freelancer_id = get_jwt_identity()
-    day = data.get("day")
+    start_day = data.get("start_day")
+    end_day = data.get("end_day") or start_day  # default to same day if no crossing
     start_time = data.get("start_time")  # e.g., "12:00 PM"
     end_time = data.get("end_time")  # e.g., "7:00 PM"
     interval = int(data.get("interval", 15))
+    if interval < 15 or interval % 15 != 0:
+        return jsonify({"error": "Interval must be a multiple of 15 minutes"}), 400
 
     master_times = MasterTimeSlot.query.order_by(MasterTimeSlot.time_24h).all()
     time_labels = [t.label for t in master_times]
@@ -2130,7 +2140,7 @@ def create_batch_slots():
     # Load appointment time blocks
     appointments = (
         Appointment.query.join(TimeSlot, Appointment.slot_id == TimeSlot.id)
-        .filter(TimeSlot.day == day)  # <- only slots on the selected day
+        .filter(TimeSlot.day.in_([start_day, end_day]))
         .filter(Appointment.freelancer_id == freelancer_id)
         .filter(Appointment.status != "cancelled")
         .all()
@@ -2150,43 +2160,76 @@ def create_batch_slots():
         except:
             continue
 
-    # Build time block list from start to end
+    # Build time block list from start to end, supports wrap-around past midnight
     times_to_create = []
-    in_range = False
-    for label in time_labels:
-        if label == start_time:
-            in_range = True
-        if in_range:
-            if label == end_time:
-                break  # don't include the endpoint
+    label_count = len(time_labels)
+    start_index = time_labels.index(start_time)
+    end_index = time_labels.index(end_time)
+
+    # Build time block list from start to end, supports wrap-around past midnight
+    times_to_create = []
+    label_to_time = {
+        label: datetime.strptime(label, "%I:%M %p") for label in time_labels
+    }
+
+    start_dt = datetime.strptime(start_time, "%I:%M %p")
+    end_dt = datetime.strptime(end_time, "%I:%M %p")
+
+    current_time = start_dt
+    while current_time < end_dt:
+        label = current_time.strftime("%I:%M %p")
+        if label not in time_labels:
+            print(f"⚠️ Skipped: {label} not in master time slots")
+        else:
             times_to_create.append(label)
-    times_to_create = times_to_create[:: interval // 15]
+        current_time += timedelta(minutes=interval)
 
     created = []
     label_to_master_id = {m.label: m.id for m in master_times}
 
     existing_ids = {
-        s.master_time_id
-        for s in TimeSlot.query.filter_by(freelancer_id=freelancer_id, day=day).all()
+        (s.day, s.master_time_id)
+        for s in TimeSlot.query.filter_by(freelancer_id=freelancer_id)
+        .filter(TimeSlot.day.in_([start_day, end_day]))
+        .all()
     }
 
     created = []
+    start_time_obj = datetime.strptime(start_time, "%I:%M %p")
+    id_to_label = {
+        m.id: m.label for m in master_times
+    }  # ✅ build this ONCE outside the loop
+
     for label in times_to_create:
         master_id = label_to_master_id.get(label)
-        if not master_id or master_id in existing_ids:
+        if not master_id:
+            continue
+
+        slot_day = start_day
+
+        start_dt = datetime.strptime(start_time, "%I:%M %p")
+        label_dt = datetime.strptime(label, "%I:%M %p")
+
+        # Midnight and any time after wrap to end_day
+        if label_dt <= start_dt and start_day != end_day and label != start_time:
+            slot_day = end_day
+
+        if (slot_day, master_id) in existing_ids:
             continue
 
         is_booked = False
         is_inherited_block = False
 
         for appt in appointments:
-            start_label = MasterTimeSlot.query.get(appt.slot.master_time_id).label
+            start_label = id_to_label.get(appt.slot.master_time_id)
+            if not start_label:
+                continue
             blocks = appt.service.duration_minutes // 15
             try:
                 start_index = time_labels.index(start_label)
                 appt_labels = time_labels[start_index : start_index + blocks]
 
-                if label in appt_labels:
+                if label in appt_labels and appt.slot.day == slot_day:
                     is_booked = True
                     if label != appt_labels[0]:
                         is_inherited_block = True
@@ -2196,13 +2239,13 @@ def create_batch_slots():
 
         new_slot = TimeSlot(
             freelancer_id=freelancer_id,
-            day=day,
+            day=slot_day,
             master_time_id=master_id,
             is_booked=is_booked,
             is_inherited_block=is_inherited_block,
         )
         db.session.add(new_slot)
-        created.append(label)
+        created.append(f"{label} ({slot_day})")
 
     db.session.commit()
     return jsonify({"message": f"{len(created)} slots created", "slots": created}), 201

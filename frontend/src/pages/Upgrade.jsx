@@ -142,7 +142,8 @@ export default function Upgrade() {
           title="Log in Required"
           body="Please log in to upgrade your plan."
           confirmText="Go to Login"
-          onClose={() => {
+          onClose={() => setShowLoginModal(false)}
+          onConfirm={() => {
             setShowLoginModal(false);
             window.location.href = "/auth?next=/upgrade";
           }}

@@ -8,7 +8,8 @@ export function showToast(message, type = "success", duration = 6000) {
     transform 
     scale-95 
     opacity-0 
-    duration-300
+    duration-300 
+    flex items-center
   `.trim();
 
   const iconSpan = document.createElement("span");
@@ -26,8 +27,18 @@ export function showToast(message, type = "success", duration = 6000) {
     toast.appendChild(fallback);
   }
 
-  const container = document.getElementById("toast-container");
+  // ✅ Add X button to manually close the toast
+  const closeButton = document.createElement("button");
+  closeButton.textContent = "×";
+  closeButton.className = "ml-auto btn btn-sm btn-circle btn-ghost text-lg";
+  closeButton.onclick = () => {
+    toast.classList.remove("scale-100", "opacity-100");
+    toast.classList.add("scale-90", "opacity-0");
+    setTimeout(() => toast.remove(), 300);
+  };
+  toast.appendChild(closeButton);
 
+  const container = document.getElementById("toast-container");
   if (!container) {
     console.warn("Toast container not found!");
     return;

@@ -29,6 +29,8 @@ function getDateFromTimeStr(timeStr) {
 export default function AdminPage() {
   const { freelancer, setFreelancer } = useFreelancer();
 
+  const [syncCalendars, setSyncCalendars] = useState(true); // ✅ already present
+  const [syncDates, setSyncDates] = useState(false);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
@@ -276,11 +278,28 @@ export default function AdminPage() {
       </div>
 
       <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
-        <AddSlotForm onAdd={fetchSlots} />
+        <AddSlotForm
+          onAdd={fetchSlots}
+          syncWith={syncDates ? selectedDate : null}
+          setSyncDate={syncDates ? setSelectedDate : null}
+        />
       </section>
 
       {loading && <p className="text-center">Loading...</p>}
       {fetchError && <p className="text-red-500 text-center">{fetchError}</p>}
+
+      <div className="flex items-center gap-2 justify-center">
+        <input
+          type="checkbox"
+          checked={syncDates}
+          onChange={() => setSyncDates(!syncDates)}
+          className="checkbox checkbox-sm"
+        />
+        <label className="text-sm">
+          Sync Add Slot & Batch Slot dates with Time Slots calendar
+          (recommended)
+        </label>
+      </div>
 
       <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
         <h3 className="text-lg font-semibold text-center border-b pb-1">
