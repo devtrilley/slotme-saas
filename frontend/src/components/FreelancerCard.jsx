@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { FaCheck } from "react-icons/fa";
+import FallbackText from "./FallbackText";
 
 export default function FreelancerCard({
   business_name,

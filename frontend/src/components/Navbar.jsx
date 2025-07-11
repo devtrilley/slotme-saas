@@ -1,13 +1,16 @@
-import { Link, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { closeTokenChannel } from "../utils/tokenChannel";
 import { showToast } from "../utils/toast";
 import { useLocation } from "react-router-dom";
-// (Add this to your imports at the top)
+import slotmeLogo from "../assets/slotme-logo.svg";
 
 export default function Navbar() {
   const navigate = useNavigate();
   const isDevLoggedIn = localStorage.getItem("dev_logged_in");
   const isFreelancerLoggedIn = localStorage.getItem("freelancer_logged_in");
+
+  const navLinkClass = ({ isActive }) =>
+    isActive ? "font-bold text-primary" : "";
 
   const handleLogout = (type) => {
     if (type === "dev") {
@@ -34,16 +37,24 @@ export default function Navbar() {
       {/* Section 1: General Public Links */}
       <li className="menu-title text-xs text-gray-400 px-2">Public Tabs</li>
       <li>
-        <Link to="/">Home</Link>
+        <NavLink className={navLinkClass} to="/">
+          Home
+        </NavLink>
       </li>
       <li>
-        <Link to="/upgrade">Upgrade</Link>
+        <NavLink className={navLinkClass} to="/upgrade">
+          Upgrade
+        </NavLink>
       </li>
       <li>
-        <Link to="/terms">Terms & Privacy</Link>
+        <NavLink className={navLinkClass} to="/terms">
+          Terms & Privacy
+        </NavLink>
       </li>
       <li>
-        <Link to="/feedback">Feedback</Link>
+        <NavLink className={navLinkClass} to="/feedback">
+          Feedback
+        </NavLink>
       </li>
 
       {(isFreelancerLoggedIn || isDevLoggedIn) && (
@@ -57,24 +68,37 @@ export default function Navbar() {
             My Account Tabs
           </li>
           <li>
-            <Link to="/freelancer-admin">Dashboard</Link>
+            <NavLink className={navLinkClass} to="/freelancer-admin">
+              Dashboard
+            </NavLink>
           </li>
           <li>
-            <Link to="/freelancer-bookings">CRM</Link>
+            <NavLink className={navLinkClass} to="/freelancer-bookings">
+              CRM
+            </NavLink>
           </li>
           <li>
-            <Link to="/qr-code">QR Code</Link>
+            <NavLink className={navLinkClass} to="/qr-code">
+              QR Code
+            </NavLink>
           </li>
           <li>
-            <Link to={`/freelancers/${localStorage.getItem("freelancer_id")}`}>
+            <NavLink
+              className={navLinkClass}
+              to={`/freelancers/${localStorage.getItem("freelancer_id")}`}
+            >
               My Public Profile
-            </Link>
+            </NavLink>
           </li>
           <li>
-            <Link to="/freelancer-analytics">Analytics</Link>
+            <NavLink className={navLinkClass} to="/freelancer-analytics">
+              Analytics
+            </NavLink>
           </li>
           <li>
-            <Link to="/priority-support">Priority Support</Link>
+            <NavLink className={navLinkClass} to="/priority-support">
+              Priority Support
+            </NavLink>
           </li>
           <li>
             <button onClick={() => handleLogout("freelancer")}>
@@ -95,7 +119,9 @@ export default function Navbar() {
             Developer Tabs
           </li>
           <li>
-            <Link to="/dev-admin">Dev Panel</Link>
+            <NavLink className={navLinkClass} to="/dev-admin">
+              Dev Panel
+            </NavLink>
           </li>
           <li>
             <button onClick={() => handleLogout("dev")}>Logout as Dev</button>
@@ -141,9 +167,18 @@ export default function Navbar() {
             {renderLinks()}
           </ul>
         </div>
-        <Link to="/" className="btn btn-ghost text-xl">
-          SlotMe
-        </Link>
+        <NavLink
+          to="/"
+          className="flex items-center h-full px-2"
+          aria-label="SlotMe Home"
+        >
+          <img
+            src={slotmeLogo}
+            alt="SlotMe Logo"
+            className="h-12 sm:h-16 w-auto"
+          />
+          <span className="sr-only">Home</span>
+        </NavLink>
       </div>
 
       <div className="navbar-end hidden lg:flex">

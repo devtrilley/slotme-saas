@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { API_BASE } from "../utils/constants";
 import { showToast } from "../utils/toast";
 import GeneralModal from "../components/GeneralModal";
+import slotmeLogo from "../assets/slotme-logo.svg";
 
 import { useFreelancer } from "../context/FreelancerContext";
 import axios from "../utils/axiosInstance";
@@ -131,8 +132,24 @@ export default function Upgrade() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-10">
-      <h1 className="text-4xl font-bold text-center">
-        Upgrade Your <span className="text-indigo-400">SlotMe</span> Experience
+      <h1 className="text-4xl font-bold text-center leading-tight">
+        <div>
+          <img
+            src={slotmeLogo}
+            alt="SlotMe Logo"
+            className="h-22 sm:h-24 w-auto mx-auto"
+          />
+        </div>
+        <div>Upgrade Your</div>
+        <div className="text-5xl font-extrabold">
+          <span className="text-gray-100 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-500">
+            Experience
+          </span>
+        </div>
+
+        <p className="text-lg text-gray-400 mt-4 italic">
+          Unlock premium tools to save time and win clients.
+        </p>
       </h1>
 
       {isLoggedIn && <TierStatusCard tier={freelancer?.tier} />}

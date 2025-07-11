@@ -148,7 +148,7 @@ export default function App() {
   }, [navigate, setFreelancer, location.pathname]);
 
   return (
-    <div className="h-full bg-base-200">
+    <div className="min-h-screen bg-base-200 flex flex-col">
       <NavigatorInit />
       <Navbar />
 
