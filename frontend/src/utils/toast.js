@@ -1,8 +1,23 @@
 export function showToast(message, type = "success", duration = 6000) {
   const toast = document.createElement("div");
+
+  const typeClassMap = {
+    success: "alert-success",
+    error: "alert-error",
+    warning: "alert-warning",
+    info: "alert-info",
+  };
+
+  const iconMap = {
+    success: "✅",
+    error: "❌",
+    warning: "⚠️",
+    info: "ℹ️",
+  };
+
   toast.className = `
     alert 
-    ${type === "error" ? "alert-error" : "alert-success"} 
+    ${typeClassMap[type] || "alert-info"} 
     shadow-lg 
     transition-all 
     transform 
@@ -13,9 +28,10 @@ export function showToast(message, type = "success", duration = 6000) {
   `.trim();
 
   const iconSpan = document.createElement("span");
-  iconSpan.textContent = type !== "error" ? "💡" : "⚠️";
+  iconSpan.textContent = iconMap[type] || "💬";
   toast.appendChild(iconSpan);
 
+  // Message text
   if (typeof message === "string") {
     const textNode = document.createTextNode(" " + message);
     toast.appendChild(textNode);
@@ -27,7 +43,6 @@ export function showToast(message, type = "success", duration = 6000) {
     toast.appendChild(fallback);
   }
 
-  // ✅ Add X button to manually close the toast
   const closeButton = document.createElement("button");
   closeButton.textContent = "×";
   closeButton.className = "ml-auto btn btn-sm btn-circle btn-ghost text-lg";

@@ -40,9 +40,11 @@ export default function FreelancerCard({
     >
       <div className="relative w-17 h-17">
         <img
-          src={
-            logoUrl?.trim() ? logoUrl : "https://placehold.co/64x64?text=Logo"
-          }
+          src={logoUrl?.trim() || "https://placehold.co/64x64?text=Logo"}
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = "https://placehold.co/64x64?text=Logo";
+          }}
           alt="Freelancer Logo"
           className="w-17 h-17 rounded-full object-cover border-1 border-white"
         />
@@ -73,13 +75,20 @@ export default function FreelancerCard({
       </div>
 
       <div className="flex-1">
-        <p className="text-white font-bold text-lg">
-          {business_name?.trim() ||
-            (first_name && last_name ? `${first_name} ${last_name}` : "")}
-        </p>
-        {tagline && (
-          <p className="text-sm italic text-gray-300 mt-1">{tagline}</p>
-        )}
+        <FallbackText
+          value={
+            business_name?.trim() ||
+            `${first_name?.trim() || ""} ${last_name?.trim() || ""}`.trim()
+          }
+          fallback="Your Business Name"
+          className="text-white font-bold text-lg"
+        />
+
+        <FallbackText
+          value={tagline}
+          fallback="Add a tagline to describe your services"
+          className="text-sm italic text-gray-300 mt-1"
+        />
       </div>
     </div>
   );

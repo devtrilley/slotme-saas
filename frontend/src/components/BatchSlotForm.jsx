@@ -45,7 +45,6 @@ export default function BatchSlotForm({
 
   const handleBatchSubmit = (e) => {
     e.preventDefault();
-    setError("");
 
     if (!interval) {
       setError("❌ Please select a valid interval.");
@@ -114,8 +113,11 @@ export default function BatchSlotForm({
       );
       if (onBatchAdd) onBatchAdd();
     } catch (err) {
-      const msg = err.response?.data?.error || "Something went wrong";
-      setError(msg);
+      const msg =
+        err.response?.data?.error ||
+        "❌ Could not generate time slots. Please try again.";
+      showToast(msg, "error");
+      setError(""); // clear form error if using toast only
     } finally {
       setLoading(false);
       setShowConfirmModal(false);
@@ -226,8 +228,6 @@ export default function BatchSlotForm({
             <option value="60">Every 1 hour</option>
           </select>
         </div>
-
-        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
         <button className="btn btn-primary w-full" disabled={loading}>
           {loading ? "Generating..." : "Generate Slots"}

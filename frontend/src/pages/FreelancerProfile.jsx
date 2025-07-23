@@ -36,6 +36,10 @@ export default function FreelancerProfile() {
         const data = res.data;
         setPublicFreelancer(data);
         setNoShowPolicy(data.no_show_policy || "");
+      })
+      .catch((err) => {
+        console.error("❌ Failed to fetch profile:", err);
+        setError("Unable to load this freelancer's profile. Please try again.");
       });
   }, [freelancerId]);
 
@@ -51,7 +55,11 @@ export default function FreelancerProfile() {
 
   if (error) return <p className="text-center text-red-500">{error}</p>;
   if (!publicFreelancer)
-    return <p className="text-center">Loading profile...</p>;
+    return (
+      <div className="flex justify-center items-center py-10">
+        <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-6 text-center text-white">
@@ -79,7 +87,11 @@ export default function FreelancerProfile() {
               <FaCheck className="text-white text-xs" />
             </div>
             {tooltipVisible && (
-              <div className="absolute top-full mt-1 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+              <div
+                role="tooltip"
+                aria-hidden={!tooltipVisible}
+                className="absolute top-full mt-1 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap"
+              >
                 Verified Freelancer
               </div>
             )}
@@ -101,13 +113,6 @@ export default function FreelancerProfile() {
               <strong className="not-italic text-white">Bio:</strong>{" "}
               {publicFreelancer.bio}
             </li>
-          )}
-
-          {publicFreelancer.timezone && (
-            <p className="text-sm text-gray-400 text-center mb-2">
-              <strong>Current Time Zone:</strong>{" "}
-              {mapTimeZone(publicFreelancer.timezone)}
-            </p>
           )}
 
           <div className="border border-white/20 bg-white/5 rounded-lg p-4 text-left mt-4">
@@ -171,6 +176,12 @@ export default function FreelancerProfile() {
               <h2 className="text-lg font-semibold text-white text-center mb-2">
                 Services
               </h2>
+              {publicFreelancer.timezone && (
+                <p className="text-sm text-gray-400 text-center mb-2">
+                  <strong>Current Time Zone:</strong>{" "}
+                  {mapTimeZone(publicFreelancer.timezone)}
+                </p>
+              )}
               <ul className="space-y-2 px-4">
                 {publicFreelancer.services.map((service) => (
                   <ServiceCard
@@ -201,14 +212,15 @@ export default function FreelancerProfile() {
           </li>
         </ul>
       </div>
-      {publicFreelancer.created_at && (
-        <p className="text-xs text-gray-400">
-          Joined{" "}
-          {DateTime.fromISO(publicFreelancer.created_at).toFormat(
-            "MMMM d, yyyy"
-          )}
-        </p>
-      )}
+      {publicFreelancer.created_at &&
+        DateTime.fromISO(publicFreelancer.created_at).isValid && (
+          <p className="text-xs text-gray-400">
+            Joined{" "}
+            {DateTime.fromISO(publicFreelancer.created_at).toFormat(
+              "MMMM d, yyyy"
+            )}
+          </p>
+        )}
       <Link
         to={`/book/${publicFreelancer.id}`}
         className="btn btn-primary mt-4"

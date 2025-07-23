@@ -1,12 +1,10 @@
 import { createContext, useContext, useState } from "react";
+import { getStoredFreelancer } from "../utils/getStoredFreelancer";
 
 const FreelancerContext = createContext();
 
 export function FreelancerProvider({ children }) {
-  const [freelancer, setFreelancer] = useState(() => {
-    const stored = localStorage.getItem("freelancer");
-    return stored ? JSON.parse(stored) : null;
-  });
+  const [freelancer, setFreelancer] = useState(getStoredFreelancer());
 
   return (
     <FreelancerContext.Provider value={{ freelancer, setFreelancer }}>

@@ -18,6 +18,8 @@ export default function FreelancerBranding({ onUpdate }) {
     business_address: "",
   });
 
+  const [error, setError] = useState("");
+
   const { freelancer, setFreelancer } = useFreelancer();
 
   const freelancerId = localStorage.getItem("freelancer_id");
@@ -80,8 +82,12 @@ export default function FreelancerBranding({ onUpdate }) {
       return;
     }
 
+    const trimmedForm = Object.fromEntries(
+      Object.entries(form).map(([key, value]) => [key, value.trim?.() ?? value])
+    );
+
     axios
-      .patch(`${API_BASE}/freelancer/branding`, form)
+      .patch(`${API_BASE}/freelancer/branding`, trimmedForm)
       .then(() => {
         showToast("✅ Branding updated!", "success");
 
@@ -101,8 +107,10 @@ export default function FreelancerBranding({ onUpdate }) {
         if (onUpdate) onUpdate();
       })
       .catch((err) => {
+        const msg =
+          err?.response?.data?.error || "❌ Failed to update branding";
         console.error("❌ Failed to update branding", err);
-        showToast("❌ Failed to update branding", "error");
+        showToast(msg, "error");
       });
   };
 
@@ -227,6 +235,11 @@ export default function FreelancerBranding({ onUpdate }) {
           Save Changes
         </button>
       </form>
+      {error && (
+        <div className="p-2 bg-red-100 text-red-600 rounded text-sm text-center">
+          {error}
+        </div>
+      )}
     </div>
   );
 }

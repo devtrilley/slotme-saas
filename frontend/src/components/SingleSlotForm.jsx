@@ -1,7 +1,6 @@
 import { useState } from "react";
 import axios from "../utils/axiosInstance";
 import { showToast } from "../utils/toast";
-import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import IconDatePicker from "./IconDatePicker";
 import { DateTime } from "luxon";
@@ -31,11 +30,29 @@ export default function SingleSlotForm({
     setError("");
     setLoading(true);
 
+    if (!masterTimes || masterTimes.length === 0) {
+      showToast("❌ Unable to generate time slot.", "error");
+      setLoading(false);
+      return;
+    }
+
     const label = `${hour}:${minute} ${ampm}`;
     const match = masterTimes.find((t) => t.label === label);
 
     if (!match) {
-      setError("Invalid time selection");
+      showToast("Invalid time selection", "error");
+      setLoading(false);
+      return;
+    }
+
+    if (!selectedDate || isNaN(selectedDate.getTime())) {
+      showToast("Invalid date", "error");
+      setLoading(false);
+      return;
+    }
+
+    if (!timezone) {
+      showToast("Missing timezone", "error");
       setLoading(false);
       return;
     }
@@ -66,16 +83,13 @@ export default function SingleSlotForm({
     }
 
     axios
-      .post(
-        `${API_BASE}/slots`,
-        {
-          day: DateTime.fromJSDate(selectedDate)
-            .setZone("America/New_York")
-            .toFormat("yyyy-MM-dd"),
-          master_time_id: match.id,
-          timezone,
-        },
-      )
+      .post(`${API_BASE}/slots`, {
+        day: DateTime.fromJSDate(selectedDate)
+          .setZone("America/New_York")
+          .toFormat("yyyy-MM-dd"),
+        master_time_id: match.id,
+        timezone,
+      })
       .then(() => {
         showToast("Time slot added!");
         if (!userChangedDate) {
@@ -88,8 +102,11 @@ export default function SingleSlotForm({
           "❌ Slot creation failed",
           err.response?.data || err.message
         );
-        const msg = err.response?.data?.error || "Failed to add slot";
-        setError(msg);
+        const msg =
+          err.response?.data?.error ||
+          "❌ Could not add time slot. Please try again.";
+        showToast(msg, "error");
+        setError(""); // Optional: hide static error now that toast handles it
       })
       .finally(() => setLoading(false));
   };
@@ -156,8 +173,6 @@ export default function SingleSlotForm({
         <option value="America/Denver">Mountain (MST)</option>
         <option value="America/Los_Angeles">Pacific (PST)</option>
       </select>
-
-      {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
       <button className="btn btn-primary w-full" disabled={loading}>
         {loading ? "Adding..." : "Add Slot"}

@@ -1,14 +1,17 @@
 import { useState, useEffect } from "react";
 import axios from "../utils/axiosInstance";
-import { showToast } from "../utils/toast";
-import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import BatchSlotForm from "./BatchSlotForm";
 import SingleSlotForm from "./SingleSlotForm";
 import { API_BASE } from "../utils/constants";
 
-export default function AddSlotForm({ onAdd, syncWith, setSyncDate }) {
-  const [mode, setMode] = useState("single");
+export default function AddSlotForm({
+  onAdd,
+  syncWith,
+  setSyncDate,
+  mode,
+  setMode,
+}) {
   const [selectedDate, setSelectedDate] = useState(syncWith || new Date());
 
   // Sync DOWN from admin page
@@ -40,15 +43,8 @@ export default function AddSlotForm({ onAdd, syncWith, setSyncDate }) {
     Intl.DateTimeFormat().resolvedOptions().timeZone
   );
   const [masterTimes, setMasterTimes] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [timesLoading, setTimesLoading] = useState(true);
   const [userChangedDate, setUserChangedDate] = useState(false);
-  const [date, setDate] = useState(syncWith || new Date());
-
-  useEffect(() => {
-    if (syncWith) setDate(syncWith);
-  }, [syncWith]);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -59,7 +55,6 @@ export default function AddSlotForm({ onAdd, syncWith, setSyncDate }) {
       .then((res) => setMasterTimes(res.data))
       .catch((err) => {
         console.error("❌ Failed to fetch master times", err);
-        setError("Invalid time selection (auth error)");
       })
       .finally(() => setTimesLoading(false));
   }, []);
@@ -78,40 +73,6 @@ export default function AddSlotForm({ onAdd, syncWith, setSyncDate }) {
       }
     }
   }, [masterTimes]);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const label = `${hour}:${minute} ${ampm}`;
-    const match = masterTimes.find((t) => t.label === label);
-
-    if (!match) {
-      setError("Invalid time selection");
-      setLoading(false);
-      return;
-    }
-
-    axios
-      .post(`${API_BASE}/slots`, {
-        day: selectedDate.toISOString().split("T")[0],
-        master_time_id: match.id,
-        timezone,
-      })
-      .then(() => {
-        showToast("Time slot added!");
-        if (!userChangedDate) {
-          setSelectedDate(new Date());
-        }
-        if (onAdd) onAdd();
-      })
-      .catch((err) => {
-        const msg = err.response?.data?.error || "Failed to add slot";
-        setError(msg);
-      })
-      .finally(() => setLoading(false));
-  };
 
   if (timesLoading)
     return (

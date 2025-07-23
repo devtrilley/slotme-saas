@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import axios from "../utils/axiosInstance";
 import { DateTime } from "luxon";
-import DatePicker from "react-datepicker";
+
 import "react-datepicker/dist/react-datepicker.css";
 import FreelancerCard from "../components/FreelancerCard";
 import FreelancerModal from "../components/FreelancerModal";
@@ -14,6 +14,8 @@ import ServiceCard from "../components/ServiceCard";
 import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../utils/constants";
 import HoneypotInput from "../components/HoneypotInput";
+import SafeLoader from "../components/SafeLoader";
+import NoAvailableSlotsCard from "../components/NoAvailableSlotsCard";
 
 export default function BookingPage({ useCustomUrl = false }) {
   const params = useParams();
@@ -85,6 +87,13 @@ export default function BookingPage({ useCustomUrl = false }) {
     });
   };
 
+  const handleRetry = () => {
+    setError("");
+    setLoading(true);
+    fetchFreelancerInfo();
+    fetchSlots();
+  };
+
   const fetchFreelancerInfo = () => {
     axios
       .get(`${API_BASE}/freelancer/public-info/${freelancerId}`)
@@ -101,6 +110,7 @@ export default function BookingPage({ useCustomUrl = false }) {
       })
       .catch((err) => {
         console.error("❌ Failed to fetch freelancer info", err);
+        setError("Booking page unavailable."); // ✅ Add this line
       });
   };
 
@@ -353,64 +363,157 @@ export default function BookingPage({ useCustomUrl = false }) {
 
   const filteredSlots = slots.filter((s) => s.day === selectedESTDate);
 
+  // T E M P - REMOVAL
+  // if (error) {
+  //   return (
+  //     <div className="max-w-md mx-auto p-6 space-y-4 text-center">
+  //       <div className="text-5xl">🤷‍♀️</div>
+  //       <h2 className="text-xl font-semibold text-purple-600">
+  //         Uh-oh! We couldn't find this booking page
+  //       </h2>
+  //       <p className="text-gray-400 text-sm">
+  //         The link might be broken, expired, or the freelancer doesn't exist.
+  //       </p>
+  //       <button
+  //         onClick={() => (window.location.href = "/")}
+  //         className="btn btn-primary btn-sm mt-4"
+  //       >
+  //         🔙 Back to Home
+  //       </button>
+  //     </div>
+  //   );
+  // }
+
   return (
-    <div className="max-w-md mx-auto p-6 space-y-6">
-      <FreelancerCard
-        business_name={branding.business_name}
-        first_name={branding.first_name}
-        last_name={branding.last_name}
-        logoUrl={branding.logo_url}
-        tagline={branding.tagline}
-        bio={branding.bio}
-        isVerified={branding.is_verified}
-        onClick={() => setShowModal(true)}
-      />
-
-      {showModal && (
-        <FreelancerModal
-          freelancer={{ ...branding, id: freelancerId }}
-          onClose={() => setShowModal(false)}
+    <SafeLoader loading={loading} error={error} onRetry={handleRetry}>
+      <div className="max-w-md mx-auto p-6 space-y-6">
+        <FreelancerCard
+          business_name={branding.business_name}
+          first_name={branding.first_name}
+          last_name={branding.last_name}
+          logoUrl={branding.logo_url}
+          tagline={branding.tagline}
+          bio={branding.bio}
+          isVerified={branding.is_verified}
+          onClick={() => setShowModal(true)}
         />
-      )}
 
-      <div className="flex flex-col items-center gap-2">
-        <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>
-        <button
-          className="btn btn-sm btn-outline"
-          onClick={() => {
-            fetchSlots();
-            fetchFreelancerInfo(); // ✅ add this
-          }}
-          disabled={loading}
-        >
-          🔁 Refresh
-        </button>
-      </div>
+        {showModal && (
+          <FreelancerModal
+            freelancer={{ ...branding, id: freelancerId }}
+            onClose={() => setShowModal(false)}
+          />
+        )}
 
-      {freelancerTimeZone && (
-        <p className="text-sm text-gray-400 text-center mt-1 italic">
-          *All times shown in {getTZAbbreviation(freelancerTimeZone)}*
-        </p>
-      )}
+        <div className="flex flex-col items-center gap-2">
+          <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>
+          <button
+            className="btn btn-sm btn-outline"
+            onClick={() => {
+              fetchSlots();
+              fetchFreelancerInfo(); // ✅ add this
+            }}
+            disabled={loading}
+          >
+            🔁 Refresh
+          </button>
+        </div>
 
-      {services.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-center text-sm text-white mb-2 font-medium">
-            Available Services
-          </h3>
-          <div className="flex overflow-x-auto gap-4 px-5 py-4 snap-x snap-mandatory rounded-xl bg-white/5">
-            {services.map((service) => (
-              <div key={service.id} className="snap-start shrink-0 w-72">
-                <ServiceCard
-                  service={service}
-                  isPublicView={true}
-                  onClick={() => {
-                    setSelectedServiceId(service.id);
-                    setSelectedServiceDuration(service.duration_minutes);
+        {freelancerTimeZone && (
+          <p className="text-sm text-gray-400 text-center mt-1 italic">
+            *All times shown in {getTZAbbreviation(freelancerTimeZone)}*
+          </p>
+        )}
 
-                    const requiredBlocks = getRequiredBlocks(
-                      service.duration_minutes
+        {services.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-center text-sm text-white mb-2 font-medium">
+              Available Services
+            </h3>
+            <div className="flex overflow-x-auto gap-4 px-5 py-4 snap-x snap-mandatory rounded-xl bg-white/5">
+              {services.map((service) => (
+                <div key={service.id} className="snap-start shrink-0 w-72">
+                  <ServiceCard
+                    service={service}
+                    isPublicView={true}
+                    onClick={() => {
+                      setSelectedServiceId(service.id);
+                      setSelectedServiceDuration(service.duration_minutes);
+
+                      const requiredBlocks = getRequiredBlocks(
+                        service.duration_minutes
+                      );
+                      const index = filteredSlots.findIndex(
+                        (s) => s.id === selectedSlotId
+                      );
+
+                      if (index === -1) {
+                        setSelectedSlotId(null);
+                        return;
+                      }
+
+                      const futureSlots = filteredSlots.slice(index);
+                      const relevantSlice = futureSlots.slice(
+                        0,
+                        requiredBlocks
+                      );
+
+                      const visibleFree = relevantSlice.every(
+                        (s) => !s.is_booked && !s.is_inherited_block
+                      );
+
+                      const missingBlocks =
+                        requiredBlocks - relevantSlice.length;
+                      const startSlot = futureSlots[0];
+                      const lastSlotId =
+                        filteredSlots[filteredSlots.length - 1]?.id;
+                      const isLastSlot = startSlot?.id === lastSlotId;
+
+                      const valid =
+                        visibleFree && (missingBlocks <= 0 || isLastSlot);
+
+                      if (!valid) setSelectedSlotId(null);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <label className="text-sm text-gray-400 block text-center">
+            Select a date:
+          </label>
+          <IconDatePicker
+            selected={selectedDate}
+            onChange={(date) => setSelectedDate(date)}
+            minDate={new Date()} // ✅ prevents selecting yesterday
+          />
+
+          {services.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-sm text-gray-400 block text-center">
+                Select a service:
+              </label>
+              <div
+                id="service-select-wrapper"
+                className="relative transition-all duration-300 rounded-lg overflow-hidden"
+              >
+                <select
+                  className="select select-bordered w-full rounded-lg"
+                  value={selectedServiceId || ""}
+                  onChange={(e) => {
+                    const serviceId = Number(e.target.value);
+                    setSelectedServiceId(serviceId);
+                    const selectedService = services.find(
+                      (s) => s.id === serviceId
                     );
+                    const newDuration = selectedService?.duration_minutes || 0;
+                    setSelectedServiceDuration(newDuration);
+
+                    // Recalculate slot logic
+                    const requiredBlocks = getRequiredBlocks(newDuration);
                     const index = filteredSlots.findIndex(
                       (s) => s.id === selectedSlotId
                     );
@@ -438,166 +541,150 @@ export default function BookingPage({ useCustomUrl = false }) {
 
                     if (!valid) setSelectedSlotId(null);
                   }}
-                />
+                  required
+                >
+                  <option value="" disabled>
+                    -- Choose a service --
+                  </option>
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.duration_minutes} min) - $
+                      {s.price_usd?.toFixed(2) || "0.00"}
+                    </option>
+                  ))}
+                </select>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
-      )}
 
-      <div className="space-y-2">
-        <label className="text-sm text-gray-400 block text-center">
-          Select a date:
-        </label>
-        <IconDatePicker
-          selected={selectedDate}
-          onChange={(date) => setSelectedDate(date)}
-        />
+        {loading ? (
+          <p className="text-center">Loading slots...</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              {filteredSlots.length > 0 &&
+                DateTime.fromJSDate(selectedDate).startOf("day") <
+                  DateTime.now().setZone("America/New_York").startOf("day") && (
+                  <p className="text-sm text-yellow-400 text-center font-semibold mb-2">
+                    ⚠️ You’ve selected a past date — you can’t book this day.
+                  </p>
+                )}
+              {filteredSlots.map((slot, index) => {
+                const isSelected = selectedSlotId === slot.id;
+                const isBlocked =
+                  slot.is_booked ||
+                  slot.is_inherited_block ||
+                  !selectedServiceId;
 
-        {services.length > 0 && (
-          <div className="space-y-2">
-            <label className="text-sm text-gray-400 block text-center">
-              Select a service:
-            </label>
-            <div
-              id="service-select-wrapper"
-              className="relative transition-all duration-300 rounded-lg overflow-hidden"
-            >
-              <select
-                className="select select-bordered w-full rounded-lg"
-                value={selectedServiceId || ""}
-                onChange={(e) => {
-                  const serviceId = Number(e.target.value);
-                  setSelectedServiceId(serviceId);
-                  const selectedService = services.find(
-                    (s) => s.id === serviceId
+                const isToday =
+                  selectedESTDate ===
+                  DateTime.now()
+                    .setZone("America/New_York")
+                    .toFormat("yyyy-MM-dd");
+                const slotTime = parseTimeToDate(slot.time);
+                const currentUtc = DateTime.utc();
+                const slotUtcTime = DateTime.fromJSDate(slotTime).toUTC();
+                const isPast = isToday && slotUtcTime < currentUtc;
+                const isDisabled = isBlocked || isPast;
+
+                const handleSelectSlot = () => {
+                  const requiredBlocks = getRequiredBlocks(
+                    selectedServiceDuration
                   );
-                  const newDuration = selectedService?.duration_minutes || 0;
-                  setSelectedServiceDuration(newDuration);
-
-                  // Recalculate slot logic
-                  const requiredBlocks = getRequiredBlocks(newDuration);
-                  const index = filteredSlots.findIndex(
-                    (s) => s.id === selectedSlotId
-                  );
-
-                  if (index === -1) {
-                    setSelectedSlotId(null);
-                    return;
-                  }
-
                   const futureSlots = filteredSlots.slice(index);
+
                   const relevantSlice = futureSlots.slice(0, requiredBlocks);
 
+                  // NEW LOGIC: Allow booking even if inherited blocks go beyond seeded slots
                   const visibleFree = relevantSlice.every(
                     (s) => !s.is_booked && !s.is_inherited_block
                   );
 
-                  const missingBlocks = requiredBlocks - relevantSlice.length;
+                  const slotsExist = relevantSlice.length;
+                  const missingSlots = requiredBlocks - slotsExist;
+
                   const startSlot = futureSlots[0];
-                  const lastSlotId =
-                    filteredSlots[filteredSlots.length - 1]?.id;
-                  const isLastSlot = startSlot?.id === lastSlotId;
+                  if (
+                    !startSlot ||
+                    startSlot.is_booked ||
+                    startSlot.is_inherited_block
+                  ) {
+                    showToast(
+                      "❌ That time overlaps with an existing booking. Try a different time slot.",
+                      "error"
+                    );
+                    return;
+                  }
 
-                  const valid =
-                    visibleFree && (missingBlocks <= 0 || isLastSlot);
+                  if (!visibleFree) {
+                    showToast(
+                      "❌ That time overlaps with an existing booking. Try a different time slot.",
+                      "error"
+                    );
+                    return;
+                  }
 
-                  if (!valid) setSelectedSlotId(null);
-                }}
-                required
-              >
-                <option value="" disabled>
-                  -- Choose a service --
-                </option>
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.duration_minutes} min) - $
-                    {s.price_usd?.toFixed(2) || "0.00"}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
-      </div>
+                  // ⚡ If slots run out but it's the last visible slot — allow inherited blocks to fall off map
+                  if (missingSlots > 0 && !isSelected) {
+                    console.warn(
+                      "⚠️ Booking extends beyond visible slots — inherited blocks will apply server-side."
+                    );
+                  }
 
-      {loading ? (
-        <p className="text-center">Loading slots...</p>
-      ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {filteredSlots.map((slot, index) => {
-            const isSelected = selectedSlotId === slot.id;
-            const isBlocked =
-              slot.is_booked || slot.is_inherited_block || !selectedServiceId;
+                  setSelectedSlotId((prev) =>
+                    prev === slot.id ? null : slot.id
+                  );
+                };
 
-            const handleSelectSlot = () => {
-              const requiredBlocks = getRequiredBlocks(selectedServiceDuration);
-              const futureSlots = filteredSlots.slice(index);
+                return (
+                  <div key={slot.id} className="flex flex-col">
+                    <button
+                      className={`btn w-full text-sm ${
+                        isDisabled
+                          ? "bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
+                          : isSelected
+                          ? "btn-primary text-white"
+                          : "btn-outline text-white border-white"
+                      }`}
+                      onClick={() => {
+                        if (loading) return;
 
-              const relevantSlice = futureSlots.slice(0, requiredBlocks);
+                        if (!selectedServiceId) {
+                          showToast(
+                            "❌ Please select a service first.",
+                            "error"
+                          );
+                          return;
+                        }
 
-              // NEW LOGIC: Allow booking even if inherited blocks go beyond seeded slots
-              const visibleFree = relevantSlice.every(
-                (s) => !s.is_booked && !s.is_inherited_block
-              );
+                        if (isDisabled) {
+                          const nowEST = DateTime.now()
+                            .setZone("America/New_York")
+                            .startOf("day");
+                          const selectedEST =
+                            DateTime.fromJSDate(selectedDate).startOf("day");
 
-              const slotsExist = relevantSlice.length;
-              const missingSlots = requiredBlocks - slotsExist;
+                          if (selectedEST < nowEST) {
+                            showToast(
+                              "⚠️ This is a past date. Please choose another day.",
+                              "warning"
+                            );
+                          } else {
+                            showToast(
+                              "⏳ This time has already passed.",
+                              "warning"
+                            );
+                          }
+                          return;
+                        }
 
-              const startSlot = futureSlots[0];
-              if (
-                !startSlot ||
-                startSlot.is_booked ||
-                startSlot.is_inherited_block
-              ) {
-                showToast(
-                  "❌ That time overlaps with an existing booking. Try a different time slot.",
-                  "error"
-                );
-                return;
-              }
-
-              if (!visibleFree) {
-                showToast(
-                  "❌ That time overlaps with an existing booking. Try a different time slot.",
-                  "error"
-                );
-                return;
-              }
-
-              // ⚡ If slots run out but it's the last visible slot — allow inherited blocks to fall off map
-              if (missingSlots > 0 && !isSelected) {
-                console.warn(
-                  "⚠️ Booking extends beyond visible slots — inherited blocks will apply server-side."
-                );
-              }
-
-              setSelectedSlotId((prev) => (prev === slot.id ? null : slot.id));
-            };
-
-            return (
-              <div key={slot.id} className="flex flex-col">
-                <button
-                  className={`btn w-full text-sm ${
-                    isBlocked
-                      ? "bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
-                      : isSelected
-                      ? "btn-primary text-white"
-                      : "btn-outline text-white border-white"
-                  }`}
-                  onClick={() => {
-                    if (slot.is_booked || slot.is_inherited_block) return;
-                    if (loading) return;
-                    if (!selectedServiceId) {
-                      showToast("❌ Please select a service first.", "error");
-                      return;
-                    }
-                    handleSelectSlot();
-                  }}
-                  type="button"
-                >
-                  <span className="text-xs w-full text-center">
-                    {/* {convertToUserTime(
+                        handleSelectSlot();
+                      }}
+                      type="button"
+                    >
+                      <span className="text-xs w-full text-center">
+                        {/* {convertToUserTime(
                       slot.time,
                       freelancerTimeZone,
                       userTimeZone
@@ -605,104 +692,115 @@ export default function BookingPage({ useCustomUrl = false }) {
                     <span className="text-[10px] text-gray-400">
                       {getTZAbbreviation(userTimeZone)}
                     </span> */}
-                    {slot.time} UTC
-                  </span>
-                </button>
-                {slot.is_booked && (
-                  <div className="text-xs text-red-400 mt-1 text-center">
-                    {slot.service_name ? (
-                      <>
-                        Booked: <strong>{slot.service_name}</strong> (
-                        {slot.duration_minutes} min)
-                      </>
-                    ) : (
-                      <>Booked</>
+                        {slot.time} UTC
+                      </span>
+                    </button>
+                    {slot.is_booked && (
+                      <div className="text-xs text-red-400 mt-1 text-center">
+                        {slot.service_name ? (
+                          <>
+                            Booked: <strong>{slot.service_name}</strong> (
+                            {slot.duration_minutes} min)
+                          </>
+                        ) : (
+                          <>Booked</>
+                        )}
+                      </div>
+                    )}
+                    {slot.is_inherited_block && (
+                      <div className="text-xs text-purple-400 mt-1 text-center italic">
+                        Blocked (part of earlier appointment)
+                      </div>
                     )}
                   </div>
-                )}
-                {slot.is_inherited_block && (
-                  <div className="text-xs text-purple-400 mt-1 text-center italic">
-                    Blocked (part of earlier appointment)
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {cooldownRemaining > 0 && (
-          <p className="text-center text-yellow-400 text-sm mb-2">
-            ⏳ You can book again in {cooldownRemaining} seconds.
-          </p>
+                );
+              })}
+            </div>
+            {!loading && filteredSlots.length === 0 && (
+              <NoAvailableSlotsCard
+                selectedDate={selectedDate}
+                onRefresh={() => {
+                  fetchSlots();
+                  fetchFreelancerInfo();
+                }}
+              />
+            )}
+          </>
         )}
-        <h3 className="text-lg font-semibold text-center border-b pb-1">
-          Your Name & Contact Info
-        </h3>
-        <input
-          type="text"
-          placeholder="First name"
-          className="input input-bordered w-full"
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
-          required
-        />
 
-        <input
-          type="text"
-          placeholder="Last name"
-          className="input input-bordered w-full"
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
-          required
-        />
-
-        <input
-          type="email"
-          placeholder="Your email"
-          className="input input-bordered w-full"
-          value={email}
-          onChange={(e) => setEmail(e.target.value.trim())}
-          required
-        />
-
-        <input
-          type="tel"
-          placeholder="Your phone"
-          className="input input-bordered w-full"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          required
-        />
-
-        <HoneypotInput value={honeypot} setValue={setHoneypot} />
-
-        <button
-          className={`btn w-full flex items-center justify-center gap-2 ${
-            submitting || !selectedSlotId
-              ? "opacity-50 cursor-not-allowed btn-primary"
-              : cooldownRemaining > 0
-              ? "btn-outline text-white border-yellow-500"
-              : "btn-primary"
-          }`}
-          disabled={!selectedSlotId || submitting}
-          type="submit"
-        >
-          {submitting && (
-            <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-white border-opacity-60"></span>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {cooldownRemaining > 0 && (
+            <p className="text-center text-yellow-400 text-sm mb-2">
+              ⏳ You can book again in {cooldownRemaining} seconds.
+            </p>
           )}
-          {submitting
-            ? "Submitting..."
-            : cooldownRemaining > 0
-            ? `Please wait (${cooldownRemaining}s)`
-            : "Book Appointment"}
-        </button>
-      </form>
+          <h3 className="text-lg font-semibold text-center border-b pb-1">
+            Your Name & Contact Info
+          </h3>
+          <input
+            type="text"
+            placeholder="First name"
+            className="input input-bordered w-full"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            required
+          />
 
-      <NoShowPolicy policy={noShowPolicy} />
+          <input
+            type="text"
+            placeholder="Last name"
+            className="input input-bordered w-full"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            required
+          />
 
-      <FAQCard text={branding.faq_text} />
-    </div>
+          <input
+            type="email"
+            placeholder="Your email"
+            className="input input-bordered w-full"
+            value={email}
+            onChange={(e) => setEmail(e.target.value.trim())}
+            required
+          />
+
+          <input
+            type="tel"
+            placeholder="Your phone"
+            className="input input-bordered w-full"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+          />
+
+          <HoneypotInput value={honeypot} setValue={setHoneypot} />
+
+          <button
+            className={`btn w-full flex items-center justify-center gap-2 ${
+              submitting || !selectedSlotId
+                ? "opacity-50 cursor-not-allowed btn-primary"
+                : cooldownRemaining > 0
+                ? "btn-outline text-white border-yellow-500"
+                : "btn-primary"
+            }`}
+            disabled={!selectedSlotId || submitting}
+            type="submit"
+          >
+            {submitting && (
+              <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-white border-opacity-60"></span>
+            )}
+            {submitting
+              ? "Submitting..."
+              : cooldownRemaining > 0
+              ? `Please wait (${cooldownRemaining}s)`
+              : "Book Appointment"}
+          </button>
+        </form>
+
+        <NoShowPolicy policy={noShowPolicy} />
+
+        <FAQCard text={branding.faq_text} />
+      </div>
+    </SafeLoader>
   );
 }

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import axios from "../utils/axiosInstance";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+import IconDatePicker from "../components/IconDatePicker";
 import { DateTime } from "luxon";
 import { API_BASE } from "../utils/constants";
+import { showToast } from "../utils/toast";
 
 export default function CRM() {
   const [appointments, setAppointments] = useState([]);
@@ -11,6 +11,8 @@ export default function CRM() {
   const [timeFilter, setTimeFilter] = useState("all");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [exportRange, setExportRange] = useState("selected_date");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(""); // ✅ NEW
 
   function parseLocalDate(str, timezone = "America/New_York") {
     return DateTime.fromISO(str).setZone(timezone).toJSDate();
@@ -19,27 +21,6 @@ export default function CRM() {
   function getESTDateString(date, timezone = "America/New_York") {
     return DateTime.fromJSDate(date).setZone(timezone).toFormat("yyyy-MM-dd");
   }
-
-  const fetchAppointments = () => {
-    axios
-      .get("/appointments")
-      .then((res) => {
-        const sorted = [...res.data].sort(
-          (a, b) => convertToDate(a.slot_time) - convertToDate(b.slot_time)
-        );
-        console.log("📥 Raw appointments:", res.data);
-        setAppointments(sorted);
-      })
-      .catch((err) => {
-        console.error("❌ Failed to fetch appointments:", err);
-      });
-  };
-
-  useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (!token) return; // Prevent background fetch without token
-    fetchAppointments();
-  }, []);
 
   const convertToDate = (timeStr) => {
     const [t, mod] = timeStr.split(" ");
@@ -50,6 +31,39 @@ export default function CRM() {
     date.setHours(h, m, 0, 0);
     return date;
   };
+
+  const fetchAppointments = async () => {
+    try {
+      setError("");
+      const res = await axios.get("/appointments");
+      const sorted = [...res.data].sort(
+        (a, b) => convertToDate(a.slot_time) - convertToDate(b.slot_time)
+      );
+      console.log("📥 Raw appointments:", res.data);
+      setAppointments(sorted);
+    } catch (err) {
+      console.error("❌ Failed to fetch appointments:", err);
+      setError("Failed to load your bookings. Please try again.");
+    }
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+
+    setLoading(true);
+
+    (async () => {
+      try {
+        await fetchAppointments();
+      } catch (err) {
+        console.error("🔥 Unexpected error in fetch:", err);
+        setError("Something went wrong loading appointments.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const isInTimeRange = (time) => {
     const hour = convertToDate(time).getHours();
@@ -72,10 +86,10 @@ export default function CRM() {
       await axios.patch(`/appointments/${id}`, {
         status: "cancelled",
       });
-      alert("Appointment canceled.");
+      showToast("✅ Appointment canceled.", "success");
       fetchAppointments();
     } catch (err) {
-      alert("Failed to cancel appointment.");
+      showToast("❌ Failed to cancel appointment.", "error");
       console.error("Cancel error:", err);
     }
   };
@@ -88,7 +102,7 @@ export default function CRM() {
 
     const matchesSearch = `${a.name} ${a.email}`
       .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+      .includes(searchTerm.trim().toLowerCase());
 
     const inTimeRange = isInTimeRange(a.slot_time);
 
@@ -110,6 +124,11 @@ export default function CRM() {
 
     const today = DateTime.now().setZone(timezone);
     const isoToday = today.toISODate();
+
+    if (exportData.length === 0) {
+      showToast("⚠️ No data to export for this range.", "warning");
+      return;
+    }
 
     if (exportRange === "this_month") {
       const thisMonth = today.month;
@@ -139,18 +158,31 @@ export default function CRM() {
     const header =
       "First Name,Last Name,Email,Phone,Service,Date,Time Slot,Status\n";
 
-    // ✅ Rows mapped cleanly
-    const rows = exportData.map((a) => {
-      const firstName = a.first_name || "";
-      const lastName = a.last_name || "";
-      const email = a.email || "";
-      const phone = a.phone || "";
-      const service = a.service || "Unknown";
-      const date = a.slot_day || "";
-      const time = a.slot_time || "";
-      const status = a.status || "pending";
+    // const rows = exportData.map((a) => {
+    //   const firstName = a.first_name || "";
+    //   const lastName = a.last_name || "";
+    //   const email = a.email || "";
+    //   const phone = a.phone || "";
+    //   const service = a.service || "Unknown";
+    //   const date = a.slot_day || "";
+    //   const time = a.slot_time || "";
+    //   const status = a.status || "pending";
 
-      return `${firstName},${lastName},${email},${phone},${service},${date},${time},${status}`;
+    //   return `${firstName},${lastName},${email},${phone},${service},${date},${time},${status}`;
+    // });
+
+    const sanitize = (text) => `"${String(text || "").replace(/"/g, '""')}"`;
+    const rows = exportData.map((a) => {
+      return [
+        sanitize(a.first_name),
+        sanitize(a.last_name),
+        sanitize(a.email),
+        sanitize(a.phone),
+        sanitize(a.service),
+        sanitize(a.slot_day),
+        sanitize(a.slot_time),
+        sanitize(a.status),
+      ].join(",");
     });
 
     const csvContent = header + rows.join("\n");
@@ -163,6 +195,8 @@ export default function CRM() {
     a.download = "bookings.csv";
     a.click();
     URL.revokeObjectURL(url);
+
+    showToast("✅ Export ready! Download started.", "success");
   };
 
   const formatDate = (isoDate, timezone = "America/New_York") => {
@@ -207,7 +241,7 @@ export default function CRM() {
 
         {/* ✅ Wrap the picker in a div that controls the width */}
         <div className="w-full">
-          <DatePicker
+          <IconDatePicker
             selected={selectedDate}
             onChange={(date) => setSelectedDate(date)}
             dateFormat="MMMM d, yyyy"
@@ -231,11 +265,8 @@ export default function CRM() {
       <div className="flex justify-center">
         <button
           className="btn btn-sm btn-outline"
-          onClick={() => {
-            const token = localStorage.getItem("access_token");
-            if (!token) return; // Guard manual Refresh click too
-            fetchAppointments();
-          }}
+          onClick={fetchAppointments}
+          disabled={loading}
         >
           🔁 Refresh
         </button>
@@ -243,7 +274,19 @@ export default function CRM() {
 
       {/* === Appointment Cards === */}
       <div className="space-y-4">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <p className="text-center text-sm text-gray-500 italic">Loading...</p>
+        ) : error ? (
+          <div className="text-center text-red-400 space-y-2 pt-4">
+            <p>{error}</p>
+            <button
+              onClick={fetchAppointments}
+              className="btn btn-sm btn-outline"
+            >
+              🔁 Try Again
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
           <p className="text-center text-gray-400 pt-4">
             No matching bookings.
           </p>
@@ -255,17 +298,17 @@ export default function CRM() {
             >
               <p className="text-xs text-gray-400">Appointment ID: {a.id}</p>
               <p>
-                <strong>Name:</strong> {a.name}
+                <strong>Name:</strong> {a.name || "Unknown"}
               </p>
               <p>
-                <strong>Email:</strong> {a.email}
+                <strong>Email:</strong> {a.email || "N/A"}
               </p>
               <p>
                 <strong>Date:</strong>{" "}
                 {formatDate(a.slot_day, a.freelancer_timezone)}
               </p>
               <p>
-                <strong>Time:</strong> {a.slot_time}
+                <strong>Time:</strong> {a.slot_time || "?"}
                 <span className="ml-1 text-xs text-gray-400">
                   {a.freelancer_timezone?.split("/")[1]?.replace("_", " ") ||
                     "Time Zone"}

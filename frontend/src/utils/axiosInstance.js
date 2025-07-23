@@ -30,6 +30,7 @@ export function resetSessionFlag() {
 
 const axiosInstance = axios.create({
   baseURL: API_BASE,
+  timeout: 10000, // ⏱️ 10 second timeout for all requests
 });
 
 axiosInstance.interceptors.request.use((config) => {

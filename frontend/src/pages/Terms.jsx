@@ -5,8 +5,8 @@ export default function Terms() {
 
       <p>
         Welcome to SlotMe. By accessing or using our platform, you agree to be
-        bound by these Terms of Service. If you do not agree to these terms,
-        you may not use SlotMe.
+        bound by these Terms of Service. If you do not agree to these terms, you
+        may not use SlotMe.
       </p>
 
       <h2 className="text-xl font-semibold">1. Use of Platform</h2>

@@ -9,6 +9,8 @@ import BookingTrendChart from "../components/BookingTrendChart";
 import StatsSummaryCard from "../components/StatsSummaryCard";
 import AnalyticsSkeleton from "../components/AnalyticsSkeleton";
 import { API_BASE } from "../utils/constants";
+import SafeLoader from "../components/SafeLoader";
+import { showToast } from "../utils/toast"; // top of file
 
 const colorMap = {
   "Happy Ending Herbal Rubdown": "#EF4444",
@@ -33,11 +35,10 @@ export default function FreelancerAnalytics() {
   }, [navigate]);
 
   const fetchStats = () => {
-    console.log("🔁 Refresh button clicked");
+    showToast("🔁 Refreshing stats...", "success", 2000); // ✅ Feedback for user
     axios
       .get(`${API_BASE}/freelancer/analytics`)
       .then((res) => {
-        console.log("📊 Refetched stats:", res.data);
         setStats(res.data);
       })
       .catch((err) => {
@@ -46,44 +47,48 @@ export default function FreelancerAnalytics() {
       });
   };
 
-  if (error) return <p className="text-center text-red-500">{error}</p>;
-  if (!stats) return <AnalyticsSkeleton />;
-
   return (
-    <div className="max-w-md mx-auto p-6 space-y-6 text-white">
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-bold">Your Analytics</h1>
+    <SafeLoader loading={!stats && !error} error={error} onRetry={fetchStats}>
+      <div className="max-w-md mx-auto p-6 space-y-6 text-white">
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-2xl font-bold">Your Analytics</h1>
+          <button
+            onClick={fetchStats}
+            className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-200 transition"
+          >
+            <RefreshCcw size={16} /> Refresh Data
+          </button>
+        </div>
+
+        {/* Card 1: Stats */}
+        <StatsSummaryCard stats={stats} />
+
+        {/* Card 2: Pie Chart */}
+        <BookingsPerServiceChart data={stats.bookings_per_service} />
+
+        {/* Card 3: Booking Trend (Line Chart) */}
+        {stats.booking_trend?.length > 0 && (
+          <BookingTrendChart
+            trendData={stats.booking_trend}
+            signupDate={stats.signup_date}
+          />
+        )}
+
+        {/* Card 4: A chart comp for revenue by service */}
+        <ServiceRevenueChart data={stats.service_revenue} />
+        {stats.service_revenue?.length === 0 && (
+          <p className="text-sm text-center text-gray-400 italic">
+            No revenue data yet.
+          </p>
+        )}
+
         <button
-          onClick={fetchStats}
-          className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-200 transition"
+          onClick={() => navigate("/freelancer-admin")}
+          className="btn btn-outline w-full mt-4"
         >
-          <RefreshCcw size={16} /> Refresh Data
+          Go to Admin Page
         </button>
       </div>
-
-      {/* Card 1: Stats */}
-      <StatsSummaryCard stats={stats} />
-
-      {/* Card 2: Pie Chart */}
-      <BookingsPerServiceChart data={stats.bookings_per_service} />
-
-      {/* Card 3: Booking Trend (Line Chart) */}
-      {stats.booking_trend?.length > 0 && (
-        <BookingTrendChart
-          trendData={stats.booking_trend}
-          signupDate={stats.signup_date}
-        />
-      )}
-
-      {/* Card 4: A chart comp for revenue by service */}
-      <ServiceRevenueChart data={stats.service_revenue} />
-
-      <button
-        onClick={() => navigate("/freelancer-admin")}
-        className="btn btn-outline w-full mt-4"
-      >
-        Go to Admin Page
-      </button>
-    </div>
+    </SafeLoader>
   );
 }

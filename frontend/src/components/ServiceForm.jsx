@@ -11,6 +11,8 @@ export default function ServiceForm({ onServiceAdded }) {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = (e) => {
+    if (loading) return; // prevent double submit
+
     e.preventDefault();
     const token = localStorage.getItem("access_token");
     if (!token) {
@@ -19,12 +21,28 @@ export default function ServiceForm({ onServiceAdded }) {
     }
 
     setLoading(true);
+    const trimmedName = name.trim();
+    const trimmedDescription = description.trim();
+    const minutes = Number(duration);
+    const priceVal = Number(price);
+
+    if (
+      !trimmedName ||
+      !trimmedDescription ||
+      isNaN(minutes) ||
+      isNaN(priceVal)
+    ) {
+      showToast("Please enter valid values for all fields.", "error");
+      setLoading(false);
+      return;
+    }
+
     axios
       .post(`${API_BASE}/freelancer/services`, {
-        name,
-        description,
-        duration_minutes: Number(duration),
-        price_usd: Number(price),
+        name: trimmedName,
+        description: trimmedDescription,
+        duration_minutes: minutes,
+        price_usd: priceVal,
       })
       .then(() => {
         showToast("Service added!");
