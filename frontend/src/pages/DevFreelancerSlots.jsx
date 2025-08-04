@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import axios from "../utils/axiosInstance";
 import { API_BASE } from "../utils/constants";
+import RefreshButton from "../components/RefreshButton";
+import { showToast } from "../utils/toast";
 
 export default function DevFreelancerSlots() {
   const { freelancerId } = useParams();
@@ -18,22 +20,25 @@ export default function DevFreelancerSlots() {
   const [freelancerError, setFreelancerError] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const handleRefresh = async () => {
+    showToast("Refreshing slots...", "refresh");
+    try {
+      setFreelancerError("");
+      setLoading(true);
+      const res = await axios.get(`${API_BASE}/dev/slots/${freelancerId}`, {
+        headers: { "X-Dev-Auth": "secret123" },
+      });
+      setSlots(res.data);
+    } catch (err) {
+      console.error("❌ Failed to fetch slots", err);
+      setFreelancerError("Failed to load freelancer slots.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    axios
-      .get(`${API_BASE}/dev/slots/${freelancerId}`, {
-        headers: {
-          "X-Dev-Auth": "secret123",
-        },
-      })
-      .then((res) => {
-        setSlots(res.data);
-        setFreelancerError("");
-      })
-      .catch((err) => {
-        console.error("❌ Failed to fetch slots", err);
-        setFreelancerError("Failed to load freelancer slots.");
-      })
-      .finally(() => setLoading(false));
+    handleRefresh(); // central refresh logic on mount
   }, [freelancerId]);
 
   useEffect(() => {
@@ -66,13 +71,21 @@ export default function DevFreelancerSlots() {
           {freelancerInfo.email}
         </p>
       )}
-      
+
       <button
         onClick={() => navigate("/dev-admin")}
         className="btn btn-sm btn-outline w-full mt-4"
       >
         ⬅ Back to Admin Panel
       </button>
+
+      <div className="flex justify-center">
+        <RefreshButton
+          onRefresh={handleRefresh}
+          className="btn-sm"
+          toastMessage="Refreshing slots..."
+        />
+      </div>
 
       {loading && <p className="text-center">Loading slots...</p>}
       {freelancerError && (

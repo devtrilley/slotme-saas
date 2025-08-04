@@ -32,6 +32,7 @@ def get_all_freelancers():
                 "tagline": c.tagline,
                 "bio": c.bio,
                 "is_verified": c.is_verified,
+                "tier": c.tier,
             }
         )
     return jsonify(result)

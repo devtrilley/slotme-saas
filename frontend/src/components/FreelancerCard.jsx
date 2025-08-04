@@ -10,6 +10,7 @@ export default function FreelancerCard({
   isVerified,
   tagline,
   onClick = () => {},
+  tier = "free",
 }) {
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
@@ -33,62 +34,72 @@ export default function FreelancerCard({
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
+  const showGradient = tier === "pro" || tier === "elite";
+
   return (
     <div
-      className="flex items-center gap-4 p-4 border rounded shadow bg-base-200 cursor-pointer"
-      onClick={onClick}
+      className={`rounded-xl p-[2px] ${
+        showGradient
+          ? "bg-gradient-to-r from-purple-500 to-indigo-500"
+          : "border border-white/20"
+      }`}
     >
-      <div className="relative w-17 h-17">
-        <img
-          src={logoUrl?.trim() || "https://placehold.co/64x64?text=Logo"}
-          onError={(e) => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src = "https://placehold.co/64x64?text=Logo";
-          }}
-          alt="Freelancer Logo"
-          className="w-17 h-17 rounded-full object-cover border-1 border-white"
-        />
-
-        {isVerified && (
-          <div
-            ref={badgeRef}
-            className="absolute bottom-0 right-0 z-10 translate-x-1 translate-y-0 cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!isMobile) return;
-              setTooltipVisible((prev) => !prev);
+      <div
+        className="flex items-center gap-4 p-4 rounded-[10px] shadow bg-base-200 cursor-pointer"
+        onClick={onClick}
+      >
+        <div className="relative w-17 h-17">
+          <img
+            src={logoUrl?.trim() || "https://placehold.co/64x64?text=Logo"}
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = "https://placehold.co/64x64?text=Logo";
             }}
-            onMouseEnter={() => !isMobile && setTooltipVisible(true)}
-            onMouseLeave={() => !isMobile && setTooltipVisible(false)}
-          >
-            <div className="w-6 h-6 bg-blue-500 border-2 border-white rounded-full flex items-center justify-center">
-              <FaCheck className="text-white text-xs" />
-            </div>
+            alt="Freelancer Logo"
+            className="w-17 h-17 rounded-full object-cover border-1 border-white"
+          />
 
-            {tooltipVisible && (
-              <div className="absolute top-full mt-1 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50">
-                Verified Freelancer
+          {isVerified && (
+            <div
+              ref={badgeRef}
+              className="absolute bottom-0 right-0 z-10 translate-x-1 translate-y-0 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isMobile) return;
+                setTooltipVisible((prev) => !prev);
+              }}
+              onMouseEnter={() => !isMobile && setTooltipVisible(true)}
+              onMouseLeave={() => !isMobile && setTooltipVisible(false)}
+            >
+              <div className="w-6 h-6 bg-blue-500 border-2 border-white rounded-full flex items-center justify-center">
+                <FaCheck className="text-white text-xs" />
               </div>
-            )}
-          </div>
-        )}
-      </div>
 
-      <div className="flex-1">
-        <FallbackText
-          value={
-            business_name?.trim() ||
-            `${first_name?.trim() || ""} ${last_name?.trim() || ""}`.trim()
-          }
-          fallback="Your Business Name"
-          className="text-white font-bold text-lg"
-        />
+              {tooltipVisible && (
+                <div className="absolute top-full mt-1 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50">
+                  Verified Freelancer
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
-        <FallbackText
-          value={tagline}
-          fallback="Add a tagline to describe your services"
-          className="text-sm italic text-gray-300 mt-1"
-        />
+        <div className="flex-1">
+          <FallbackText
+            value={
+              business_name?.trim() ||
+              `${first_name?.trim() || ""} ${last_name?.trim() || ""}`.trim()
+            }
+            fallback="Your Business Name"
+            className="text-white font-bold text-lg"
+          />
+
+          <FallbackText
+            value={tagline}
+            fallback="Add a tagline to describe your services"
+            className="text-sm italic text-gray-300 mt-1"
+          />
+        </div>
       </div>
     </div>
   );

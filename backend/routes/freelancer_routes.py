@@ -185,6 +185,7 @@ def get_public_freelancer_info(identifier):
             "created_at": (
                 freelancer.created_at.isoformat() if freelancer.created_at else None
             ),
+            "tier": freelancer.tier,
             "services": service_data,  # ✅ ADD THIS
         }
     )

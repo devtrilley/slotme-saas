@@ -142,7 +142,7 @@ export default function Upgrade() {
         </div>
         <div>Upgrade Your</div>
         <div className="text-5xl font-extrabold">
-          <span className="text-gray-100 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-500">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-500">
             Experience
           </span>
         </div>

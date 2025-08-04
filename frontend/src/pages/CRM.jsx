@@ -4,6 +4,7 @@ import IconDatePicker from "../components/IconDatePicker";
 import { DateTime } from "luxon";
 import { API_BASE } from "../utils/constants";
 import { showToast } from "../utils/toast";
+import RefreshButton from "../components/RefreshButton";
 
 export default function CRM() {
   const [appointments, setAppointments] = useState([]);
@@ -45,6 +46,11 @@ export default function CRM() {
       console.error("❌ Failed to fetch appointments:", err);
       setError("Failed to load your bookings. Please try again.");
     }
+  };
+
+  const handleRefresh = async () => {
+    showToast("Refreshing bookings...", "refresh", 2000);
+    await fetchAppointments();
   };
 
   useEffect(() => {
@@ -263,13 +269,11 @@ export default function CRM() {
       </div>
 
       <div className="flex justify-center">
-        <button
-          className="btn btn-sm btn-outline"
-          onClick={fetchAppointments}
-          disabled={loading}
-        >
-          🔁 Refresh
-        </button>
+        <RefreshButton
+          onRefresh={handleRefresh}
+          className="btn-sm"
+          toastMessage="Refreshing bookings..."
+        />
       </div>
 
       {/* === Appointment Cards === */}

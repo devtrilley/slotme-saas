@@ -15,6 +15,7 @@ import TierStatusCard from "../components/TierStatusCard";
 import { API_BASE } from "../utils/constants";
 import ErrorCard from "../components/ErrorCard";
 import SafeLoader from "../components/SafeLoader";
+import RefreshButton from "../components/RefreshButton";
 
 import { useFreelancer } from "../context/FreelancerContext";
 
@@ -196,7 +197,7 @@ export default function AdminPage() {
       .delete(`${API_BASE}/slots/${slotId}`)
       .then(() => {
         showToast("Slot deleted");
-        fetchSlots();
+        quietFetchSlots();
       })
       .catch((err) => {
         console.error("❌ Delete failed:", err.response?.data || err.message);
@@ -254,11 +255,62 @@ export default function AdminPage() {
       .toFormat("yyyy-MM-dd");
   }
 
-  const handleRefresh = () => {
-    showToast("Refreshing...", "success", 2000);
-    fetchSlots();
-    fetchBranding();
-    fetchServices();
+  // "quiet" = don't visually disturb user, refresh under the hood. "loud" = everyone knows
+  const quietFetchSlots = async () => {
+    try {
+      const res = await axios.get(
+        `${API_BASE}/freelancer/slots/${freelancerId}`
+      );
+      setSlots(res.data);
+      setFetchError("");
+    } catch (err) {
+      console.error("❌ Failed to fetch slots (quiet):", err);
+    }
+  };
+
+  const quietFetchBranding = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/freelancer-info`);
+      const data = res.data;
+      setBranding({
+        id: data.id,
+        business_name: data.business_name || "",
+        first_name: data.first_name || "",
+        last_name: data.last_name || "",
+        logo_url: data.logo_url || "",
+        tagline: data.tagline || "",
+        bio: data.bio || "",
+        timezone: data.timezone || "America/New_York",
+        is_verified: data.is_verified,
+        tier: data.tier || "free",
+      });
+      setFreelancer(data);
+      localStorage.setItem("freelancer", JSON.stringify(data));
+      setBrandingLoadError(false);
+    } catch (err) {
+      console.error("❌ Failed to fetch branding (quiet):", err);
+      setBrandingLoadError(true);
+    }
+  };
+
+  const quietFetchServices = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/freelancer/services`);
+      setServices(res.data);
+      setServicesError(false);
+    } catch (err) {
+      console.error("❌ Failed to fetch services (quiet):", err);
+      setServicesError(true);
+    }
+  };
+
+  const handleRefresh = async () => {
+    showToast("Refreshing dashboard...", "refresh", 2000);
+    await Promise.all([
+      quietFetchSlots(),
+      quietFetchBranding(),
+      quietFetchServices(),
+    ]);
   };
 
   function formatDate(dateString) {
@@ -346,6 +398,7 @@ export default function AdminPage() {
               bio={branding.bio}
               isVerified={branding.is_verified}
               onClick={() => setShowModal(true)}
+              tier={freelancer.tier}
             />
 
             {showModal && (
@@ -429,9 +482,10 @@ export default function AdminPage() {
             Select a date to view / edit your time slots:
           </label>
           <div className="flex justify-center">
-            <button onClick={handleRefresh} className="btn btn-sm btn-outline">
-              🔄 Refresh
-            </button>
+            <RefreshButton
+              onRefresh={handleRefresh}
+              toastMessage="🔄 Refreshing time slots..."
+            />
           </div>
           <div className="relative w-full">
             <IconDatePicker

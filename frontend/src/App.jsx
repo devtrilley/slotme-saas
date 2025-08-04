@@ -4,7 +4,7 @@ import { Routes, Route } from "react-router-dom";
 // Page Imports
 import Home from "./pages/Home";
 import BookingPage from "./pages/Booking";
-import CRM from "./pages/crm";
+import CRM from "./pages/CRM";
 import FreelancerAdmin from "./pages/FreelancerAdmin";
 import DevLogin from "./pages/DevLogin";
 import DevAdmin from "./pages/DevAdmin";
@@ -36,6 +36,7 @@ import Navbar from "./components/Navbar";
 import RequireDevAuth from "./components/RequireDevAuth";
 import RequireFreelancerAuth from "./components/RequireFreelancerAuth";
 import CustomUrlRouter from "./components/CustomUrlRouter";
+import { Toaster } from "react-hot-toast"; // 🔼 Put this at the top
 
 // Context Import
 import { FreelancerProvider } from "./context/FreelancerContext";
@@ -152,10 +153,17 @@ export default function App() {
       <NavigatorInit />
       <Navbar />
 
-      <div
-        id="toast-container"
-        className="toast toast-top toast-center fixed z-50"
-      ></div>
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 6000,
+          style: {
+            background: "#1F2937",
+            color: "#fff",
+            fontSize: "0.875rem",
+          },
+        }}
+      />
 
       <div className="p-4">
         <Routes>

@@ -591,7 +591,7 @@ def update_appointment(id):
 @booking_bp.route("/slots", methods=["POST"])
 @jwt_required()
 def create_time_slot():
-    freelancer_id = int(g.freelancer_id)
+    freelancer_id = int(get_jwt_identity())
     data = request.get_json()
 
     day = data.get("day")  # "YYYY-MM-DD"
@@ -679,7 +679,7 @@ def create_time_slot():
 @booking_bp.route("/slots/<int:slot_id>", methods=["DELETE"])
 @jwt_required()
 def delete_time_slot(slot_id):
-    freelancer_id = int(g.freelancer_id)
+    freelancer_id = int(get_jwt_identity())
     slot = TimeSlot.query.get(slot_id)
 
     print(f"🧪 Attempting to delete slot_id: {slot_id}")
@@ -705,6 +705,7 @@ def delete_time_slot(slot_id):
         print("❌ Unexpected delete failure:", e)
         return jsonify({"error": "Internal server error"}), 500
 
+
 @booking_bp.route("/master-times", methods=["GET"])
 def get_master_time_slots():
     from models import MasterTimeSlot
@@ -712,6 +713,7 @@ def get_master_time_slots():
     times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
     result = [{"id": t.id, "label": t.label, "time_24h": t.time_24h} for t in times]
     return jsonify(result)
+
 
 @booking_bp.route("/resend-confirmation/<int:appointment_id>", methods=["POST"])
 def resend_confirmation_email(appointment_id):

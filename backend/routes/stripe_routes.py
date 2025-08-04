@@ -15,7 +15,6 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 @stripe_bp.route("/create-checkout-session", methods=["POST"])
 @jwt_required()
 def create_checkout_session():
-    # freelancer_id = int(g.freelancer_id)
     freelancer_id = int(get_jwt_identity())
     data = request.get_json()
     plan = data.get("plan")  # "pro" or "elite"

@@ -4,6 +4,8 @@ import axios from "../utils/axiosInstance";
 import FreelancerCard from "../components/FreelancerCard";
 import FreelancerModal from "../components/FreelancerModal";
 import { API_BASE } from "../utils/constants";
+import RefreshButton from "../components/RefreshButton";
+import { showToast } from "../utils/toast";
 
 export default function DevAdmin() {
   const [freelancers, setFreelancer] = useState([]);
@@ -13,27 +15,31 @@ export default function DevAdmin() {
   const [showDeleteModal, setShowDeleteModal] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    axios
-      .get(`${API_BASE}/dev/freelancers`, {
-        headers: {
-          "X-Dev-Auth": "secret123",
-        },
-      })
-      .then((res) =>
-        setFreelancer(
-          res.data.sort((a, b) =>
-            `${a.first_name} ${a.last_name}`.localeCompare(
-              `${b.first_name} ${b.last_name}`
-            )
+  const fetchFreelancers = async () => {
+    showToast("Refreshing developers...", "refresh");
+    try {
+      setError("");
+      setLoading(true);
+      const res = await axios.get(`${API_BASE}/dev/freelancers`, {
+        headers: { "X-Dev-Auth": "secret123" },
+      });
+      setFreelancer(
+        res.data.sort((a, b) =>
+          `${a.first_name} ${a.last_name}`.localeCompare(
+            `${b.first_name} ${b.last_name}`
           )
         )
-      )
-      .catch((err) => {
-        console.error("❌ Failed to load freelancers", err);
-        setError("Failed to load freelancers");
-      })
-      .finally(() => setLoading(false));
+      );
+    } catch (err) {
+      console.error("❌ Failed to load freelancers", err);
+      setError("Failed to load freelancers");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFreelancers();
   }, []);
 
   const handleLogout = () => {
@@ -103,6 +109,14 @@ export default function DevAdmin() {
         ➕ Add New Freelancer
       </button>
 
+      <div className="flex justify-center">
+        <RefreshButton
+          onRefresh={fetchFreelancers}
+          className="btn-sm"
+          toastMessage="Refreshing developers..."
+        />
+      </div>
+
       {loading && <p className="text-center">Loading freelancers...</p>}
       {error && <p className="text-red-500 text-center">{error}</p>}
 
@@ -118,6 +132,7 @@ export default function DevAdmin() {
               bio={freelancer.bio}
               isVerified={freelancer.is_verified}
               onClick={() => setModalFreelancer(freelancer)}
+              tier={freelancer.tier}
             />
             <div className="flex flex-wrap gap-2 mt-2">
               <button

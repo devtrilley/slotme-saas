@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import axios from "../utils/axiosInstance";
 import { API_BASE } from "../utils/constants";
+import RefreshButton from "../components/RefreshButton";
+import { showToast } from "../utils/toast";
 
 export default function DevFreelancerBookings() {
   const { freelancerId } = useParams();
@@ -17,23 +19,29 @@ export default function DevFreelancerBookings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const handleRefresh = async () => {
+    showToast("Refreshing bookings...", "refresh");
+    try {
+      setError("");
+      setLoading(true);
+      const res = await axios.get(
+        `${API_BASE}/dev/appointments/${freelancerId}`,
+        {
+          headers: { "X-Dev-Auth": "secret123" },
+        }
+      );
+      setBookings(res.data);
+    } catch (err) {
+      console.error("❌ Failed to fetch bookings", err);
+      setError("Failed to load freelancer bookings.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch bookings
   useEffect(() => {
-    axios
-      .get(`${API_BASE}/dev/appointments/${freelancerId}`, {
-        headers: {
-          "X-Dev-Auth": "secret123",
-        },
-      })
-      .then((res) => {
-        setBookings(res.data);
-        setError("");
-      })
-      .catch((err) => {
-        console.error("❌ Failed to fetch bookings", err);
-        setError("Failed to load freelancer bookings.");
-      })
-      .finally(() => setLoading(false));
+    handleRefresh(); // cleaner
   }, [freelancerId]);
 
   // Fallback to fetch freelancer info if no location state
@@ -77,6 +85,14 @@ export default function DevFreelancerBookings() {
       >
         ⬅ Back to Admin Panel
       </button>
+
+      <div className="flex justify-center">
+        <RefreshButton
+          onRefresh={handleRefresh}
+          className="btn-sm"
+          toastMessage="Refreshing bookings..."
+        />
+      </div>
 
       <div className="space-y-3">
         {bookings.map((booking) => (

@@ -16,6 +16,7 @@ import { API_BASE } from "../utils/constants";
 import HoneypotInput from "../components/HoneypotInput";
 import SafeLoader from "../components/SafeLoader";
 import NoAvailableSlotsCard from "../components/NoAvailableSlotsCard";
+import RefreshButton from "../components/RefreshButton";
 
 export default function BookingPage({ useCustomUrl = false }) {
   const params = useParams();
@@ -38,6 +39,7 @@ export default function BookingPage({ useCustomUrl = false }) {
     bio: "",
     is_verified: false,
     faq_text: "",
+    tier: "",
   });
   const [freelancerTimeZone, setFreelancerTimeZone] = useState("EST");
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -92,6 +94,32 @@ export default function BookingPage({ useCustomUrl = false }) {
     setLoading(true);
     fetchFreelancerInfo();
     fetchSlots();
+  };
+
+  const handleRefresh = async () => {
+    showToast("Refreshing slots...", "refresh", 2000);
+    try {
+      const [slotsRes, infoRes] = await Promise.all([
+        axios.get(`${API_BASE}/freelancer/slots/${freelancerId}`),
+        axios.get(`${API_BASE}/freelancer/public-info/${freelancerId}`),
+      ]);
+      setSlots(sortSlots(slotsRes.data));
+      const data = infoRes.data;
+      setBranding({ ...data });
+      setFreelancerTimeZone(data.timezone || "America/New_York");
+      setNoShowPolicy(data.no_show_policy || "");
+
+      const enabled = data.services || [];
+      setServices(enabled);
+
+      if (enabled.length === 1) {
+        setSelectedServiceId(enabled[0].id);
+        setSelectedServiceDuration(enabled[0].duration_minutes || 0);
+      }
+    } catch (err) {
+      console.error("❌ Failed to refresh", err);
+      setError("Booking page unavailable.");
+    }
   };
 
   const fetchFreelancerInfo = () => {
@@ -396,6 +424,7 @@ export default function BookingPage({ useCustomUrl = false }) {
           bio={branding.bio}
           isVerified={branding.is_verified}
           onClick={() => setShowModal(true)}
+          tier={branding.tier}
         />
 
         {showModal && (
@@ -407,16 +436,11 @@ export default function BookingPage({ useCustomUrl = false }) {
 
         <div className="flex flex-col items-center gap-2">
           <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>
-          <button
-            className="btn btn-sm btn-outline"
-            onClick={() => {
-              fetchSlots();
-              fetchFreelancerInfo(); // ✅ add this
-            }}
-            disabled={loading}
-          >
-            🔁 Refresh
-          </button>
+          <RefreshButton
+            onRefresh={handleRefresh}
+            toastMessage="Refreshing booking page..."
+            className="btn-sm"
+          />
         </div>
 
         {freelancerTimeZone && (
