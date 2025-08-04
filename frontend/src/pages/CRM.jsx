@@ -252,7 +252,7 @@ export default function CRM() {
             onChange={(date) => setSelectedDate(date)}
             dateFormat="MMMM d, yyyy"
             placeholderText="Choose a date"
-            className="input input-bordered w-full" // style the input
+            className="input input-bordered w-full pl-10" // style the input
             wrapperClassName="w-full" // style the outer wrapper
           />
         </div>
