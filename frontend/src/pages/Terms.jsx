@@ -31,12 +31,22 @@ export default function Terms() {
         bookings are subject to confirmation. SlotMe is not responsible for
         cancellations, delays, or service quality.
       </p>
+      <p className="mt-2">
+        Freelancers reserve the right to cancel any appointment for any reason
+        at their discretion. If a booking is cancelled by the freelancer, the
+        time slot will become available for others to book.
+      </p>
 
       <h2 className="text-xl font-semibold">4. Payments</h2>
       <p>
-        Payments may be processed through third-party services. SlotMe does not
-        store or process payment details directly and is not liable for payment
-        disputes.
+        Payments may be processed through third-party services (e.g., Cash App,
+        Zelle, Stripe, etc.). SlotMe does not store or handle payment
+        information and cannot assist with refunds or payment disputes.
+      </p>
+      <p className="mt-2">
+        All transactions are the sole responsibility of the freelancer and
+        customer involved. If you require a refund or encounter a problem,
+        please contact the freelancer directly.
       </p>
 
       <h2 className="text-xl font-semibold">5. Termination</h2>
@@ -49,6 +59,12 @@ export default function Terms() {
       <p>
         SlotMe may update these Terms of Service at any time. Continued use of
         the platform constitutes acceptance of any changes.
+      </p>
+
+      <p className="text-sm italic text-white/70 mt-8">
+        SlotMe acts solely as a scheduling tool and holds no liability for
+        payments, cancellations, or disputes between users. Each freelancer
+        defines their own policies, pricing, and responsibilities.
       </p>
 
       <p className="text-sm text-gray-500">Last updated: May 2025</p>

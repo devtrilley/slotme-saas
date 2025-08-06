@@ -681,6 +681,10 @@ def create_batch_slots():
     start_dt = datetime.strptime(start_time, "%I:%M %p")
     end_dt = datetime.strptime(end_time, "%I:%M %p")
 
+    # 🔄 Support next-day ranges (e.g. 11 PM to 4 AM)
+    if end_dt <= start_dt:
+        end_dt += timedelta(days=1)
+
     current_time = start_dt
     while current_time < end_dt:
         label = current_time.strftime("%I:%M %p")
@@ -711,14 +715,22 @@ def create_batch_slots():
         if not master_id:
             continue
 
-        slot_day = start_day
+        # Construct full datetime for start
+        start_day_dt = datetime.strptime(start_day, "%Y-%m-%d")
+        start_dt_full = datetime.combine(
+            start_day_dt, datetime.strptime(start_time, "%I:%M %p").time()
+        )
 
-        start_dt = datetime.strptime(start_time, "%I:%M %p")
-        label_dt = datetime.strptime(label, "%I:%M %p")
+        # Construct full datetime for current label
+        label_time = datetime.strptime(label, "%I:%M %p").time()
+        label_dt_full = datetime.combine(start_day_dt, label_time)
 
-        # Midnight and any time after wrap to end_day
-        if label_dt <= start_dt and start_day != end_day and label != start_time:
-            slot_day = end_day
+        # If it wrapped past midnight
+        if label_dt_full < start_dt_full and end_day != start_day:
+            label_dt_full += timedelta(days=1)
+
+        # Set slot_day based on final date
+        slot_day = label_dt_full.date().isoformat()
 
         if (slot_day, master_id) in existing_ids:
             continue
@@ -754,6 +766,11 @@ def create_batch_slots():
         created.append(f"{label} ({slot_day})")
 
     db.session.commit()
+
+    print("Labels to create:", times_to_create)
+    print("Existing slot IDs:", existing_ids)
+    print("Final created slots:", created)
+
     return jsonify({"message": f"{len(created)} slots created", "slots": created}), 201
 
 

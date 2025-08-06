@@ -23,18 +23,32 @@ export default function BatchSlotForm({
   );
 
   const [endHour, setEndHour] = useState(() => {
-    const h = parseInt(localStorage.getItem("slot_hour") || "12", 10);
-    const newH = h === 12 ? 1 : h + 1;
-    return String(newH).padStart(2, "0");
+    return (
+      localStorage.getItem("slot_end_hour") ||
+      (() => {
+        const h = parseInt(localStorage.getItem("slot_hour") || "12", 10);
+        const newH = h === 12 ? 1 : h + 1;
+        return String(newH).padStart(2, "0");
+      })()
+    );
   });
-  const [endMinute, setEndMinute] = useState("00");
+
+  const [endMinute, setEndMinute] = useState(() => {
+    return localStorage.getItem("slot_end_minute") || "00";
+  });
+
   const [endAMPM, setEndAMPM] = useState(() => {
-    const lastAMPM = localStorage.getItem("slot_ampm") || "AM";
-    const h = parseInt(localStorage.getItem("slot_hour") || "12", 10);
-    if (h === 11 || h === 12) {
-      return lastAMPM === "AM" ? "PM" : "AM";
-    }
-    return lastAMPM;
+    return (
+      localStorage.getItem("slot_end_ampm") ||
+      (() => {
+        const lastAMPM = localStorage.getItem("slot_ampm") || "AM";
+        const h = parseInt(localStorage.getItem("slot_hour") || "12", 10);
+        if (h === 11 || h === 12) {
+          return lastAMPM === "AM" ? "PM" : "AM";
+        }
+        return lastAMPM;
+      })()
+    );
   });
 
   const [interval, setInterval] = useState(15);
@@ -58,6 +72,23 @@ export default function BatchSlotForm({
     const end = DateTime.fromFormat(endTime, "hh:mm a");
 
     const crossesMidnight = end <= start;
+
+    if (end <= start && !showConfirmModal) {
+      // Check if user is trying to end before start without accepting cross-day generation
+      const startHourNum = parseInt(startHour);
+      const endHourNum = parseInt(endHour);
+      const sameAMPM = startAMPM === endAMPM;
+
+      const isSameDayButInvalid =
+        sameAMPM &&
+        (endHourNum < startHourNum ||
+          (endHourNum === startHourNum && endMinute < startMinute));
+
+      if (isSameDayButInvalid) {
+        showToast("❌ End time must be after start time.", "error");
+        return;
+      }
+    }
 
     const baseDay = DateTime.fromObject(
       {
@@ -187,7 +218,10 @@ export default function BatchSlotForm({
             <select
               className="select select-bordered w-1/3"
               value={endHour}
-              onChange={(e) => setEndHour(e.target.value)}
+              onChange={(e) => {
+                setEndHour(e.target.value);
+                localStorage.setItem("slot_end_hour", e.target.value);
+              }}
             >
               {[...Array(12)].map((_, i) => (
                 <option key={i + 1}>{String(i + 1).padStart(2, "0")}</option>
@@ -197,7 +231,10 @@ export default function BatchSlotForm({
             <select
               className="select select-bordered w-1/3"
               value={endMinute}
-              onChange={(e) => setEndMinute(e.target.value)}
+              onChange={(e) => {
+                setEndMinute(e.target.value);
+                localStorage.setItem("slot_end_minute", e.target.value);
+              }}
             >
               {["00", "15", "30", "45"].map((m) => (
                 <option key={m}>{m}</option>
@@ -207,7 +244,10 @@ export default function BatchSlotForm({
             <select
               className="select select-bordered w-1/3 min-w-[4rem]"
               value={endAMPM}
-              onChange={(e) => setEndAMPM(e.target.value)}
+              onChange={(e) => {
+                setEndAMPM(e.target.value);
+                localStorage.setItem("slot_end_ampm", e.target.value);
+              }}
             >
               <option>AM</option>
               <option>PM</option>

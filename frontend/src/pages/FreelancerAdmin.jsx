@@ -618,7 +618,7 @@ export default function AdminPage() {
                         onClick={() => handleDelete(slot.id)}
                         className="btn btn-xs btn-error mt-2"
                       >
-                        Delete
+                        Cancel
                       </button>
                     )}
                   </div>

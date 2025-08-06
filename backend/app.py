@@ -35,7 +35,32 @@ import time
 import pytz, os, secrets, stripe, logging, threading
 
 
-load_dotenv()  # Keep at very top below imports
+load_dotenv()
+
+# 🔒 ENV CHECK
+required_vars = [
+    "STRIPE_SECRET_KEY",
+    "STRIPE_PUBLISHABLE_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "BREVO_SMTP_LOGIN",
+    "BREVO_SMTP_PASSWORD",
+    "BREVO_SMTP_SERVER",
+    "BREVO_SMTP_PORT",
+    "SUPPORT_EMAIL",
+    "JWT_SECRET_KEY",
+    "SECRET_KEY",
+    "FRONTEND_URL",
+    "BACKEND_ORIGIN",
+]
+
+missing = [var for var in required_vars if not os.getenv(var)]
+if missing:
+    print("❌ Missing required .env variables:")
+    for var in missing:
+        print(f" - {var}")
+    exit(1)
+else:
+    print("✅ All required environment variables loaded.")
 
 
 # DEV ONLY: enable detailed CORS logging

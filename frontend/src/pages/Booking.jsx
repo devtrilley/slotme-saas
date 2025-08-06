@@ -131,7 +131,7 @@ export default function BookingPage({ useCustomUrl = false }) {
     axios
       .get(`${API_BASE}/freelancer/public-info/${freelancerId}`)
       .then((res) => {
-        setBranding({ ...res.data });
+        setFreelancerDetails({ ...res.data });
         setFreelancerTimeZone(res.data.timezone || "America/New_York");
         setNoShowPolicy(res.data.no_show_policy || "");
         const enabled = res.data.services || [];
