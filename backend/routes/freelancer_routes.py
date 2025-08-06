@@ -187,6 +187,9 @@ def get_public_freelancer_info(identifier):
             ),
             "tier": freelancer.tier,
             "services": service_data,  # ✅ ADD THIS
+            "location": freelancer.location,
+            "booking_instructions": freelancer.booking_instructions,
+            "preferred_payment_methods": freelancer.preferred_payment_methods,
         }
     )
 
@@ -234,6 +237,9 @@ def public_freelancer_profile(identifier):
             "joined": freelancer.id,
             "services": service_data,
             "faq_text": freelancer.faq_text,
+            "location": freelancer.location,
+            "booking_instructions": freelancer.booking_instructions,
+            "preferred_payment_methods": freelancer.preferred_payment_methods,
         }
     )
 
@@ -611,6 +617,9 @@ def get_freelancer_info():
                 "faq_text": freelancer.faq_text,  # ✅ added
                 "tier": freelancer.tier,
                 "is_verified": freelancer.tier in ["pro", "elite"],
+                "location": freelancer.location,
+                "booking_instructions": freelancer.booking_instructions,
+                "preferred_payment_methods": freelancer.preferred_payment_methods,
             }
         ),
         200,
@@ -788,5 +797,8 @@ def public_profile_by_url(custom_url):
             "joined": freelancer.created_at.strftime("%-m/%-d/%y"),
             "services": service_data,
             "faq_text": freelancer.faq_text,
+            "location": freelancer.location,
+            "booking_instructions": freelancer.booking_instructions,
+            "preferred_payment_methods": freelancer.preferred_payment_methods,
         }
     )

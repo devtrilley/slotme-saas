@@ -1,3 +1,6 @@
+from models import MasterTimeSlot, TimeSlot
+
+
 def clear_inherited_blocks(freelancer_id, day, start_label, duration_minutes):
     """
     Clears inherited booked blocks for a specific appointment start time.

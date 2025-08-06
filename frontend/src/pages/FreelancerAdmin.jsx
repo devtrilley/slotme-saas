@@ -34,7 +34,7 @@ function clearFreelancerSession() {
     "freelancer_logged_in",
     "access_token",
     "freelancer_id",
-    "branding_updated",
+    "freelancerDetails_updated",
     "client_id",
   ].forEach((key) => localStorage.removeItem(key));
 }
@@ -48,8 +48,9 @@ export default function AdminPage() {
   const [fetchError, setFetchError] = useState("");
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [servicesError, setServicesError] = useState(false);
-  const [brandingLoadError, setBrandingLoadError] = useState(false);
-  const [branding, setBranding] = useState({
+  const [freelancerDetailsLoadError, setFreelancerDetailsLoadError] =
+    useState(false);
+  const [freelancerDetails, setFreelancerDetails] = useState({
     business_name: "",
     first_name: "",
     last_name: "",
@@ -162,12 +163,12 @@ export default function AdminPage() {
       });
   };
 
-  const fetchBranding = () => {
+  const fetchFreelancerDetails = () => {
     axios
       .get(`${API_BASE}/freelancer-info`)
       .then((res) => {
         const data = res.data;
-        setBranding({
+        setFreelancerDetails({
           id: data.id,
           business_name: data.business_name || "",
           first_name: data.first_name || "",
@@ -182,11 +183,11 @@ export default function AdminPage() {
 
         setFreelancer(data);
         localStorage.setItem("freelancer", JSON.stringify(data));
-        setBrandingLoadError(false);
+        setFreelancerDetailsLoadError(false);
       })
       .catch((err) => {
-        console.error("❌ Failed to load branding", err);
-        setBrandingLoadError(true); // set error
+        console.error("❌ Failed to load freelancerDetails", err);
+        setFreelancerDetailsLoadError(true); // set error
       });
   };
 
@@ -234,24 +235,24 @@ export default function AdminPage() {
       });
   };
 
-  const [brandingUpdated, setBrandingUpdated] = useState(0);
+  const [freelancerDetailsUpdated, setFreelancerDetailsUpdated] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token) return; // Prevent background calls when not logged in
 
     fetchSlots();
-    fetchBranding();
+    fetchFreelancerDetails();
     fetchServices();
-  }, [brandingUpdated]);
+  }, [freelancerDetailsUpdated]);
 
-  const shareUrl = branding?.custom_url
-    ? `http://localhost:5173/${branding.custom_url}`
-    : `http://localhost:5173/book/${branding.id}`; // fallback
+  const shareUrl = freelancerDetails?.custom_url
+    ? `http://localhost:5173/${freelancerDetails.custom_url}`
+    : `http://localhost:5173/book/${freelancerDetails.id}`; // fallback
 
   function getESTDateString(date) {
     return DateTime.fromJSDate(date)
-      .setZone(branding.timezone || "America/New_York")
+      .setZone(freelancerDetails.timezone || "America/New_York")
       .toFormat("yyyy-MM-dd");
   }
 
@@ -268,11 +269,11 @@ export default function AdminPage() {
     }
   };
 
-  const quietFetchBranding = async () => {
+  const quietFetchFreelancerDetails = async () => {
     try {
       const res = await axios.get(`${API_BASE}/freelancer-info`);
       const data = res.data;
-      setBranding({
+      setFreelancerDetails({
         id: data.id,
         business_name: data.business_name || "",
         first_name: data.first_name || "",
@@ -286,10 +287,10 @@ export default function AdminPage() {
       });
       setFreelancer(data);
       localStorage.setItem("freelancer", JSON.stringify(data));
-      setBrandingLoadError(false);
+      setFreelancerDetailsLoadError(false);
     } catch (err) {
-      console.error("❌ Failed to fetch branding (quiet):", err);
-      setBrandingLoadError(true);
+      console.error("❌ Failed to fetch freelancerDetails (quiet):", err);
+      setFreelancerDetailsLoadError(true);
     }
   };
 
@@ -308,7 +309,7 @@ export default function AdminPage() {
     showToast("Refreshing dashboard...", "refresh", 2000);
     await Promise.all([
       quietFetchSlots(),
-      quietFetchBranding(),
+      quietFetchFreelancerDetails(),
       quietFetchServices(),
     ]);
   };
@@ -375,13 +376,13 @@ export default function AdminPage() {
 
         <TierStatusCard
           tier={isLoggedIn ? freelancer?.tier : null}
-          error={brandingLoadError}
+          error={freelancerDetailsLoadError}
           notLoggedIn={!isLoggedIn}
         />
 
-        {brandingLoadError ? (
+        {freelancerDetailsLoadError ? (
           <ErrorCard
-            title="We couldn’t load your branding info."
+            title="We couldn’t load your freelancerDetails info."
             message="Please check your internet or try logging in again."
             onRetry={() => window.location.reload()}
             variant="error"
@@ -390,13 +391,13 @@ export default function AdminPage() {
         ) : (
           <>
             <FreelancerCard
-              business_name={branding.business_name}
-              first_name={branding.first_name}
-              last_name={branding.last_name}
-              logoUrl={branding.logo_url}
-              tagline={branding.tagline}
-              bio={branding.bio}
-              isVerified={branding.is_verified}
+              business_name={freelancerDetails.business_name}
+              first_name={freelancerDetails.first_name}
+              last_name={freelancerDetails.last_name}
+              logoUrl={freelancerDetails.logo_url}
+              tagline={freelancerDetails.tagline}
+              bio={freelancerDetails.bio}
+              isVerified={freelancerDetails.is_verified}
               onClick={() => setShowModal(true)}
               tier={freelancer.tier}
             />
@@ -404,8 +405,8 @@ export default function AdminPage() {
             {showModal && (
               <FreelancerModal
                 freelancer={{
-                  ...branding,
-                  id: branding.id || null,
+                  ...freelancerDetails,
+                  id: freelancerDetails.id || null,
                 }}
                 onClose={() => setShowModal(false)}
               />
@@ -413,16 +414,18 @@ export default function AdminPage() {
           </>
         )}
 
-        <div className="p-4 bg-base-200 border rounded-lg shadow space-y-2">
+        <div className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow space-y-2">
           <p className="text-sm font-medium text-center">
             Your Public Booking Link
           </p>
           <p className="text-sm text-primary text-center break-words">
-            {brandingLoadError || !isLoggedIn || !branding?.id
+            {freelancerDetailsLoadError || !isLoggedIn || !freelancerDetails?.id
               ? "Booking link unavailable — your account details could not be loaded."
               : shareUrl}
           </p>
-          {brandingLoadError || !isLoggedIn || !branding?.id ? null : (
+          {freelancerDetailsLoadError ||
+          !isLoggedIn ||
+          !freelancerDetails?.id ? null : (
             <div className="flex justify-center gap-2">
               <button
                 className="btn btn-xs btn-outline"
@@ -445,7 +448,7 @@ export default function AdminPage() {
           )}
         </div>
 
-        <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
+        <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
           <AddSlotForm
             onAdd={fetchSlots}
             syncWith={syncDates ? selectedDate : null}
@@ -473,7 +476,7 @@ export default function AdminPage() {
           </p>
         )}
 
-        <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
+        <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
           <h3 className="text-lg font-semibold text-center border-b pb-1">
             Your Time Slots
           </h3>
@@ -571,7 +574,7 @@ export default function AdminPage() {
                 return (
                   <div
                     key={slot.id}
-                    className={`p-4 rounded-lg shadow-sm border ${
+                    className={`p-4 rounded-xl shadow-sm border ${
                       slot.is_booked || slot.is_inherited_block
                         ? "border-primary bg-[rgba(139,92,246,0.10)]" // ⬅️ slightly bolder purple background
                         : isPast
@@ -625,11 +628,11 @@ export default function AdminPage() {
           )}
         </section>
 
-        <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
+        <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
           <ServiceForm onServiceAdded={fetchServices} />
         </section>
 
-        <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
+        <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
           {servicesError && services.length > 0 && (
             <ErrorCard
               title="Couldn't refresh your services."
@@ -650,9 +653,9 @@ export default function AdminPage() {
           )}
         </section>
 
-        <section className="p-4 bg-base-200 border border-gray-500 rounded-lg shadow-sm space-y-4">
+        <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
           <FreelancerBranding
-            onUpdate={() => setBrandingUpdated((n) => n + 1)}
+            onUpdate={() => setFreelancerDetailsUpdated((n) => n + 1)}
           />
         </section>
       </div>

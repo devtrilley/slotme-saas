@@ -41,7 +41,7 @@ export default function FreelancerCard({
       className={`rounded-xl p-[2px] ${
         showGradient
           ? "bg-gradient-to-r from-purple-500 to-indigo-500"
-          : "border border-white/20"
+          : "border-2 border-white/40"
       }`}
     >
       <div

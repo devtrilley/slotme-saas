@@ -9,6 +9,7 @@ import { DateTime } from "luxon";
 import { API_BASE } from "../utils/constants";
 
 import { useFreelancer } from "../context/FreelancerContext";
+import BookingInstructionsCard from "../components/BookingInstructionsCard";
 
 const mapTimeZone = (tz) => {
   const zones = {
@@ -142,6 +143,18 @@ export default function FreelancerProfile() {
                   </a>
                 </li>
               )}
+              {publicFreelancer.location && (
+                <li>
+                  <strong className="text-white">Location:</strong>{" "}
+                  {publicFreelancer.location}
+                </li>
+              )}
+              {publicFreelancer.preferred_payment_methods && (
+                <li>
+                  <strong className="text-white">Payment Methods:</strong>{" "}
+                  {publicFreelancer.preferred_payment_methods}
+                </li>
+              )}
               {publicFreelancer.instagram_url && (
                 <li>
                   <strong className="text-white">Instagram:</strong>{" "}
@@ -221,6 +234,9 @@ export default function FreelancerProfile() {
             )}
           </p>
         )}
+      <BookingInstructionsCard
+        instructions={publicFreelancer.booking_instructions}
+      />
       <Link
         to={`/book/${publicFreelancer.id}`}
         className="btn btn-primary mt-4"

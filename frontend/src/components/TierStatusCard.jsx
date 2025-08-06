@@ -16,7 +16,7 @@ export default function TierStatusCard({
   };
 
   const colorClass = {
-    free: "bg-base-200 text-gray-300 border border-gray-500",
+    free: "bg-base-200 text-gray-300 border-2 border-white/40",
     pro: "metallic-pro",
     elite: "metallic-elite",
     error: "bg-red-100 text-red-700 border border-red-300",
@@ -58,7 +58,7 @@ export default function TierStatusCard({
 
   return (
     <div
-      className={`p-4 rounded-lg shadow transition ${cardColor} ${
+      className={`p-4 rounded-xl shadow transition ${cardColor} ${
         !notLoggedIn && !error ? "cursor-pointer hover:opacity-90" : ""
       }`}
       onClick={handleClick}

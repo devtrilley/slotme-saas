@@ -176,6 +176,9 @@ def get_single_freelancer(freelancer_id):
             "joined": freelancer.id,  # Replace with created_at if desired
             "services": service_data,
             "faq_text": freelancer.faq_text,
+            "location": freelancer.location,
+            "booking_instructions": freelancer.booking_instructions,
+            "preferred_payment_methods": freelancer.preferred_payment_methods,
         }
     )
 
@@ -290,28 +293,229 @@ def seed_everything():
     db.session.commit()
 
     # 2. Seed demo freelancer (2 appointments: Jane & John)
-    f1 = Freelancer.query.filter_by(email="demo@mail.com").first()
+    f1 = Freelancer.query.filter_by(email="emily@sattutorpro.com").first()
     if not f1:
         f1 = Freelancer(
-            first_name="Amber",
-            last_name="Gyser",
-            business_name="Amber's Love Cafe",
-            email="demo@mail.com",
-            password=generate_password_hash("demo123"),
-            logo_url="https://randomuser.me/api/portraits/women/45.jpg",
-            tagline='Let\'s grab "Hot Coffee". Night bookings only...',
-            bio="Currently in Charlotte, NC!",
+            first_name="Emily",
+            last_name="Carson",
+            business_name="SmartStart Tutoring",
+            email="emily@sattutorpro.com",
+            password=generate_password_hash("emily123"),
+            logo_url="https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=987&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+            tagline="Score higher. Stress less.",
+            bio=(
+                "I'm Emily, an experienced SAT tutor passionate about helping high school students boost their scores "
+                "and get into their dream schools. I've helped over 100 students increase their scores by 100+ points "
+                "with personalized strategies and practice plans."
+            ),
             is_verified=False,
-            phone="555-123-4567",
-            contact_email="booking@ambercafe.com",
-            instagram_url="https://instagram.com/zuck",
-            twitter_url="https://twitter.com/elonmusk",
-            no_show_policy="Cancel 24h ahead.",
-            faq_text="• $10 deposit\n• Come early\n• No-shows forfeit deposit.",
+            phone="555-786-0923",
+            contact_email="emily@sattutorpro.com",
+            instagram_url="https://instagram.com/smartstart.sat",
+            twitter_url="https://twitter.com/satwizemily",
+            no_show_policy=(
+                "No-shows result in loss of session credit. Please cancel or reschedule at least 12 hours in advance."
+            ),
+            faq_text=(
+                "• What’s your SAT score? I scored a 1550 with a perfect 800 in Math.\n"
+                "• Do you work with students with learning differences? Absolutely — I tailor my approach for all learning styles.\n"
+                "• Do you offer group tutoring? Not right now, but it’s coming soon!"
+            ),
+            booking_instructions="Please bring recent practice scores and show up on Zoom 5 mins early with a quiet space.",
+            preferred_payment_methods="Stripe (card), PayPal",
+            location="Raleigh, NC",
             early_access=False,
         )
         db.session.add(f1)
         db.session.commit()
+    # 3. Seed Malik Jones (Pro Tier Barber)
+    f2 = Freelancer.query.filter_by(email="malik@fadekings.com").first()
+    if not f2:
+        f2 = Freelancer(
+            first_name="Malik",
+            last_name="Jones",
+            business_name="Fade Kings",
+            email="malik@fadekings.com",
+            password=generate_password_hash("malik123"),
+            logo_url="https://images.unsplash.com/photo-1567894340315-735d7c361db0?q=80&w=1474&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+            tagline="Fresh fades. Clean lines. Always sharp.",
+            bio=(
+                "I'm Malik, a licensed barber with 7+ years of experience specializing in clean fades, sharp lines, and premium grooming. "
+                "Whether you're prepping for an event or just need your weekly fresh cut, I've got you. Located in downtown Atlanta — book ahead to skip the wait."
+            ),
+            is_verified=True,
+            phone="555-902-3344",
+            contact_email="malik@fadekings.com",
+            instagram_url="https://instagram.com/fadesbymalik",
+            twitter_url="https://twitter.com/malikcuts",
+            no_show_policy=(
+                "Late by 10+ minutes? Appointment is canceled. No-show once? Full charge. No-show twice? You’ll need to find another barber."
+            ),
+            faq_text=(
+                "• Do you cut kids’ hair? Yes, age 5 and up.\n"
+                "• Do you do mobile visits? Not at this time — in-shop only.\n"
+                "• Want a custom design or part? DM me on IG before booking."
+            ),
+            booking_instructions="Come with clean, product-free hair. No guests in the chair. Show up early, not late.",
+            preferred_payment_methods="Cash, Zelle, Apple Pay",
+            location="Atlanta, GA",
+            early_access=True,
+            tier="pro",
+        )
+        db.session.add(f2)
+        db.session.commit()
+    # 4. Seed Jade Bryant (Elite Tier Esthetician)
+    f3 = Freelancer.query.filter_by(email="jade@glowskinbar.com").first()
+    if not f3:
+        f3 = Freelancer(
+            first_name="Jade",
+            last_name="Bryant",
+            business_name="Glow Skin Bar",
+            email="jade@glowskinbar.com",
+            password=generate_password_hash("jade123"),
+            logo_url="https://images.pexels.com/photos/8072270/pexels-photo-8072270.jpeg",
+            tagline="Glow up. Show up. Repeat.",
+            bio=(
+                "I'm Jade, a licensed esthetician helping women and men achieve glowing, healthy skin with science-backed treatments. "
+                "I specialize in acne correction, hydration facials, and skin barrier restoration — all with a luxe, relaxing experience. "
+                "Located in Houston, TX. Come get your glow on ✨"
+            ),
+            is_verified=True,
+            phone="555-982-7782",
+            contact_email="jade@glowskinbar.com",
+            instagram_url="https://instagram.com/glowskinbar.atl",
+            twitter_url="https://twitter.com/glowjade",
+            no_show_policy=(
+                "Deposits are non-refundable. No-shows or cancellations within 24 hours lose their deposit. "
+                "Please respect my time — I respect yours."
+            ),
+            faq_text=(
+                "• Do you work with sensitive skin? Yes — I use gentle, pregnancy-safe products.\n"
+                "• Can I wear makeup after a facial? Wait at least 24 hours to let your skin heal.\n"
+                "• Do you sell products? DM me or ask after your session — I only recommend what works."
+            ),
+            booking_instructions="Please come with a clean face. No guests allowed in the studio. Late = forfeit appointment.",
+            preferred_payment_methods="Card on file, Venmo (business), Cash App",
+            location="Houston, TX",
+            early_access=True,
+            tier="elite",
+        )
+        db.session.add(f3)
+        db.session.commit()
+
+    # Wipe old data
+    Appointment.query.filter_by(freelancer_id=f3.id).delete()
+    TimeSlot.query.filter_by(freelancer_id=f3.id).delete()
+    Service.query.filter_by(freelancer_id=f3.id).delete()
+    db.session.commit()
+
+    # Jade’s Services
+    db.session.add_all(
+        [
+            Service(
+                freelancer_id=f3.id,
+                name="Custom Facial",
+                description="A full glow-up tailored to your skin needs. Cleanse, extract, hydrate, and glow.",
+                duration_minutes=60,
+                price_usd=60.00,
+            ),
+            Service(
+                freelancer_id=f3.id,
+                name="Brow Sculpt & Tint",
+                description="Perfectly shaped brows with tint for definition and pop.",
+                duration_minutes=30,
+                price_usd=25.00,
+            ),
+            Service(
+                freelancer_id=f3.id,
+                name="Glow Ritual Package",
+                description="Facial + brow sculpt + under-eye refresh. The full Jade experience.",
+                duration_minutes=90,
+                price_usd=80.00,
+            ),
+        ]
+    )
+    db.session.commit()
+
+    today = utc_today()  # ✅ FIX: Define today first
+    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+
+    # Jade’s available evening slots: 6PM–8PM
+    for hour in range(18, 20):
+        for minute in [0, 15, 30, 45]:
+            label = datetime.strptime(f"{hour}:{minute:02d}", "%H:%M").strftime(
+                "%I:%M %p"
+            )
+            mt = next((t for t in all_times if t.label == label), None)
+            if mt:
+                db.session.add(
+                    TimeSlot(
+                        day=today.isoformat(),
+                        freelancer_id=f3.id,
+                        master_time_id=mt.id,
+                        is_booked=False,
+                    )
+                )
+    db.session.commit()
+
+    token3 = create_access_token(identity=str(f3.id))
+
+    # Clear old Malik slots and services (if re-seeding)
+    Appointment.query.filter_by(freelancer_id=f2.id).delete()
+    TimeSlot.query.filter_by(freelancer_id=f2.id).delete()
+    Service.query.filter_by(freelancer_id=f2.id).delete()
+    db.session.commit()
+
+    # Malik's Barber Services
+    db.session.add_all(
+        [
+            Service(
+                freelancer_id=f2.id,
+                name="Fade + Line Up",
+                description="Classic fade with razor-sharp lineup and detail finish.",
+                duration_minutes=45,
+                price_usd=30.00,
+            ),
+            Service(
+                freelancer_id=f2.id,
+                name="Beard Sculpt + Trim",
+                description="Full beard trim and shaping with straight razor finish.",
+                duration_minutes=30,
+                price_usd=20.00,
+            ),
+            Service(
+                freelancer_id=f2.id,
+                name="Cut + Beard Combo",
+                description="Full haircut and beard package for the cleanest look.",
+                duration_minutes=60,
+                price_usd=45.00,
+            ),
+        ]
+    )
+    db.session.commit()
+
+    # Seed empty afternoon slots from 2PM to 5PM
+    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    for hour in range(14, 17):  # 2PM to 4:45PM
+        for minute in [0, 15, 30, 45]:
+            time_obj = datetime.strptime(f"{hour}:{minute:02d}", "%H:%M").replace(
+                tzinfo=timezone.utc
+            )
+            label = time_obj.strftime("%I:%M %p")
+            mt = next((t for t in all_times if t.label == label), None)
+            if not mt:
+                continue
+            db.session.add(
+                TimeSlot(
+                    day=today.isoformat(),
+                    freelancer_id=f2.id,
+                    master_time_id=mt.id,
+                    is_booked=False,
+                )
+            )
+    db.session.commit()
+
+    token2 = create_access_token(identity=str(f2.id))
 
     # Clear old slots, bookings, and services
     Appointment.query.filter_by(freelancer_id=f1.id).delete()
@@ -319,29 +523,29 @@ def seed_everything():
     Service.query.filter_by(freelancer_id=f1.id).delete()
     db.session.commit()
 
-    # Seed demo services
+    # Emily's SAT Services
     db.session.add_all(
         [
             Service(
                 freelancer_id=f1.id,
-                name="Quick Espresso Shot",
-                description="Fast 15-minute pickup.",
-                duration_minutes=15,
-                price_usd=25.00,
+                name="SAT Diagnostic Session",
+                description="A full evaluation of your strengths and weaknesses across all SAT sections.",
+                duration_minutes=60,
+                price_usd=40.00,
             ),
             Service(
                 freelancer_id=f1.id,
-                name="Café au Lay",
-                description="Coffee body contact.",
+                name="SAT Math Focus",
+                description="Targeted help with algebra, geometry, and problem solving.",
                 duration_minutes=45,
-                price_usd=50.00,
+                price_usd=35.00,
             ),
             Service(
                 freelancer_id=f1.id,
-                name="Espresso Eiffel Tower",
-                description="For threesomes.",
-                duration_minutes=30,
-                price_usd=70.00,
+                name="Reading + Writing Boost",
+                description="Focus on critical reading, grammar, and timed writing techniques.",
+                duration_minutes=45,
+                price_usd=35.00,
             ),
         ]
     )
@@ -443,125 +647,20 @@ def seed_everything():
     db.session.commit()
 
     # ✅ REWRITE ELITE FREELANCER SEEDING TO BE ATOMIC
-    f2 = Freelancer.query.filter_by(email="night@mail.com").first()
-    if not f2:
-        f2 = Freelancer(
-            first_name="Ping",
-            last_name="Xioma",
-            business_name="Ping's Slippery Massage",
-            email="night@mail.com",
-            password=generate_password_hash("night123"),
-            logo_url="https://thumbs.dreamstime.com/b/portrait-beautiful-asian-woman-natural-beauty-face-thai-girl-tanned-skin-full-lips-high-resolution-137168110.jpg",
-            tagline="I milk you, we have fun time!",
-            bio="Trained in Bangkok. Open late.",
-            is_verified=True,
-            phone="555-987-6543",
-            contact_email="contact@pingmassage.com",
-            instagram_url="https://instagram.com/zuck",
-            twitter_url="https://twitter.com/elonmusk",
-            no_show_policy="Reschedule 12h ahead.",
-            faq_text="• Bridal trials\n• Travel fees apply",
-            tier="elite",
-            early_access=True,
-        )
-        db.session.add(f2)
-        db.session.commit()
 
-        db.session.add_all(
-            [
-                Service(
-                    freelancer_id=f2.id,
-                    name="Happy Ending Herbal Rubdown",
-                    description="Start stiff, leave smiling.",
-                    duration_minutes=60,
-                    price_usd=79.99,
-                ),
-                Service(
-                    freelancer_id=f2.id,
-                    name="Thai Five-Hand Combo",
-                    description="Two-hour escape.",
-                    duration_minutes=120,
-                    price_usd=149.99,
-                ),
-            ]
-        )
-        db.session.commit()
+    print("Emily freelancer ID:", f1.id)
+    # print("Elite freelancer ID:", f2.id)
 
-    services = Service.query.filter_by(freelancer_id=f2.id).all()
-    elite_bookings = [
-        (datetime.now(timezone.utc).date() + timedelta(days=i)).isoformat()
-        for i in range(5)
-        for _ in range(3)
-    ]
-
-    for day_str in elite_bookings:
-        label = choice(time_labels[:-8])
-        mt_start = MasterTimeSlot.query.filter_by(label=label).first()
-        if not mt_start:
-            continue
-
-        service = choice(services)
-        duration = service.duration_minutes
-        start_index = time_labels.index(label)
-        required_labels = time_labels[start_index : start_index + (duration // 15)]
-
-        slot = TimeSlot(
-            day=day_str,
-            master_time_id=mt_start.id,
-            freelancer_id=f2.id,
-            is_booked=True,
-        )
-        db.session.add(slot)
-        db.session.commit()
-
-        first, last = choice(name_pool)
-        email = f"{first.lower()}.{last.lower()}@mail.com"
-        user = User(first_name=first, last_name=last, email=email)
-        db.session.add(user)
-        db.session.commit()
-
-        appt = Appointment(
-            slot_id=slot.id,
-            freelancer_id=f2.id,
-            user_id=user.id,
-            service_id=service.id,
-            status="confirmed",
-            timestamp=datetime.now(timezone.utc),
-        )
-        db.session.add(appt)
-
-        for label in required_labels[1:]:
-            mt = next((t for t in all_times if t.label == label), None)
-            if not mt:
-                continue
-            existing = TimeSlot.query.filter_by(
-                day=day_str,
-                freelancer_id=f2.id,
-                master_time_id=mt.id,
-            ).first()
-            if not existing:
-                db.session.add(
-                    TimeSlot(
-                        day=day_str,
-                        freelancer_id=f2.id,
-                        master_time_id=mt.id,
-                        is_booked=True,
-                    )
-                )
-    db.session.commit()
-
-    print("Demo freelancer ID:", f1.id)
-    print("Elite freelancer ID:", f2.id)
-
-    token1 = create_access_token(identity=str(f1.id))
-    token2 = create_access_token(identity=str(f2.id))
+    token = create_access_token(identity=str(f1.id))
+    # token2 = create_access_token(identity=str(f2.id))
 
     return (
         jsonify(
             {
-                "message": "✅ Fully seeded: master times, both freelancers, and bookings.",
-                "demo_token": token1,
-                "elite_token": token2,
+                "message": "✅ Seeded: Emily (Free), Malik (Pro), Jade (Elite)",
+                "emily_token": token,
+                "malik_token": token2,
+                "jade_token": token3,
             }
         ),
         200,

@@ -17,6 +17,7 @@ import HoneypotInput from "../components/HoneypotInput";
 import SafeLoader from "../components/SafeLoader";
 import NoAvailableSlotsCard from "../components/NoAvailableSlotsCard";
 import RefreshButton from "../components/RefreshButton";
+import BookingInstructionsCard from "../components/BookingInstructionsCard";
 
 export default function BookingPage({ useCustomUrl = false }) {
   const params = useParams();
@@ -30,7 +31,7 @@ export default function BookingPage({ useCustomUrl = false }) {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [branding, setBranding] = useState({
+  const [freelancerDetails, setFreelancerDetails] = useState({
     first_name: "",
     last_name: "",
     business_name: "",
@@ -40,7 +41,11 @@ export default function BookingPage({ useCustomUrl = false }) {
     is_verified: false,
     faq_text: "",
     tier: "",
+    booking_instructions: "", // if used
+    preferred_payment_methods: "", // if used
   });
+
+  // Full public profile data for the freelancer being booked or viewed.
   const [freelancerTimeZone, setFreelancerTimeZone] = useState("EST");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
@@ -105,7 +110,7 @@ export default function BookingPage({ useCustomUrl = false }) {
       ]);
       setSlots(sortSlots(slotsRes.data));
       const data = infoRes.data;
-      setBranding({ ...data });
+      setFreelancerDetails({ ...data });
       setFreelancerTimeZone(data.timezone || "America/New_York");
       setNoShowPolicy(data.no_show_policy || "");
 
@@ -416,20 +421,20 @@ export default function BookingPage({ useCustomUrl = false }) {
     <SafeLoader loading={loading} error={error} onRetry={handleRetry}>
       <div className="max-w-md mx-auto p-6 space-y-6">
         <FreelancerCard
-          business_name={branding.business_name}
-          first_name={branding.first_name}
-          last_name={branding.last_name}
-          logoUrl={branding.logo_url}
-          tagline={branding.tagline}
-          bio={branding.bio}
-          isVerified={branding.is_verified}
+          business_name={freelancerDetails.business_name}
+          first_name={freelancerDetails.first_name}
+          last_name={freelancerDetails.last_name}
+          logoUrl={freelancerDetails.logo_url}
+          tagline={freelancerDetails.tagline}
+          bio={freelancerDetails.bio}
+          isVerified={freelancerDetails.is_verified}
           onClick={() => setShowModal(true)}
-          tier={branding.tier}
+          tier={freelancerDetails.tier}
         />
 
         {showModal && (
           <FreelancerModal
-            freelancer={{ ...branding, id: freelancerId }}
+            freelancer={{ ...freelancerDetails, id: freelancerId }}
             onClose={() => setShowModal(false)}
           />
         )}
@@ -447,6 +452,14 @@ export default function BookingPage({ useCustomUrl = false }) {
           <p className="text-sm text-gray-400 text-center mt-1 italic">
             *All times shown in {getTZAbbreviation(freelancerTimeZone)}*
           </p>
+        )}
+
+        {freelancerDetails?.booking_instructions && (
+          <div className="mb-4">
+            <BookingInstructionsCard
+              instructions={freelancerDetails.booking_instructions}
+            />
+          </div>
         )}
 
         {services.length > 0 && (
@@ -823,7 +836,7 @@ export default function BookingPage({ useCustomUrl = false }) {
 
         <NoShowPolicy policy={noShowPolicy} />
 
-        <FAQCard text={branding.faq_text} />
+        <FAQCard text={freelancerDetails.faq_text} />
       </div>
     </SafeLoader>
   );

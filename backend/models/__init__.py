@@ -25,6 +25,9 @@ class Freelancer(db.Model):
     early_access = db.Column(db.Boolean, default=False)
     email_confirmed = db.Column(db.Boolean, default=False)
     confirmation_token = db.Column(db.String(128), nullable=True)
+    booking_instructions = db.Column(db.Text, nullable=True)
+    preferred_payment_methods = db.Column(db.String(120), nullable=True)
+    location = db.Column(db.String(120), nullable=False)
 
     # ✅ Tier field added here
     tier = db.Column(db.String(20), default="free")  # "free", "pro", "elite"
