@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import axios from "../utils/axiosInstance";
-import IconDatePicker from "../components/IconDatePicker";
+import IconDatePicker from "../components/Inputs/IconDatePicker";
 import { DateTime } from "luxon";
 import { API_BASE } from "../utils/constants";
 import { showToast } from "../utils/toast";
-import RefreshButton from "../components/RefreshButton";
+import RefreshButton from "../components/Buttons/RefreshButton";
 
 export default function CRM() {
   const [appointments, setAppointments] = useState([]);

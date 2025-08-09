@@ -1,6 +1,7 @@
 import { FaCheck } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import ProfilePhoto from "../ProfilePhoto";
 
 export default function FreelancerModal({ freelancer, onClose }) {
   const tooltipRef = useRef();
@@ -36,28 +37,13 @@ export default function FreelancerModal({ freelancer, onClose }) {
         </button>
 
         {/* Logo + Badge */}
-        <div className="relative w-24 h-24 mx-auto mb-4 group">
-          <img
-            src={freelancer.logo_url || "https://placehold.co/96x96?text=Logo"}
-            alt="Freelancer Logo"
-            className="w-24 h-24 rounded-full object-cover border border-white shadow-lg"
+        <div className="flex justify-center mb-4">
+          <ProfilePhoto
+            src={freelancer.logo_url}
+            tier={freelancer.tier}
+            isVerified={freelancer.is_verified}
+            size="w-24 h-24"
           />
-          {freelancer.is_verified && (
-            <div
-              className="absolute bottom-0 right-0 w-6 h-6 bg-blue-500 border-2 border-white rounded-full flex items-center justify-center group-hover:tooltip-visible"
-              ref={tooltipRef}
-              onMouseEnter={() => setTooltipVisible(true)}
-              onMouseLeave={() => setTooltipVisible(false)}
-              onTouchStart={() => setTooltipVisible((prev) => !prev)}
-            >
-              <FaCheck className="text-white text-xs" />
-              {tooltipVisible && (
-                <div className="absolute top-full mt-1 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50">
-                  Verified Freelancer
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Name + Tagline */}

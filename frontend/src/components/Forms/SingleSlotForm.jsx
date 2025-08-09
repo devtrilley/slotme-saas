@@ -1,10 +1,10 @@
 import { useState } from "react";
-import axios from "../utils/axiosInstance";
-import { showToast } from "../utils/toast";
+import axios from "../../utils/axiosInstance";
+import { showToast } from "../../utils/toast";
 import "react-datepicker/dist/react-datepicker.css";
-import IconDatePicker from "./IconDatePicker";
+import IconDatePicker from "../Inputs/IconDatePicker";
 import { DateTime } from "luxon";
-import { API_BASE } from "../utils/constants";
+import { API_BASE } from "../../utils/constants";
 
 export default function SingleSlotForm({
   onAdd,
@@ -70,7 +70,7 @@ export default function SingleSlotForm({
       showToast("❌ Session expired. Redirecting to login...", "error");
 
       // Notify other tabs
-      import("../utils/tokenChannel").then(
+      import("../../utils/tokenChannel").then(
         ({ tokenChannel, MESSAGE_TYPES }) => {
           tokenChannel.postMessage({ type: MESSAGE_TYPES.SESSION_EXPIRED });
         }

@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import axios from "../utils/axiosInstance";
-import { showToast } from "../utils/toast";
-import { API_BASE } from "../utils/constants";
+import axios from "../../utils/axiosInstance";
+import { showToast } from "../../utils/toast";
+import { API_BASE } from "../../utils/constants";
 
 export default function ServiceCard({
   service,
   isPublicView = false,
   onClick,
+  onDelete, // ✅ add this line
 }) {
   const { id, name, description, duration_minutes, price_usd, is_enabled } =
     service;
@@ -54,15 +55,7 @@ export default function ServiceCard({
 
   const handleDelete = () => {
     if (!confirm("Are you sure you want to delete this service?")) return;
-    axios
-      .delete(`${API_BASE}/freelancer/services/${id}`)
-      .then(() => {
-        showToast("Service deleted");
-      })
-      .catch((err) => {
-        console.error("❌ Failed to delete service", err);
-        showToast("Delete failed", "error");
-      });
+    if (onDelete) onDelete(id); // ✅ Let the parent handle the logic
   };
 
   const handleToggle = () => {

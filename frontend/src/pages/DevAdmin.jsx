@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../utils/axiosInstance";
-import FreelancerCard from "../components/FreelancerCard";
-import FreelancerModal from "../components/FreelancerModal";
+import FreelancerCard from "../components/Cards/FreelancerCard";
+import FreelancerModal from "../components/Modals/FreelancerModal";
 import { API_BASE } from "../utils/constants";
-import RefreshButton from "../components/RefreshButton";
+import RefreshButton from "../components/Buttons/RefreshButton";
 import { showToast } from "../utils/toast";
+import SortButton from "../components/Buttons/SortButton";
+import FilterButton from "../components/Buttons/FilterButton";
 
 export default function DevAdmin() {
   const [freelancers, setFreelancer] = useState([]);
@@ -13,6 +15,9 @@ export default function DevAdmin() {
   const [error, setError] = useState("");
   const [modalFreelancer, setModalFreelancer] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
+  const [sortOption, setSortOption] = useState("tier");
+  const [sortDirection, setSortDirection] = useState("asc");
+  const [tierFilter, setTierFilter] = useState("all");
   const navigate = useNavigate();
 
   const fetchFreelancers = async () => {
@@ -23,19 +28,39 @@ export default function DevAdmin() {
       const res = await axios.get(`${API_BASE}/dev/freelancers`, {
         headers: { "X-Dev-Auth": "secret123" },
       });
-      setFreelancer(
-        res.data.sort((a, b) =>
-          `${a.first_name} ${a.last_name}`.localeCompare(
-            `${b.first_name} ${b.last_name}`
-          )
-        )
-      );
+      setFreelancer(sortFreelancers(res.data));
     } catch (err) {
       console.error("❌ Failed to load freelancers", err);
       setError("Failed to load freelancers");
     } finally {
       setLoading(false);
     }
+  };
+
+  const sortFreelancers = (list) => {
+    const sorted = [...list];
+
+    if (sortOption === "alpha") {
+      sorted.sort((a, b) => {
+        const cmp = `${a.first_name} ${a.last_name}`.localeCompare(
+          `${b.first_name} ${b.last_name}`
+        );
+        return sortDirection === "asc" ? cmp : -cmp;
+      });
+    } else if (sortOption === "tier") {
+      const tiers = { elite: 3, pro: 2, free: 1 };
+      sorted.sort((a, b) => {
+        const cmp = (tiers[b.tier] || 0) - (tiers[a.tier] || 0);
+        return sortDirection === "asc" ? -cmp : cmp;
+      });
+    } else if (sortOption === "slots") {
+      sorted.sort((a, b) => {
+        const cmp = (b.slot_count || 0) - (a.slot_count || 0);
+        return sortDirection === "asc" ? -cmp : cmp;
+      });
+    }
+
+    return sorted;
   };
 
   useEffect(() => {
@@ -94,6 +119,10 @@ export default function DevAdmin() {
       });
   };
 
+  useEffect(() => {
+    fetchFreelancers();
+  }, [sortOption, sortDirection]); // <-- this line!
+
   return (
     <div className="max-w-md mx-auto p-6 space-y-4">
       <h2 className="text-2xl font-bold text-center">Developer Admin Panel</h2>
@@ -121,43 +150,67 @@ export default function DevAdmin() {
       {error && <p className="text-red-500 text-center">{error}</p>}
 
       <div className="space-y-6">
-        {freelancers.map((freelancer) => (
-          <div key={freelancer.id}>
-            <FreelancerCard
-              first_name={freelancer.first_name}
-              last_name={freelancer.last_name}
-              business_name={freelancer.business_name}
-              logoUrl={freelancer.logo_url}
-              tagline={freelancer.tagline}
-              bio={freelancer.bio}
-              isVerified={freelancer.is_verified}
-              onClick={() => setModalFreelancer(freelancer)}
-              tier={freelancer.tier}
-            />
-            <div className="flex flex-wrap gap-2 mt-2">
-              <button
-                className="btn btn-xs btn-outline grow"
-                onClick={() => handleViewSlots(freelancer)}
-              >
-                View Slots
-              </button>
-              <button
-                className="btn btn-xs btn-outline grow"
-                onClick={() => handleViewBookings(freelancer)}
-              >
-                View Bookings
-              </button>
+        <div className="flex flex-col items-center gap-2 mt-2">
+          <span className="text-sm text-gray-400">Sort Direction:</span>
+          <SortButton
+            direction={sortDirection}
+            onToggle={() =>
+              setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
+            }
+          />
+
+          <FilterButton
+            label="Filter by Tier:"
+            options={["all", "free", "paid", "pro", "elite"]}
+            value={tierFilter}
+            onChange={setTierFilter}
+          />
+        </div>
+
+        {freelancers
+          .filter((f) => {
+            if (tierFilter === "all") return true;
+            if (tierFilter === "paid")
+              return f.tier === "pro" || f.tier === "elite";
+            return f.tier === tierFilter;
+          })
+          .map((freelancer) => (
+            <div key={freelancer.id}>
+              <FreelancerCard
+                first_name={freelancer.first_name}
+                last_name={freelancer.last_name}
+                business_name={freelancer.business_name}
+                logoUrl={freelancer.logo_url}
+                tagline={freelancer.tagline}
+                bio={freelancer.bio}
+                isVerified={freelancer.is_verified}
+                onClick={() => setModalFreelancer(freelancer)}
+                tier={freelancer.tier}
+              />
+              <div className="flex flex-wrap gap-2 mt-2">
+                <button
+                  className="btn btn-xs btn-outline grow"
+                  onClick={() => handleViewSlots(freelancer)}
+                >
+                  View Slots
+                </button>
+                <button
+                  className="btn btn-xs btn-outline grow"
+                  onClick={() => handleViewBookings(freelancer)}
+                >
+                  View Bookings
+                </button>
+              </div>
+              <div className="mt-2">
+                <button
+                  className="btn btn-xs btn-error w-full"
+                  onClick={() => setShowDeleteModal(freelancer)}
+                >
+                  🗑️ Delete
+                </button>
+              </div>
             </div>
-            <div className="mt-2">
-              <button
-                className="btn btn-xs btn-error w-full"
-                onClick={() => setShowDeleteModal(freelancer)}
-              >
-                🗑️ Delete
-              </button>
-            </div>
-          </div>
-        ))}
+          ))}
       </div>
 
       <button

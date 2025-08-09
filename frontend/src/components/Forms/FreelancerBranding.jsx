@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import axios from "../utils/axiosInstance";
-import { showToast } from "../utils/toast";
-import { API_BASE } from "../utils/constants";
+import axios from "../../utils/axiosInstance";
+import { showToast } from "../../utils/toast";
+import { API_BASE } from "../../utils/constants";
 
-import { useFreelancer } from "../context/FreelancerContext"; // Add at the top if not already
+import { useFreelancer } from "../../context/FreelancerContext"; // Add at the top if not already
 
 export default function FreelancerBranding({ onUpdate }) {
   const [form, setForm] = useState({
@@ -13,7 +13,7 @@ export default function FreelancerBranding({ onUpdate }) {
     tagline: "",
     timezone: "",
     no_show_policy: "",
-    faq_text: "",
+    faq_items: [],
     custom_url: "",
     business_address: "",
   });
@@ -40,7 +40,7 @@ export default function FreelancerBranding({ onUpdate }) {
           tagline: data.tagline || "",
           timezone: data.timezone || "America/New_York",
           no_show_policy: data.no_show_policy || "",
-          faq_text: data.faq_text || "",
+          faq_items: data.faq_items || [],
           custom_url: data.custom_url || "",
           business_address: data.business_address || "",
         });
@@ -100,7 +100,7 @@ export default function FreelancerBranding({ onUpdate }) {
           bio: form.bio,
           timezone: form.timezone,
           no_show_policy: form.no_show_policy,
-          faq_text: form.faq_text,
+          faq_items: form.faq_items,
           business_address: form.business_address,
         });
 
@@ -220,16 +220,57 @@ export default function FreelancerBranding({ onUpdate }) {
           className="textarea textarea-bordered w-full"
         />
 
-        <label className="label text-sm text-white">
-          FAQ or Additional Info:
-        </label>
-        <textarea
-          name="faq_text"
-          value={form.faq_text}
-          onChange={handleChange}
-          placeholder="Any deposits, policies, common questions, etc."
-          className="textarea textarea-bordered w-full"
-        />
+        <label className="label text-sm text-white">FAQs:</label>
+        {form.faq_items.map((item, index) => (
+          <div key={index} className="mb-2 space-y-1">
+            <label htmlFor="">Question:</label>
+            <input
+              type="text"
+              value={item.question}
+              onChange={(e) => {
+                const updated = [...form.faq_items];
+                updated[index].question = e.target.value;
+                setForm({ ...form, faq_items: updated });
+              }}
+              placeholder="Question"
+              className="input input-bordered w-full"
+            />
+            <label htmlFor="">Answer:</label>
+            <textarea
+              value={item.answer}
+              onChange={(e) => {
+                const updated = [...form.faq_items];
+                updated[index].answer = e.target.value;
+                setForm({ ...form, faq_items: updated });
+              }}
+              placeholder="Answer"
+              className="textarea textarea-bordered w-full"
+            />
+            <button
+              type="button"
+              className="btn btn-sm btn-error"
+              onClick={() => {
+                const updated = form.faq_items.filter((_, i) => i !== index);
+                setForm({ ...form, faq_items: updated });
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          className="btn btn-sm btn-accent mt-2"
+          onClick={() =>
+            setForm({
+              ...form,
+              faq_items: [...form.faq_items, { question: "", answer: "" }],
+            })
+          }
+        >
+          + Add FAQ
+        </button>
 
         <button type="submit" className="btn btn-primary w-full">
           Save Changes

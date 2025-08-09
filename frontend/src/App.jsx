@@ -32,9 +32,9 @@ import { PUBLIC_SAFE_PATHS } from "./utils/constants";
 import AlreadyTaken from "./pages/AlreadyTaken";
 
 // Component Imports
-import Navbar from "./components/Navbar";
-import RequireDevAuth from "./components/RequireDevAuth";
-import RequireFreelancerAuth from "./components/RequireFreelancerAuth";
+import Navbar from "./components/Layout/Navbar";
+import RequireDevAuth from "./components/Auth/RequireDevAuth";
+import RequireFreelancerAuth from "./components/Auth/RequireFreelancerAuth";
 import CustomUrlRouter from "./components/CustomUrlRouter";
 import { Toaster } from "react-hot-toast"; // 🔼 Put this at the top
 

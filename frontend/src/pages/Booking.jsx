@@ -4,20 +4,20 @@ import axios from "../utils/axiosInstance";
 import { DateTime } from "luxon";
 
 import "react-datepicker/dist/react-datepicker.css";
-import FreelancerCard from "../components/FreelancerCard";
-import FreelancerModal from "../components/FreelancerModal";
+import FreelancerCard from "../components/Cards/FreelancerCard";
+import FreelancerModal from "../components/Modals/FreelancerModal";
 import NoShowPolicy from "../components/NoShowPolicy";
-import FAQCard from "../components/FAQCard";
-import IconDatePicker from "../components/IconDatePicker";
+import FAQCard from "../components/Cards/FAQCard";
+import IconDatePicker from "../components/Inputs/IconDatePicker";
 import { showToast } from "../utils/toast";
-import ServiceCard from "../components/ServiceCard";
+import ServiceCard from "../components/Cards/ServiceCard";
 import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../utils/constants";
-import HoneypotInput from "../components/HoneypotInput";
-import SafeLoader from "../components/SafeLoader";
-import NoAvailableSlotsCard from "../components/NoAvailableSlotsCard";
-import RefreshButton from "../components/RefreshButton";
-import BookingInstructionsCard from "../components/BookingInstructionsCard";
+import HoneypotInput from "../components/Inputs/HoneypotInput";
+import SafeLoader from "../components/Layout/SafeLoader";
+import NoAvailableSlotsCard from "../components/Cards/NoAvailableSlotsCard";
+import RefreshButton from "../components/Buttons/RefreshButton";
+import BookingInstructionsCard from "../components/Cards/BookingInstructionsCard";
 
 export default function BookingPage({ useCustomUrl = false }) {
   const params = useParams();
@@ -39,7 +39,7 @@ export default function BookingPage({ useCustomUrl = false }) {
     tagline: "",
     bio: "",
     is_verified: false,
-    faq_text: "",
+    faq_items: [],
     tier: "",
     booking_instructions: "", // if used
     preferred_payment_methods: "", // if used
@@ -431,14 +431,12 @@ export default function BookingPage({ useCustomUrl = false }) {
           onClick={() => setShowModal(true)}
           tier={freelancerDetails.tier}
         />
-
         {showModal && (
           <FreelancerModal
             freelancer={{ ...freelancerDetails, id: freelancerId }}
             onClose={() => setShowModal(false)}
           />
         )}
-
         <div className="flex flex-col items-center gap-2">
           <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>
           <RefreshButton
@@ -447,13 +445,11 @@ export default function BookingPage({ useCustomUrl = false }) {
             className="btn-sm"
           />
         </div>
-
         {freelancerTimeZone && (
           <p className="text-sm text-gray-400 text-center mt-1 italic">
             *All times shown in {getTZAbbreviation(freelancerTimeZone)}*
           </p>
         )}
-
         {freelancerDetails?.booking_instructions && (
           <div className="mb-4">
             <BookingInstructionsCard
@@ -461,7 +457,6 @@ export default function BookingPage({ useCustomUrl = false }) {
             />
           </div>
         )}
-
         {services.length > 0 && (
           <div className="mt-4">
             <h3 className="text-center text-sm text-white mb-2 font-medium">
@@ -517,7 +512,6 @@ export default function BookingPage({ useCustomUrl = false }) {
             </div>
           </div>
         )}
-
         <div className="space-y-2">
           <label className="text-sm text-gray-400 block text-center">
             Select a date:
@@ -594,7 +588,6 @@ export default function BookingPage({ useCustomUrl = false }) {
             </div>
           )}
         </div>
-
         {loading ? (
           <p className="text-center">Loading slots...</p>
         ) : (
@@ -764,7 +757,6 @@ export default function BookingPage({ useCustomUrl = false }) {
             )}
           </>
         )}
-
         <form onSubmit={handleSubmit} className="space-y-4">
           {cooldownRemaining > 0 && (
             <p className="text-center text-yellow-400 text-sm mb-2">
@@ -833,10 +825,8 @@ export default function BookingPage({ useCustomUrl = false }) {
               : "Book Appointment"}
           </button>
         </form>
-
         <NoShowPolicy policy={noShowPolicy} />
-
-        <FAQCard text={freelancerDetails.faq_text} />
+        <FAQCard faq_items={freelancerDetails.faq_items} />{" "}
       </div>
     </SafeLoader>
   );

@@ -2,16 +2,16 @@ import { useEffect, useState } from "react";
 import axios from "../utils/axiosInstance";
 import { useNavigate } from "react-router-dom";
 import { ResponsiveLine } from "@nivo/line";
-import ServiceRevenueChart from "../components/ServiceRevenueChart";
+import ServiceRevenueChart from "../components/Charts/ServiceRevenueChart";
 import { RefreshCcw } from "lucide-react"; // ✅ Icon from lucide
-import BookingsPerServiceChart from "../components/BookingsPerServiceChart";
-import BookingTrendChart from "../components/BookingTrendChart";
-import StatsSummaryCard from "../components/StatsSummaryCard";
+import BookingsPerServiceChart from "../components/Charts/BookingsPerServiceChart";
+import BookingTrendChart from "../components/Charts/BookingTrendChart";
+import StatsSummaryCard from "../components/Cards/StatsSummaryCard";
 import AnalyticsSkeleton from "../components/AnalyticsSkeleton";
 import { API_BASE } from "../utils/constants";
-import SafeLoader from "../components/SafeLoader";
+import SafeLoader from "../components/Layout/SafeLoader";
 import { showToast } from "../utils/toast"; // top of file
-import RefreshButton from "../components/RefreshButton";
+import RefreshButton from "../components/Buttons/RefreshButton";
 
 const colorMap = {
   "Happy Ending Herbal Rubdown": "#EF4444",

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import axios from "../utils/axiosInstance";
+import axios from "../../utils/axiosInstance";
 import "react-datepicker/dist/react-datepicker.css";
 import BatchSlotForm from "./BatchSlotForm";
 import SingleSlotForm from "./SingleSlotForm";
-import { API_BASE } from "../utils/constants";
+import { API_BASE } from "../../utils/constants";
 
 export default function AddSlotForm({
   onAdd,

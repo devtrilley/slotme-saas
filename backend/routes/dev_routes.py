@@ -175,7 +175,7 @@ def get_single_freelancer(freelancer_id):
             "is_verified": freelancer.tier in ["pro", "elite"],
             "joined": freelancer.id,  # Replace with created_at if desired
             "services": service_data,
-            "faq_text": freelancer.faq_text,
+            "faq_items": freelancer.faq_items,
             "location": freelancer.location,
             "booking_instructions": freelancer.booking_instructions,
             "preferred_payment_methods": freelancer.preferred_payment_methods,
@@ -316,11 +316,20 @@ def seed_everything():
             no_show_policy=(
                 "No-shows result in loss of session credit. Please cancel or reschedule at least 12 hours in advance."
             ),
-            faq_text=(
-                "• What’s your SAT score? I scored a 1550 with a perfect 800 in Math.\n"
-                "• Do you work with students with learning differences? Absolutely — I tailor my approach for all learning styles.\n"
-                "• Do you offer group tutoring? Not right now, but it’s coming soon!"
-            ),
+            faq_items=[
+                {
+                    "question": "What’s your SAT score?",
+                    "answer": "I scored a 1550 with a perfect 800 in Math.",
+                },
+                {
+                    "question": "Do you work with students with learning differences?",
+                    "answer": "Absolutely — I tailor my approach for all learning styles.",
+                },
+                {
+                    "question": "Do you offer group tutoring?",
+                    "answer": "Not right now, but it’s coming soon!",
+                },
+            ],
             booking_instructions="Please bring recent practice scores and show up on Zoom 5 mins early with a quiet space.",
             preferred_payment_methods="Stripe (card), PayPal",
             location="Raleigh, NC",
@@ -351,11 +360,17 @@ def seed_everything():
             no_show_policy=(
                 "Late by 10+ minutes? Appointment is canceled. No-show once? Full charge. No-show twice? You’ll need to find another barber."
             ),
-            faq_text=(
-                "• Do you cut kids’ hair? Yes, age 5 and up.\n"
-                "• Do you do mobile visits? Not at this time — in-shop only.\n"
-                "• Want a custom design or part? DM me on IG before booking."
-            ),
+            faq_items=[
+                {"question": "Do you cut kids’ hair?", "answer": "Yes, age 5 and up."},
+                {
+                    "question": "Do you do mobile visits?",
+                    "answer": "Not at this time — in-shop only.",
+                },
+                {
+                    "question": "Want a custom design or part?",
+                    "answer": "DM me on IG before booking.",
+                },
+            ],
             booking_instructions="Come with clean, product-free hair. No guests in the chair. Show up early, not late.",
             preferred_payment_methods="Cash, Zelle, Apple Pay",
             location="Atlanta, GA",
@@ -389,11 +404,20 @@ def seed_everything():
                 "Deposits are non-refundable. No-shows or cancellations within 24 hours lose their deposit. "
                 "Please respect my time — I respect yours."
             ),
-            faq_text=(
-                "• Do you work with sensitive skin? Yes — I use gentle, pregnancy-safe products.\n"
-                "• Can I wear makeup after a facial? Wait at least 24 hours to let your skin heal.\n"
-                "• Do you sell products? DM me or ask after your session — I only recommend what works."
-            ),
+            faq_items=[
+                {
+                    "question": "Do you work with sensitive skin?",
+                    "answer": "Yes — I use gentle, pregnancy-safe products.",
+                },
+                {
+                    "question": "Can I wear makeup after a facial?",
+                    "answer": "Wait at least 24 hours to let your skin heal.",
+                },
+                {
+                    "question": "Do you sell products?",
+                    "answer": "DM me or ask after your session — I only recommend what works.",
+                },
+            ],
             booking_instructions="Please come with a clean face. No guests allowed in the studio. Late = forfeit appointment.",
             preferred_payment_methods="Card on file, Venmo (business), Cash App",
             location="Houston, TX",

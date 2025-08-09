@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { FaCheck } from "react-icons/fa";
-import FallbackText from "./FallbackText";
+import FallbackText from "../Layout/FallbackText";
+import ProfilePhoto from "../ProfilePhoto";
 
 export default function FreelancerCard({
   business_name,
@@ -34,12 +35,12 @@ export default function FreelancerCard({
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  const showGradient = tier === "pro" || tier === "elite";
+  const isUpgradedTier = tier !== "free";
 
   return (
     <div
       className={`rounded-xl p-[2px] ${
-        showGradient
+        isUpgradedTier
           ? "bg-gradient-to-r from-purple-500 to-indigo-500"
           : "border-2 border-white/40"
       }`}
@@ -48,16 +49,8 @@ export default function FreelancerCard({
         className="flex items-center gap-4 p-4 rounded-[10px] shadow bg-base-200 cursor-pointer"
         onClick={onClick}
       >
-        <div className="relative w-17 h-17">
-          <img
-            src={logoUrl?.trim() || "https://placehold.co/64x64?text=Logo"}
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = "https://placehold.co/64x64?text=Logo";
-            }}
-            alt="Freelancer Logo"
-            className="w-17 h-17 rounded-full object-cover border-1 border-white"
-          />
+        <div className="relative">
+          <ProfilePhoto src={logoUrl} tier={tier} size="w-17 h-17" />
 
           {isVerified && (
             <div

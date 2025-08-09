@@ -1,7 +1,7 @@
 import { useState } from "react";
-import axios from "../utils/axiosInstance";
-import { showToast } from "../utils/toast";
-import { API_BASE } from "../utils/constants";
+import axios from "../../utils/axiosInstance";
+import { showToast } from "../../utils/toast";
+import { API_BASE } from "../../utils/constants";
 
 export default function ServiceForm({ onServiceAdded }) {
   const [name, setName] = useState("");
@@ -95,18 +95,14 @@ export default function ServiceForm({ onServiceAdded }) {
         </label>
         <input
           className="input input-bordered w-full text-center"
-          type="number"
-          step={15}
-          min={15}
-          placeholder="e.g. 60"
-          value={duration}
-          onChange={(e) => setDuration(e.target.value)}
-          required
+          type="text"
+          value={`${duration} minutes`}
+          readOnly
         />
 
         {/* Buttons for mobile */}
-        <div className="flex justify-center gap-2 mt-2 sm:hidden">
-          <div className="flex gap-2 sm:hidden w-full">
+        <div className="flex justify-center gap-2 mt-2">
+          <div className="flex gap-2  w-full">
             <button
               type="button"
               className="btn btn-sm btn-error flex-1 text-white font-bold"
@@ -120,7 +116,7 @@ export default function ServiceForm({ onServiceAdded }) {
               type="button"
               className="btn btn-sm btn-success flex-1 text-white font-bold"
               onClick={() =>
-                setDuration((prev) => Math.min(360, Number(prev || 15) + 15))
+                setDuration((prev) => Math.min(480, Number(prev || 15) + 15))
               }
             >
               + 15

@@ -1,4 +1,4 @@
-import ErrorCard from "./ErrorCard";
+import ErrorCard from "../Cards/ErrorCard";
 
 export default function SafeLoader({ loading, error, onRetry, children }) {
   if (loading) {

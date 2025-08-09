@@ -174,7 +174,7 @@ def get_public_freelancer_info(identifier):
             "logo_url": freelancer.logo_url,
             "tagline": freelancer.tagline,
             "bio": freelancer.bio,
-            "faq_text": freelancer.faq_text,
+            "faq_items": freelancer.faq_items,
             "timezone": freelancer.timezone,
             "is_verified": freelancer.tier in ["pro", "elite"],
             "email": freelancer.contact_email,
@@ -236,7 +236,7 @@ def public_freelancer_profile(identifier):
             "is_verified": freelancer.tier in ["pro", "elite"],
             "joined": freelancer.id,
             "services": service_data,
-            "faq_text": freelancer.faq_text,
+            "faq_items": freelancer.faq_items,
             "location": freelancer.location,
             "booking_instructions": freelancer.booking_instructions,
             "preferred_payment_methods": freelancer.preferred_payment_methods,
@@ -335,10 +335,20 @@ def delete_service(service_id):
     if request.method == "OPTIONS":
         return "", 200
 
-    service = Service.query.get(service_id)
-    db.session.delete(service)
-    db.session.commit()
-    return jsonify({"message": "Deleted"})
+    try:
+        freelancer_id = get_jwt_identity()
+        service = Service.query.filter_by(id=service_id, freelancer_id=freelancer_id).first()
+
+        if not service:
+            return jsonify({"error": "Service not found"}), 404
+
+        db.session.delete(service)
+        db.session.commit()
+        return jsonify({"message": "Deleted"}), 200
+
+    except Exception as e:
+        print("❌ Delete service error:", str(e))
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @freelancer_bp.route(
@@ -555,7 +565,9 @@ def update_freelancer_branding():
     freelancer.tagline = data.get("tagline", freelancer.tagline)
     freelancer.timezone = data.get("timezone", freelancer.timezone)
     freelancer.no_show_policy = data.get("no_show_policy", freelancer.no_show_policy)
-    freelancer.faq_text = data.get("faq_text", freelancer.faq_text)
+    faq_items = data.get("faq_items")
+    if faq_items is not None:
+        freelancer.faq_items = faq_items
 
     # ✅ Handle custom URL update
     if "custom_url" in data:
@@ -614,7 +626,7 @@ def get_freelancer_info():
                 "business_address": freelancer.business_address,
                 "custom_url": freelancer.custom_url,  # ✅ added
                 "no_show_policy": freelancer.no_show_policy,  # ✅ added
-                "faq_text": freelancer.faq_text,  # ✅ added
+                "faq_items": freelancer.faq_items,  # ✅ added
                 "tier": freelancer.tier,
                 "is_verified": freelancer.tier in ["pro", "elite"],
                 "location": freelancer.location,
@@ -813,7 +825,7 @@ def public_profile_by_url(custom_url):
             "is_verified": freelancer.tier in ["pro", "elite"],
             "joined": freelancer.created_at.strftime("%-m/%-d/%y"),
             "services": service_data,
-            "faq_text": freelancer.faq_text,
+            "faq_items": freelancer.faq_items,
             "location": freelancer.location,
             "booking_instructions": freelancer.booking_instructions,
             "preferred_payment_methods": freelancer.preferred_payment_methods,

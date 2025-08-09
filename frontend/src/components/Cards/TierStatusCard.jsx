@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import FallbackText from "./FallbackText";
+import FallbackText from "../Layout/FallbackText";
 
 export default function TierStatusCard({
   tier,

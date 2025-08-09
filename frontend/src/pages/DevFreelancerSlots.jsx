@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import axios from "../utils/axiosInstance";
 import { API_BASE } from "../utils/constants";
-import RefreshButton from "../components/RefreshButton";
+import RefreshButton from "../components/Buttons/RefreshButton";
 import { showToast } from "../utils/toast";
 
 export default function DevFreelancerSlots() {

@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import axios from "../utils/axiosInstance";
-import { showToast } from "../utils/toast";
-import IconDatePicker from "./IconDatePicker";
+import axios from "../../utils/axiosInstance";
+import { showToast } from "../../utils/toast";
+import IconDatePicker from "../Inputs/IconDatePicker";
 import { DateTime } from "luxon";
 import "react-datepicker/dist/react-datepicker.css";
-import { API_BASE } from "../utils/constants";
-import GeneralModal from "./GeneralModal";
+import { API_BASE } from "../../utils/constants";
+import GeneralModal from "../Modals/GeneralModal";
 
 export default function BatchSlotForm({
   onBatchAdd,
@@ -123,7 +123,7 @@ export default function BatchSlotForm({
       const token = localStorage.getItem("access_token");
       if (!token) {
         showToast("❌ Session expired. Redirecting to login...", "error");
-        import("../utils/tokenChannel").then(
+        import("../../utils/tokenChannel").then(
           ({ tokenChannel, MESSAGE_TYPES }) => {
             tokenChannel.postMessage({ type: MESSAGE_TYPES.SESSION_EXPIRED });
           }

@@ -36,7 +36,8 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
 
-  const urlPath = config.url.replace(API_BASE, "");
+  //OG const urlPath = config.url.replace(API_BASE, "");
+  const urlPath = new URL(config.url, API_BASE).pathname;
 
   // Improved public detection:
   const isPublic =

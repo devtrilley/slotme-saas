@@ -1,8 +1,8 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { closeTokenChannel } from "../utils/tokenChannel";
-import { showToast } from "../utils/toast";
+import { closeTokenChannel } from "../../utils/tokenChannel";
+import { showToast } from "../../utils/toast";
 import { useLocation } from "react-router-dom";
-import slotmeLogo from "../assets/slotme-logo.svg";
+import slotmeLogo from "../../assets/slotme-logo.svg";
 
 export default function Navbar() {
   const navigate = useNavigate();

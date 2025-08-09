@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
-import TierStatusCard from "../components/TierStatusCard";
+import TierStatusCard from "../components/Cards/TierStatusCard";
 import { useEffect, useState } from "react";
 import { API_BASE } from "../utils/constants";
 import { showToast } from "../utils/toast";
-import GeneralModal from "../components/GeneralModal";
+import GeneralModal from "../components/Modals/GeneralModal";
 import slotmeLogo from "../assets/slotme-logo.svg";
 
 import { useFreelancer } from "../context/FreelancerContext";

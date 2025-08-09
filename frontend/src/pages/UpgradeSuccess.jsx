@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import TierStatusCard from "../components/TierStatusCard";
+import TierStatusCard from "../components/Cards/TierStatusCard";
 import { API_BASE } from "../utils/constants";
 import { showToast } from "../utils/toast";
 

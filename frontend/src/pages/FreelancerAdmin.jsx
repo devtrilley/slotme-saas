@@ -1,21 +1,23 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../utils/axiosInstance";
-import FreelancerBranding from "../components/FreelancerBranding";
+import FreelancerBranding from "../components/Forms/FreelancerBranding";
 import { showToast } from "../utils/toast";
-import AddSlotForm from "../components/AddSlotForm";
-import IconDatePicker from "../components/IconDatePicker";
+import AddSlotForm from "../components/Forms/AddSlotForm";
+import IconDatePicker from "../components/Inputs/IconDatePicker";
 import "react-datepicker/dist/react-datepicker.css";
-import FreelancerCard from "../components/FreelancerCard";
-import FreelancerModal from "../components/FreelancerModal";
-import ServiceCard from "../components/ServiceCard";
-import ServiceForm from "../components/ServiceForm";
+import FreelancerCard from "../components/Cards/FreelancerCard";
+import FreelancerModal from "../components/Modals/FreelancerModal";
+import ServiceCard from "../components/Cards/ServiceCard";
+import ServiceForm from "../components/Forms/ServiceForm";
 import { DateTime } from "luxon";
-import TierStatusCard from "../components/TierStatusCard";
+import TierStatusCard from "../components/Cards/TierStatusCard";
 import { API_BASE } from "../utils/constants";
-import ErrorCard from "../components/ErrorCard";
-import SafeLoader from "../components/SafeLoader";
-import RefreshButton from "../components/RefreshButton";
+import ErrorCard from "../components/Cards/ErrorCard";
+import SafeLoader from "../components/Layout/SafeLoader";
+import RefreshButton from "../components/Buttons/RefreshButton";
+import SortButton from "../components/Buttons/SortButton";
+import FilterButton from "../components/Buttons/FilterButton";
 
 import { useFreelancer } from "../context/FreelancerContext";
 
@@ -75,21 +77,6 @@ export default function AdminPage() {
   const updateSlotTab = (mode) => {
     localStorage.setItem("slot_tab", mode);
     setSlotTab(mode);
-  };
-
-  const cycleStatus = () => {
-    setStatusFilter((prev) => {
-      switch (prev) {
-        case "all":
-          return "available";
-        case "available":
-          return "booked";
-        case "booked":
-          return "passed";
-        default:
-          return "all";
-      }
-    });
   };
 
   const filteredSlots = slots.filter((slot) => {
@@ -207,17 +194,15 @@ export default function AdminPage() {
       });
   };
 
-  const handleDeleteService = (serviceId) => {
-    axios
-      .delete(`${API_BASE}/freelancer/services/${serviceId}`)
-      .then(() => {
-        showToast("Service deleted");
-        fetchServices();
-      })
-      .catch((err) => {
-        console.error("❌ Failed to delete service", err);
-        showToast("Could not delete service", "error");
-      });
+  const handleDeleteService = async (serviceId) => {
+    try {
+      await axios.delete(`${API_BASE}/freelancer/services/${serviceId}`);
+      showToast("Service deleted");
+      await quietFetchServices(); // ✅ re-fetch full services list
+    } catch (err) {
+      console.error("❌ Failed to delete service", err);
+      showToast("Could not delete service", "error");
+    }
   };
 
   const handleUpdatePrice = (serviceId, newPrice) => {
@@ -324,26 +309,6 @@ export default function AdminPage() {
     });
   }
 
-  // Filter button classes
-  const getFilterButtonClass = () => {
-    switch (statusFilter) {
-      case "available":
-        return "bg-green-600 hover:bg-green-700 text-white border-green-600";
-      case "booked":
-        return "btn-primary text-white";
-      case "passed":
-        return "bg-gray-500 text-white border-gray-500 hover:bg-gray-600";
-      default:
-        return "btn-outline"; // "all"
-    }
-  };
-
-  // Sort button classes
-  const getSortButtonClass = () =>
-    sortDirection === "asc"
-      ? "bg-blue-500/10 text-blue-500 border border-blue-500 hover:bg-blue-500/20"
-      : "bg-blue-600 text-white border border-blue-600 hover:bg-blue-700";
-
   return (
     <SafeLoader
       loading={loading}
@@ -357,15 +322,9 @@ export default function AdminPage() {
           </h2>
 
           <button
-            onClick={() => navigate("/freelancer-analytics")}
-            className="btn btn-sm btn-outline"
-          >
-            📊 View Analytics
-          </button>
-
-          <button
             onClick={() => {
               clearFreelancerSession();
+              showToast("👋 Logged out successfully", "success"); // ✅ add this
               navigate("/auth");
             }}
             className="btn btn-sm btn-outline"
@@ -520,35 +479,22 @@ export default function AdminPage() {
               <div className="flex flex-col items-center gap-2 mt-4">
                 <div className="flex flex-col items-center w-full gap-1">
                   <span className="text-sm text-gray-400">Sort:</span>
-                  <button
-                    className={`btn btn-sm w-full max-w-[10rem] rounded-full font-medium tracking-tight ${getSortButtonClass()} transition-colors duration-200 ease-in-out`}
-                    onClick={() =>
+                  <SortButton
+                    direction={sortDirection}
+                    onToggle={() =>
                       setSortDirection((prev) =>
                         prev === "asc" ? "desc" : "asc"
                       )
                     }
-                  >
-                    {sortDirection === "asc"
-                      ? "↑ Oldest First"
-                      : "↓ Newest First"}
-                  </button>
+                  />
                 </div>
 
-                <div className="flex flex-col items-center w-full gap-1">
-                  <span className="text-sm text-gray-400">Filter:</span>
-                  <button
-                    className={`btn btn-sm w-full max-w-[10rem] ${getFilterButtonClass()} transition-colors duration-200 ease-in-out`}
-                    onClick={cycleStatus}
-                  >
-                    {statusFilter === "all"
-                      ? "📋 All"
-                      : statusFilter === "available"
-                      ? "✅ Available"
-                      : statusFilter === "booked"
-                      ? "📌 Booked"
-                      : "⏱️ Passed"}
-                  </button>
-                </div>
+                <FilterButton
+                  label="Filter Status:"
+                  options={["all", "available", "booked", "passed"]}
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                />
               </div>
             )}
           </div>
@@ -618,7 +564,7 @@ export default function AdminPage() {
                         onClick={() => handleDelete(slot.id)}
                         className="btn btn-xs btn-error mt-2"
                       >
-                        Cancel
+                        Delete
                       </button>
                     )}
                   </div>
@@ -648,7 +594,12 @@ export default function AdminPage() {
             </div>
           ) : (
             services.map((s) => (
-              <ServiceCard key={s.id} service={s} onUpdate={fetchServices} />
+              <ServiceCard
+                key={s.id}
+                service={s}
+                onUpdate={fetchServices}
+                onDelete={handleDeleteService} // ✅ pass delete fn down
+              />
             ))
           )}
         </section>

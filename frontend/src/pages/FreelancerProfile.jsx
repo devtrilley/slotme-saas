@@ -2,14 +2,15 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "../utils/axiosInstance";
 import { FaCheck } from "react-icons/fa";
-import ServiceCard from "../components/ServiceCard";
+import ServiceCard from "../components/Cards/ServiceCard";
 import NoShowPolicy from "../components/NoShowPolicy";
-import FAQCard from "../components/FAQCard";
+import FAQCard from "../components/Cards/FAQCard";
 import { DateTime } from "luxon";
 import { API_BASE } from "../utils/constants";
+import ProfilePhoto from "../components/ProfilePhoto"; // adjust path as
 
 import { useFreelancer } from "../context/FreelancerContext";
-import BookingInstructionsCard from "../components/BookingInstructionsCard";
+import BookingInstructionsCard from "../components/Cards/BookingInstructionsCard";
 
 const mapTimeZone = (tz) => {
   const zones = {
@@ -66,14 +67,10 @@ export default function FreelancerProfile() {
     <div className="max-w-md mx-auto p-6 space-y-6 text-center text-white">
       {/* Logo + badge */}
       <div className="relative inline-block w-32 h-32">
-        <img
-          src={
-            publicFreelancer.logo_url ||
-            "https://placehold.co/128x128?text=Logo"
-          }
-          alt="Freelancer Logo"
-          className="w-32 h-32 rounded-full object-cover border-2 border-white"
-          style={{ boxShadow: "0 0 12px rgba(255,255,255,0.5)" }}
+        <ProfilePhoto
+          src={publicFreelancer.logo_url}
+          tier={publicFreelancer.tier}
+          size="w-32 h-32"
         />
         {publicFreelancer.is_verified && (
           <div
@@ -221,7 +218,7 @@ export default function FreelancerProfile() {
             <NoShowPolicy policy={noShowPolicy} />
           </li>
           <li>
-            <FAQCard text={publicFreelancer.faq_text} />
+            <FAQCard faq_items={publicFreelancer.faq_items} />{" "}
           </li>
         </ul>
       </div>

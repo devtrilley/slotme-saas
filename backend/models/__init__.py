@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from sqlalchemy.dialects.postgresql import JSON
 
 
 db = SQLAlchemy()
@@ -20,7 +21,7 @@ class Freelancer(db.Model):
     timezone = db.Column(db.String(50), default="America/New_York")  # Default to EST
     is_verified = db.Column(db.Boolean, default=False)
     no_show_policy = db.Column(db.Text, nullable=True)
-    faq_text = db.Column(db.Text, nullable=True)
+    faq_items = db.Column(JSON, nullable=True)  # List of {"q": "...", "a": "..."}
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     early_access = db.Column(db.Boolean, default=False)
     email_confirmed = db.Column(db.Boolean, default=False)
