@@ -110,7 +110,7 @@ export default function Upgrade() {
         return;
       }
 
-      const res = await axios.post(`/create-checkout-session`, {
+      const res = await axios.post(`/stripe/create-checkout-session`, {
         plan,
         success_url: `${window.location.origin}/upgrade-success?session_id={CHECKOUT_SESSION_ID}`,
       });

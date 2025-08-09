@@ -28,7 +28,7 @@ export default function UpgradeSuccess() {
 
       try {
         const res = await fetch(
-          `${API_BASE}/check-session-status/${sessionId}`
+          `${API_BASE}/stripe/check-session-status/${sessionId}`
         );
 
         const data = await res.json();
