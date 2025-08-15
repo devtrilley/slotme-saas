@@ -61,7 +61,9 @@ def send_branded_customer_reply(subject, body, customer_email):
 def send_feedback_submission(to, subject, body):
     msg = EmailMessage()
     msg["Subject"] = subject
-    msg["From"] = "SlotMe Support <support@slotme.xyz>"  # 👈 HARD SET TO VERIFIED SENDER
+    msg["From"] = (
+        "SlotMe Support <support@slotme.xyz>"  # 👈 HARD SET TO VERIFIED SENDER
+    )
     msg["To"] = to
     msg.set_content(body)
 
@@ -82,3 +84,28 @@ if __name__ == "__main__":
     print("BREVO_SMTP_LOGIN:", SMTP_LOGIN)
     print("BREVO_SMTP_PASSWORD:", SMTP_PASSWORD[:8] + "...")
     print("SUPPORT_RECEIVER:", SUPPORT_RECEIVER)
+
+
+def send_verification_email(to_email: str, token: str):
+    """
+    Sends the email verification link to the new freelancer (plain text).
+    Frontend route expected to read ?token= and call /auth/verify-email (GET).
+    """
+    try:
+        from config import FRONTEND_ORIGIN  # e.g., http://localhost:5173
+    except Exception:
+        FRONTEND_ORIGIN = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+    # 👇 Route name aligned with EmailConfirmed.jsx (cleaner than "signup-confirmed")
+    verify_url = f"{FRONTEND_ORIGIN}/email-confirm?token={token}"
+
+    subject = "Confirm your email for SlotMe"
+    body = (
+        "Welcome to SlotMe!\n\n"
+        "Please confirm your email to finish setting up your account.\n\n"
+        f"Verify your email: {verify_url}\n\n"
+        "If you didn't request this, you can ignore this email."
+    )
+
+    # Reuse the SMTP helper
+    send_branded_customer_reply(subject=subject, body=body, customer_email=to_email)

@@ -95,3 +95,14 @@ export default function UpgradeSuccess() {
     </div>
   );
 }
+
+
+
+// 1.	Backend – Signup Logic & Email Utils
+// 	•	routes/auth_routes.py (freelancer signup endpoint)
+// 	•	email_utils.py (to hook in verification email)
+// 	•	config.py (to confirm FRONTEND/SMTP constants)
+// 	2.	Frontend – Signup Form & Flow
+// 	•	src/pages/Auth.jsx (signup UI + API call)
+// 	•	src/utils/axiosInstance.js (so we can ensure correct base URL for verification link)
+// 	•	src/pages/SignupConfirmed.jsx or EmailConfirmed.jsx (whichever exists for post-verification)

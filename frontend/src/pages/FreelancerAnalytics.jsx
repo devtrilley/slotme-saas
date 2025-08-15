@@ -12,6 +12,8 @@ import { API_BASE } from "../utils/constants";
 import SafeLoader from "../components/Layout/SafeLoader";
 import { showToast } from "../utils/toast"; // top of file
 import RefreshButton from "../components/Buttons/RefreshButton";
+import RequireTier from "../components/Auth/RequireTier";
+import { requiredTierFor } from "../utils/tiers";
 
 const colorMap = {
   "Happy Ending Herbal Rubdown": "#EF4444",

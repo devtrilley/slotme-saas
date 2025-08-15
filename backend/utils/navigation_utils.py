@@ -1,3 +1,8 @@
+import re
+from models import Freelancer
+from config import RESERVED_ROUTES  # or wherever you defined it
+
+
 def is_valid_public_slug(path):
     """
     Only match slugs like '/ambercafe' if they exist in DB, avoid reserved routes.

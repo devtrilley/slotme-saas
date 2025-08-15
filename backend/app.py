@@ -97,6 +97,11 @@ app.register_blueprint(public_bp)
 
 app.add_url_rule("/webhook", view_func=stripe_webhook, methods=["POST"])
 
+# 🔌 attach middleware (keeps your allowlists intact)
+from utils.middleware import load_freelancer
+
+app.before_request(load_freelancer)
+
 # Allow dev tools (like Postman) to access /dev/* routes
 CORS(
     app,

@@ -18,7 +18,7 @@ export default function PrioritySupportPage() {
       const token = localStorage.getItem("access_token");
       if (!token) return; // Prevent firing unauthenticated
 
-      await axios.post(`${API_BASE}/freelancer/support`, {
+      await axios.post(`${API_BASE}/priority-support`, {
         subject,
         message,
       });

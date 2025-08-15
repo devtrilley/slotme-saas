@@ -3,7 +3,7 @@ import TierStatusCard from "../components/Cards/TierStatusCard";
 import { useEffect, useState } from "react";
 import { API_BASE } from "../utils/constants";
 import { showToast } from "../utils/toast";
-import GeneralModal from "../components/Modals/GeneralModal";
+import BaseModal from "../components/Modals/BaseModal";
 import slotmeLogo from "../assets/slotme-logo.svg";
 
 import { useFreelancer } from "../context/FreelancerContext";
@@ -82,20 +82,20 @@ export default function Upgrade() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash === "#elite") {
-      const eliteSection = document.getElementById("elite-tier");
-      if (eliteSection) {
-        eliteSection.scrollIntoView({ behavior: "smooth", block: "start" });
-        eliteSection.classList.add("ring", "ring-yellow-400", "ring-offset-2");
+    const hash = window.location.hash || "";
+    if (hash.toLowerCase().startsWith("#elite")) {
+      const el = document.getElementById("elite-tier");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        el.classList.add("ring", "ring-yellow-400", "ring-offset-2");
         setTimeout(() => {
-          eliteSection.classList.remove(
-            "ring",
-            "ring-yellow-400",
-            "ring-offset-2"
-          );
+          el.classList.remove("ring", "ring-yellow-400", "ring-offset-2");
         }, 2000);
       }
+    }
+    if (hash.toLowerCase().startsWith("#pro")) {
+      const el = document.getElementById("pro-tier");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, []);
 
@@ -155,7 +155,7 @@ export default function Upgrade() {
       {isLoggedIn && <TierStatusCard tier={freelancer?.tier} />}
 
       {showLoginModal && (
-        <GeneralModal
+        <BaseModal
           title="Log in Required"
           body="Please log in to upgrade your plan."
           confirmText="Go to Login"

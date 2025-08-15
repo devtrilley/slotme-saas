@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "../../utils/axiosInstance";
 import { showToast } from "../../utils/toast";
 import { API_BASE } from "../../utils/constants";
+import { Link } from "react-router-dom";
 
 import { useFreelancer } from "../../context/FreelancerContext"; // Add at the top if not already
 
@@ -16,11 +17,28 @@ export default function FreelancerBranding({ onUpdate }) {
     faq_items: [],
     custom_url: "",
     business_address: "",
+
+    // add these so fields aren’t undefined before the first load
+    booking_instructions: "",
+    preferred_payment_methods: "",
+    location: "",
+    contact_email: "",
+    phone: "",
+    instagram_url: "",
+    twitter_url: "",
   });
+
+  const toastLockRef = useRef(0);
 
   const [error, setError] = useState("");
 
+  const next =
+    window.location.pathname + window.location.search + window.location.hash;
+
   const { freelancer, setFreelancer } = useFreelancer();
+  const tier = (freelancer?.tier || "free").toLowerCase();
+  const canEditCustomURL = tier === "pro" || tier === "elite";
+  const initialCustomUrlRef = useRef("");
 
   const freelancerId = localStorage.getItem("freelancer_id");
 
@@ -43,7 +61,16 @@ export default function FreelancerBranding({ onUpdate }) {
           faq_items: data.faq_items || [],
           custom_url: data.custom_url || "",
           business_address: data.business_address || "",
+
+          booking_instructions: data.booking_instructions || "",
+          preferred_payment_methods: data.preferred_payment_methods || "",
+          location: data.location || "",
+          contact_email: data.contact_email || data.email || "",
+          phone: data.phone || "",
+          instagram_url: data.instagram_url || "",
+          twitter_url: data.twitter_url || "",
         });
+        initialCustomUrlRef.current = data.custom_url || "";
 
         localStorage.setItem("branding_updated", Date.now());
       })
@@ -68,7 +95,7 @@ export default function FreelancerBranding({ onUpdate }) {
     });
   };
 
-  const isValidSlug = (slug) => /^[a-z0-9_-]{3,30}$/i.test(slug);
+  const isValidSlug = (slug) => /^[a-z0-9_-]{3,30}$/.test(slug);
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -86,14 +113,20 @@ export default function FreelancerBranding({ onUpdate }) {
       Object.entries(form).map(([key, value]) => [key, value.trim?.() ?? value])
     );
 
+    // If not allowed, never send a different custom_url
+    const payload = { ...trimmedForm };
+    if (!canEditCustomURL) {
+      payload.custom_url = initialCustomUrlRef.current || "";
+    }
+
     axios
-      .patch(`${API_BASE}/freelancer/branding`, trimmedForm)
+      .patch(`${API_BASE}/freelancer/branding`, payload)
       .then(() => {
         showToast("✅ Branding updated!", "success");
 
-        setFreelancer({
-          ...freelancer,
-          custom_url: form.custom_url,
+        setFreelancer((prev) => ({
+          ...(prev || {}),
+          custom_url: payload.custom_url,
           business_name: form.business_name,
           logo_url: form.logo_url,
           tagline: form.tagline,
@@ -102,7 +135,17 @@ export default function FreelancerBranding({ onUpdate }) {
           no_show_policy: form.no_show_policy,
           faq_items: form.faq_items,
           business_address: form.business_address,
-        });
+          booking_instructions: form.booking_instructions,
+          preferred_payment_methods: form.preferred_payment_methods,
+          location: form.location,
+          contact_email: form.contact_email,
+          phone: form.phone,
+          instagram_url: form.instagram_url,
+          twitter_url: form.twitter_url,
+        }));
+
+        // keep the form’s slug in sync with what actually got saved
+        setForm((prev) => ({ ...prev, custom_url: payload.custom_url }));
 
         if (onUpdate) onUpdate();
       })
@@ -130,7 +173,6 @@ export default function FreelancerBranding({ onUpdate }) {
           placeholder="Business Name"
           className="input input-bordered w-full"
         />
-
         <label className="label text-sm text-white">
           Business Address (if applicable):
         </label>
@@ -142,32 +184,84 @@ export default function FreelancerBranding({ onUpdate }) {
           placeholder="e.g. 123 Main St, Atlanta, GA"
           className="input input-bordered w-full"
         />
+        <div className="space-y-0.5">
+          <label className="label text-sm text-white !py-0">
+            Custom Booking URL
+          </label>
 
-        <label className="label text-sm text-white">Custom Booking URL:</label>
-        <input
-          type="text"
-          name="custom_url"
-          value={form.custom_url}
-          onChange={handleChange}
-          placeholder="e.g. ambercutz"
-          className="input input-bordered w-full"
-        />
-        {form.custom_url && !isValidSlug(form.custom_url) ? (
-          <p className="text-xs text-red-400 mt-1">
-            Only 3–30 characters: letters, numbers, dashes (-) or underscores
-            (_)
-          </p>
-        ) : (
-          <p className="text-xs text-white mt-1">
-            Your booking page will be available at:{" "}
-            <strong>
-              {form.custom_url
-                ? `http://localhost:5173/${form.custom_url}`
-                : `http://localhost:5173/book/${freelancer?.id || "..."}`}
-            </strong>
-          </p>
-        )}
+          {!canEditCustomURL && (
+            <Link
+              to={`/upgrade#elite?need=pro&next=${encodeURIComponent(next)}`}
+              className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full
+               bg-primary text-white border border-none
+               shadow-inner hover:bg-primary transition mb-1.5"
+            >
+              <span aria-hidden>🔒</span>
+              <span>Requires PRO (also in ELITE)</span>
+            </Link>
+          )}
 
+          <div className="relative">
+            <input
+              type="text"
+              name="custom_url"
+              value={form.custom_url}
+              onChange={handleChange}
+              placeholder="e.g. ambercutz"
+              className={`input input-bordered w-full !mt-0 ${
+                !canEditCustomURL
+                  ? "opacity-60 cursor-not-allowed select-none"
+                  : ""
+              }`}
+              readOnly={!canEditCustomURL}
+              onClick={() => {
+                if (!canEditCustomURL) {
+                  const now = Date.now();
+                  if (now - toastLockRef.current > 1200) {
+                    toastLockRef.current = now;
+                    showToast(
+                      <span>
+                        Custom URL is a PRO feature (also in ELITE).{" "}
+                        <a
+                          href={`/upgrade#elite?need=pro&next=${encodeURIComponent(
+                            next
+                          )}`}
+                          className="underline font-medium"
+                        >
+                          Upgrade →
+                        </a>
+                      </span>,
+                      "error"
+                    );
+                  }
+                }
+              }}
+            />
+            {!canEditCustomURL && (
+              <span
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs opacity-60"
+                title="Upgrade to set a custom URL"
+              >
+                🔒
+              </span>
+            )}
+          </div>
+
+          {form.custom_url && !isValidSlug(form.custom_url) ? (
+            <p className="text-[11px] text-red-400">
+              Use 3–30 letters, numbers, dashes or underscores.
+            </p>
+          ) : (
+            <p className="text-[11px] text-zinc-300">
+              Your booking page will be:{" "}
+              <code className="font-mono text-zinc-100">
+                {form.custom_url
+                  ? `http://localhost:5173/${form.custom_url}`
+                  : `http://localhost:5173/book/${freelancer?.id || "..."}`}
+              </code>
+            </p>
+          )}
+        </div>
         <label className="label text-sm text-white">Logo URL: (optional)</label>
         <input
           type="url"
@@ -177,7 +271,6 @@ export default function FreelancerBranding({ onUpdate }) {
           placeholder="Logo URL (optional)"
           className="input input-bordered w-full"
         />
-
         <label className="label text-sm text-white">Tagline: (optional)</label>
         <input
           type="text"
@@ -187,7 +280,6 @@ export default function FreelancerBranding({ onUpdate }) {
           placeholder="Tagline (optional)"
           className="input input-bordered w-full"
         />
-
         <label className="label text-sm text-white">Bio / Description:</label>
         <textarea
           name="bio"
@@ -196,7 +288,6 @@ export default function FreelancerBranding({ onUpdate }) {
           placeholder="Short bio or description"
           className="textarea textarea-bordered w-full"
         />
-
         <label className="label text-sm text-white">Timezone:</label>
         {/* ✅ Timezone Selector */}
         <select
@@ -210,7 +301,6 @@ export default function FreelancerBranding({ onUpdate }) {
           <option value="America/Denver">Mountain (MST)</option>
           <option value="America/Los_Angeles">Pacific (PST)</option>
         </select>
-
         <label className="label text-sm text-white">No-Show Policy:</label>
         <textarea
           name="no_show_policy"
@@ -219,59 +309,142 @@ export default function FreelancerBranding({ onUpdate }) {
           placeholder="No-show policy (e.g. late fees, cancellation terms)"
           className="textarea textarea-bordered w-full"
         />
+        {/* ——— Contact & Social ——— */}
+        <label className="label text-sm text-white">Contact Email:</label>
+        <input
+          type="email"
+          name="contact_email"
+          value={form.contact_email}
+          onChange={handleChange}
+          placeholder="you@domain.com"
+          className="input input-bordered w-full"
+        />
+        <label className="label text-sm text-white">Phone (optional):</label>
+        <input
+          type="tel"
+          name="phone"
+          value={form.phone}
+          onChange={handleChange}
+          placeholder="+1 (555) 123‑4567"
+          className="input input-bordered w-full"
+        />
+        <label className="label text-sm text-white">
+          Instagram URL (optional):
+        </label>
+        <input
+          type="url"
+          name="instagram_url"
+          value={form.instagram_url}
+          onChange={handleChange}
+          placeholder="https://instagram.com/yourhandle"
+          className="input input-bordered w-full"
+        />
+        <label className="label text-sm text-white">
+          Twitter/X URL (optional):
+        </label>
+        <input
+          type="url"
+          name="twitter_url"
+          value={form.twitter_url}
+          onChange={handleChange}
+          placeholder="https://x.com/yourhandle"
+          className="input input-bordered w-full"
+        />
+        {/* ——— Booking Details ——— */}
+        <label className="label text-sm text-white">
+          Location (city or remote):
+        </label>
+        <input
+          type="text"
+          name="location"
+          value={form.location}
+          onChange={handleChange}
+          placeholder="Atlanta, GA or Remote"
+          className="input input-bordered w-full"
+        />
+        <label className="label text-sm text-white">
+          Booking Instructions:
+        </label>
+        <textarea
+          name="booking_instructions"
+          value={form.booking_instructions}
+          onChange={handleChange}
+          placeholder="What to prepare, how to join the call, repo access, etc."
+          className="textarea textarea-bordered w-full"
+        />
+        <label className="label text-sm text-white">
+          Preferred Payment Methods:
+        </label>
+        <input
+          type="text"
+          name="preferred_payment_methods"
+          value={form.preferred_payment_methods}
+          onChange={handleChange}
+          placeholder="Card (Stripe), PayPal, CashApp"
+          className="input input-bordered w-full"
+        />
+        <div className="space-y-3">
+          <label className="label text-sm text-white block">FAQs:</label>
 
-        <label className="label text-sm text-white">FAQs:</label>
-        {form.faq_items.map((item, index) => (
-          <div key={index} className="mb-2 space-y-1">
-            <label htmlFor="">Question:</label>
-            <input
-              type="text"
-              value={item.question}
-              onChange={(e) => {
-                const updated = [...form.faq_items];
-                updated[index].question = e.target.value;
-                setForm({ ...form, faq_items: updated });
-              }}
-              placeholder="Question"
-              className="input input-bordered w-full"
-            />
-            <label htmlFor="">Answer:</label>
-            <textarea
-              value={item.answer}
-              onChange={(e) => {
-                const updated = [...form.faq_items];
-                updated[index].answer = e.target.value;
-                setForm({ ...form, faq_items: updated });
-              }}
-              placeholder="Answer"
-              className="textarea textarea-bordered w-full"
-            />
+          <div className="space-y-3">
+            {form.faq_items.map((item, index) => (
+              <div key={index} className="rounded-lg p-3 bg-base-300 space-y-2">
+                <label className="text-xs opacity-80">Question</label>
+                <input
+                  type="text"
+                  value={item.question}
+                  onChange={(e) => {
+                    const updated = [...form.faq_items];
+                    updated[index].question = e.target.value;
+                    setForm({ ...form, faq_items: updated });
+                  }}
+                  placeholder="Question"
+                  className="input input-bordered w-full"
+                />
+
+                <label className="text-xs opacity-80">Answer</label>
+                <textarea
+                  value={item.answer}
+                  onChange={(e) => {
+                    const updated = [...form.faq_items];
+                    updated[index].answer = e.target.value;
+                    setForm({ ...form, faq_items: updated });
+                  }}
+                  placeholder="Answer"
+                  className="textarea textarea-bordered w-full"
+                />
+
+                <button
+                  type="button"
+                  className="btn btn-sm btn-error"
+                  onClick={() => {
+                    const updated = form.faq_items.filter(
+                      (_, i) => i !== index
+                    );
+                    setForm({ ...form, faq_items: updated });
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div>
             <button
               type="button"
-              className="btn btn-sm btn-error"
-              onClick={() => {
-                const updated = form.faq_items.filter((_, i) => i !== index);
-                setForm({ ...form, faq_items: updated });
-              }}
+              className="btn btn-sm btn-success"
+              onClick={() =>
+                setForm({
+                  ...form,
+                  faq_items: [...form.faq_items, { question: "", answer: "" }],
+                })
+              }
             >
-              Remove
+              + Add FAQ
             </button>
           </div>
-        ))}
-
-        <button
-          type="button"
-          className="btn btn-sm btn-accent mt-2"
-          onClick={() =>
-            setForm({
-              ...form,
-              faq_items: [...form.faq_items, { question: "", answer: "" }],
-            })
-          }
-        >
-          + Add FAQ
-        </button>
-
+        </div>
         <button type="submit" className="btn btn-primary w-full">
           Save Changes
         </button>
@@ -284,5 +457,3 @@ export default function FreelancerBranding({ onUpdate }) {
     </div>
   );
 }
-
-// https://m.media-amazon.com/images/M/MV5BMjA5Njg3NDkxNV5BMl5BanBnXkFtZTgwNDczMTgyODE@._V1_.jpg

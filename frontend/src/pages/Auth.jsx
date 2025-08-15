@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import axios from "../utils/axiosInstance";
-import { API_BASE } from "../utils/constants";
-import { resetSessionFlag } from "../utils/axiosInstance";
+import axios, { resetSessionFlag } from "../utils/axiosInstance";
+import { showToast } from "../utils/toast";
 
 export default function Auth({ clearSession }) {
   const [mode, setMode] = useState("login"); // "login" or "signup"
@@ -21,23 +20,26 @@ export default function Auth({ clearSession }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return; // 🚫 stop double submits
     setError("");
     setSubmitting(true);
 
     try {
+      const cleanEmail = email.trim().toLowerCase();
+
       if (mode === "signup") {
-        const res = await axios.post(`${API_BASE}/signup`, {
-          first_name: firstName,
-          last_name: lastName,
-          email,
+        await axios.post(`/auth/signup`, {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          email: cleanEmail,
           password,
         });
 
-        alert("Thanks for signing up! Please check your email to confirm.");
-        setMode("login");
+        showToast("Check your inbox to verify your email.", "success");
+        navigate("/signup-success");
       } else {
-        const res = await axios.post(`${API_BASE}/auth`, {
-          email,
+        const res = await axios.post(`/auth`, {
+          email: cleanEmail,
           password,
         });
 
@@ -45,20 +47,28 @@ export default function Auth({ clearSession }) {
         localStorage.setItem("freelancer_id", res.data.freelancer_id);
         localStorage.setItem("freelancer_logged_in", "true");
 
-        console.log("✅ Logged in, received token:", res.data.access_token);
-        console.log("🧠 Stored freelancer ID:", res.data.freelancer_id);
-        console.log(
-          "📦 LocalStorage token (immediate check):",
-          localStorage.getItem("access_token")
-        );
-
         if (clearSession) clearSession();
 
         navigate(nextPage);
       }
     } catch (err) {
-      const msg = err.response?.data?.error || "Something went wrong.";
+      const status = err.response?.status;
+      let msg = err.response?.data?.error;
+
+      if (!msg) {
+        msg =
+          status === 500
+            ? "Signup failed on our side. Please try again in a moment."
+            : "Something went wrong.";
+      }
+
       setError(msg);
+
+      if (status === 403) {
+        showToast("Email not verified — check your inbox.", "error");
+      } else {
+        showToast(msg, "error");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -132,6 +142,7 @@ export default function Auth({ clearSession }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          disabled={submitting}
         />
         <input
           type="password"
@@ -140,6 +151,7 @@ export default function Auth({ clearSession }) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          disabled={submitting}
         />
         <button
           type="submit"
@@ -156,7 +168,7 @@ export default function Auth({ clearSession }) {
         </button>
       </form>
 
-      {error && <p className="text-red-500 text-center text-sm">{error}</p>}
+      {/* {error && <p className="text-red-500 text-center text-sm">{error}</p>} */}
 
       <p className="text-center text-sm text-gray-500 mt-4">
         Customers don’t need to log in. Just book directly from a freelancer’s

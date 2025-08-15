@@ -1,10 +1,22 @@
+from flask import request, jsonify, g
+from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+from flask_jwt_extended.exceptions import NoAuthorizationError
+from models import Freelancer
+from utils.features import normalize_tier
+from utils.navigation_utils import is_valid_public_slug
+
+
 def load_freelancer():
     request.path = request.path.rstrip("/")
-    print("🔥 Path:", request.path)
-    print("🔥 Headers:", dict(request.headers))
-    print(f"🔥 Incoming {request.method} {request.path}")
+
+    # 🚨 TOP-LEVEL DEBUG LOGS
+    print("\n🛬 NEW REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    print("🔥 METHOD:", request.method)
+    print("🔥 PATH:", request.path)
+    print("🔥 HEADERS:", dict(request.headers))
 
     if request.method == "OPTIONS":
+        print("🛑 Skipping auth due to OPTIONS request.\n")
         return
 
     open_prefixes = (
@@ -15,7 +27,7 @@ def load_freelancer():
         "/dev",
         "/404",
         "/master-times",
-        "/appointment",
+        # "/appointment",
         "/freelancer/public-info",
         "/freelancer/slots",
         "/confirm-booking",
@@ -24,6 +36,7 @@ def load_freelancer():
         "/check-session-status",
         "/download-ics",
     )
+
     open_paths = [
         "/book",
         "/feedback",
@@ -35,24 +48,59 @@ def load_freelancer():
         "/upgrade-cancelled",
     ]
 
-    if (
-        any(request.path.startswith(prefix) for prefix in open_prefixes)
-        or request.path in open_paths
-        or request.endpoint == "public_profile_by_url"
-        or is_valid_public_slug(request.path.lower())
-        or request.path == "/404"
-    ):
-        print("✅ Skipping auth for open or public path.")
+    if any(request.path.startswith(prefix) for prefix in open_prefixes):
+        print(f"⚠️ Matched OPEN PREFIX → {request.path}\n")
         return
 
-    # 💥 Add this diagnostic log to catch blocked requests
-    print("🚫 BLOCKING REQUEST — NOT IN open_prefixes or open_paths")
-    print("🚫 Full request.path:", request.path)
+    if request.path in open_paths:
+        print(f"⚠️ Matched OPEN PATH → {request.path}\n")
+        return
+
+    if request.endpoint == "public_profile_by_url":
+        print(f"⚠️ Matched PUBLIC ENDPOINT → {request.endpoint}\n")
+        return
+
+    if is_valid_public_slug(request.path.lower()):
+        print(f"⚠️ Matched PUBLIC SLUG → {request.path}\n")
+        return
+
+    if request.path == "/404":
+        print("⚠️ Matched 404 page — no auth needed\n")
+        return
+
+    # 🧱 Enforce Auth
+    print("🚫 NO OPEN MATCH FOUND — ENFORCING AUTH")
+    print("🚫 Path requiring auth:", request.path)
 
     try:
+        auth_header = request.headers.get("Authorization")
+        print("🧪 Authorization Header:", auth_header)
+
         verify_jwt_in_request()
         g.freelancer_id = get_jwt_identity()
-        print("✅ Authenticated as freelancer:", g.freelancer_id)
-    except NoAuthorizationError:
+        print("✅ JWT Identity:", g.freelancer_id)
+
+        freelancer = Freelancer.query.get(g.freelancer_id)
+        if not freelancer:
+            print("❌ No freelancer found in DB for ID:", g.freelancer_id)
+            return jsonify({"error": "auth_required"}), 401
+
+        g.freelancer = freelancer
+        g.user = {
+            "id": freelancer.id,
+            "freelancer_id": freelancer.id,
+            "tier": normalize_tier(getattr(freelancer, "tier", "free")),
+            "email": getattr(freelancer, "email", None),
+        }
+
+        print("✅ Auth success. User attached to `g` object.\n")
+
+    except NoAuthorizationError as e:
         print("❌ Missing or invalid JWT token")
-        return jsonify({"error": "Missing or invalid token"}), 401
+        print("❌ Exception:", str(e))
+        return jsonify({"error": "auth_required"}), 401
+
+    except Exception as e:
+        print("💥 UNEXPECTED ERROR during auth!")
+        print("💥", str(e))
+        return jsonify({"error": "internal_auth_error"}), 500

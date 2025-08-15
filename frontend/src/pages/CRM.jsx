@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useFreelancer } from "../context/FreelancerContext";
 import axios from "../utils/axiosInstance";
 import IconDatePicker from "../components/Inputs/IconDatePicker";
 import { DateTime } from "luxon";
@@ -7,6 +8,12 @@ import { showToast } from "../utils/toast";
 import RefreshButton from "../components/Buttons/RefreshButton";
 
 export default function CRM() {
+  const { freelancer } = useFreelancer();
+  const tier = (freelancer?.tier || "free").toLowerCase();
+  const canExport = tier === "pro" || tier === "elite";
+  const next =
+    window.location.pathname + window.location.search + window.location.hash;
+
   const [appointments, setAppointments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
@@ -121,88 +128,56 @@ export default function CRM() {
     return matchesSearch && inTimeRange && inDate && isNotCancelled;
   });
 
-  const exportCSV = () => {
-    let exportData = appointments.filter((a) => a.status !== "cancelled");
-
-    const timezone =
-      exportData.find((a) => a.freelancer_timezone)?.freelancer_timezone ||
-      "America/New_York";
-
-    const today = DateTime.now().setZone(timezone);
-    const isoToday = today.toISODate();
-
-    if (exportData.length === 0) {
-      showToast("⚠️ No data to export for this range.", "warning");
+  const exportCSV = async () => {
+    if (!canExport) {
+      showToast(
+        "CSV export is a PRO/ELITE feature. Use the pill below to upgrade.",
+        "error"
+      );
       return;
     }
 
-    if (exportRange === "this_month") {
-      const thisMonth = today.month;
-      const thisYear = today.year;
-      exportData = exportData.filter((a) => {
-        const date = DateTime.fromISO(a.slot_day).setZone(timezone);
-        return date.month === thisMonth && date.year === thisYear;
-      });
-    } else if (exportRange === "last_month") {
-      const lastMonthDate = today.minus({ months: 1 });
-      const lastMonth = lastMonthDate.month;
-      const lastYear = lastMonthDate.year;
-      exportData = exportData.filter((a) => {
-        const date = DateTime.fromISO(a.slot_day).setZone(timezone);
-        return date.month === lastMonth && date.year === lastYear;
-      });
-    } else if (exportRange === "upcoming") {
-      exportData = exportData.filter((a) => a.slot_day >= isoToday);
-    } else if (exportRange === "selected_date") {
-      const selectedStr = DateTime.fromJSDate(selectedDate)
-        .setZone(timezone)
-        .toFormat("yyyy-MM-dd");
-      exportData = exportData.filter((a) => a.slot_day === selectedStr);
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      showToast("You must be logged in to export.", "error");
+      return;
     }
 
-    // ✅ New CSV header
-    const header =
-      "First Name,Last Name,Email,Phone,Service,Date,Time Slot,Status\n";
+    try {
+      showToast("⏳ Preparing your CSV export...", "info");
 
-    // const rows = exportData.map((a) => {
-    //   const firstName = a.first_name || "";
-    //   const lastName = a.last_name || "";
-    //   const email = a.email || "";
-    //   const phone = a.phone || "";
-    //   const service = a.service || "Unknown";
-    //   const date = a.slot_day || "";
-    //   const time = a.slot_time || "";
-    //   const status = a.status || "pending";
+      const response = await axios.get(
+        `${API_BASE}/appointments/export-csv?range=${exportRange}&selected_date=${getESTDateString(
+          selectedDate
+        )}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          responseType: "blob",
+        }
+      );
 
-    //   return `${firstName},${lastName},${email},${phone},${service},${date},${time},${status}`;
-    // });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "appointments.csv");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
 
-    const sanitize = (text) => `"${String(text || "").replace(/"/g, '""')}"`;
-    const rows = exportData.map((a) => {
-      return [
-        sanitize(a.first_name),
-        sanitize(a.last_name),
-        sanitize(a.email),
-        sanitize(a.phone),
-        sanitize(a.service),
-        sanitize(a.slot_day),
-        sanitize(a.slot_time),
-        sanitize(a.status),
-      ].join(",");
-    });
-
-    const csvContent = header + rows.join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "bookings.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-
-    showToast("✅ Export ready! Download started.", "success");
+      showToast("✅ Export ready! Download started.", "success");
+    } catch (err) {
+      if (err.response?.status === 403) {
+        showToast(
+          "🔒 CSV export is gated by your tier. Please upgrade.",
+          "error"
+        );
+      } else {
+        console.error("❌ CSV Export failed:", err);
+        showToast("❌ Failed to export CSV. Please try again.", "error");
+      }
+    }
   };
 
   const formatDate = (isoDate, timezone = "America/New_York") => {
@@ -358,20 +333,73 @@ export default function CRM() {
         <label className="font-medium text-sm text-gray-400">
           Export Bookings:
         </label>
-        <select
-          className="select select-bordered w-full"
-          value={exportRange}
-          onChange={(e) => setExportRange(e.target.value)}
-        >
-          <option value="selected_date">📌 Exact Day (selected)</option>
-          <option value="this_month">📆 This Month</option>
-          <option value="last_month">🕰️ Last Month</option>
-          <option value="upcoming">📈 Upcoming</option>
-          <option value="all">🌍 All Bookings</option>
-        </select>
-        <button onClick={exportCSV} className="btn btn-outline w-full">
-          📄 Export to CSV
-        </button>
+
+        {!canExport && (
+          <a
+            href={`/upgrade#elite?need=pro&next=${encodeURIComponent(next)}`}
+            className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full
+               bg-primary text-white border border-none shadow-inner
+               hover:bg-primary transition mb-1.5"
+          >
+            🔒 Requires PRO (also in ELITE)
+          </a>
+        )}
+        <div className="relative">
+          {!canExport && (
+            <button
+              type="button"
+              className="absolute inset-0 z-10 cursor-not-allowed rounded-lg"
+              aria-label="Upgrade to enable CSV export"
+              onClick={() =>
+                showToast(
+                  <span>
+                    CSV export is a PRO/ELITE feature.{" "}
+                    <a
+                      href={`/upgrade#elite?need=pro&next=${encodeURIComponent(
+                        next
+                      )}`}
+                      className="underline font-medium"
+                    >
+                      Upgrade →
+                    </a>
+                  </span>,
+                  "error"
+                )
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  showToast("CSV export is locked on Free.", "error");
+                }
+              }}
+            />
+          )}
+
+          <select
+            className="select select-bordered w-full"
+            value={exportRange}
+            onChange={(e) => setExportRange(e.target.value)}
+            disabled={!canExport}
+            aria-disabled={!canExport}
+            title={!canExport ? "Upgrade to enable CSV export" : undefined}
+          >
+            <option value="selected_date">📌 Exact Day (selected)</option>
+            <option value="this_month">📆 This Month</option>
+            <option value="last_month">🕰️ Last Month</option>
+            <option value="upcoming">📈 Upcoming</option>
+            <option value="all">🌍 All Bookings</option>
+          </select>
+
+          <button
+            onClick={exportCSV}
+            className="btn btn-outline w-full mt-2"
+            disabled={!canExport}
+            aria-disabled={!canExport}
+            title={!canExport ? "Upgrade to enable CSV export" : undefined}
+          >
+            📄 Export to CSV
+          </button>
+        </div>
       </div>
     </div>
   );

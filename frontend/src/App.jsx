@@ -24,7 +24,9 @@ import Feedback from "./pages/Feedback";
 import SignupSuccess from "./pages/SignupSuccess";
 import BookingSuccess from "./pages/BookingSuccess";
 import BookingConfirmed from "./pages/BookingConfirmed";
-import SignupConfirmed from "./pages/SignupConfirmed";
+// import
+import EmailConfirmed from "./pages/EmailConfirmed";
+
 import UpgradeSuccess from "./pages/UpgradeSuccess"; // or wherever the file lives
 import UpgradeCancelled from "./pages/UpgradeCancelled";
 import NavigatorInit from "./components/NavigatorInit";
@@ -35,6 +37,7 @@ import AlreadyTaken from "./pages/AlreadyTaken";
 import Navbar from "./components/Layout/Navbar";
 import RequireDevAuth from "./components/Auth/RequireDevAuth";
 import RequireFreelancerAuth from "./components/Auth/RequireFreelancerAuth";
+import RequireTier from "./components/Auth/RequireTier";
 import CustomUrlRouter from "./components/CustomUrlRouter";
 import { Toaster } from "react-hot-toast"; // 🔼 Put this at the top
 
@@ -226,11 +229,17 @@ export default function App() {
             path="/freelancers/:freelancerId"
             element={<FreelancerProfile />}
           />
+
           <Route
             path="/freelancer-analytics"
             element={
               <RequireFreelancerAuth>
-                <FreelancerAnalytics />
+                <RequireTier
+                  feature="analyticsFull"
+                  backHref="/freelancer-admin"
+                >
+                  <FreelancerAnalytics />
+                </RequireTier>
               </RequireFreelancerAuth>
             }
           />
@@ -239,7 +248,12 @@ export default function App() {
             path="/priority-support"
             element={
               <RequireFreelancerAuth>
-                <PrioritySupport />
+                <RequireTier
+                  feature="prioritySupport"
+                  backHref="/freelancer-admin"
+                >
+                  <PrioritySupport />
+                </RequireTier>
               </RequireFreelancerAuth>
             }
           />
@@ -257,19 +271,17 @@ export default function App() {
               </RequireFreelancerAuth>
             }
           />
-
           <Route path="/feedback" element={<Feedback />} />
-
           <Route path="/signup-success" element={<SignupSuccess />} />
           <Route path="/booking-success" element={<BookingSuccess />} />
-
           <Route path="/booking-confirmed" element={<BookingConfirmed />} />
-          <Route path="/signup-confirmed" element={<SignupConfirmed />} />
-
+          {/* New canonical route used in verification emails */}
           <Route path="/upgrade-success" element={<UpgradeSuccess />} />
           <Route path="/upgrade-cancelled" element={<UpgradeCancelled />} />
-
           <Route path="/already-taken" element={<AlreadyTaken />} />
+
+          <Route path="/email-confirm" element={<EmailConfirmed />} />
+          <Route path="/signup-confirmed" element={<EmailConfirmed />} />
         </Routes>
       </div>
     </div>

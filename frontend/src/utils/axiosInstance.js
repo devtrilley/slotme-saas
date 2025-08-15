@@ -6,20 +6,32 @@ import { redirectToAuth } from "./navigation";
 
 // 🔓 Routes that are public—booking side, matching open_paths & open_prefixes
 const publicEndpoints = [
+  // booking / public
   "/book",
   "/freelancer/public-info",
   "/freelancer/slots",
   "/check-booking-status",
   "/resend-confirmation",
   "/confirm-booking",
-  "/appointment/", // Only allows /appointment with trailing slash (specific appointment routes)
+  "/appointment/", // specific appointment routes
   "/download-ics",
   "/feedback",
+
+  // auth (login + signup + email verification are public)
+  "/auth",
+  "/auth/signup",
+  "/auth/verify-email",
+
+  // upgrade result pages
   "/upgrade-success",
   "/upgrade-cancelled",
+
+  // misc dev/test
   "/test-email",
-  "/webhook",
-  "/check-session-status",
+
+  // stripe (frontend reads status; webhook is backend-used but harmless here)
+  "/stripe/check-session-status",
+  "/stripe/webhook",
 ];
 
 let hasShownSessionExpired = false;

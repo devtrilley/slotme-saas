@@ -1,4 +1,4 @@
-from flask import Blueprint, make_response, request, jsonify, g
+from flask import Blueprint, make_response, Response, request, jsonify, g
 from flask_cors import cross_origin
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, Freelancer, Service, Appointment, TimeSlot, MasterTimeSlot
@@ -9,8 +9,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import smtplib
 from datetime import datetime, timedelta
-from flask import Response
-
+from utils.decorators import require_auth, require_tier
+from utils.features import is_feature_enabled
 
 from models import (
     db,
@@ -337,7 +337,9 @@ def delete_service(service_id):
 
     try:
         freelancer_id = get_jwt_identity()
-        service = Service.query.filter_by(id=service_id, freelancer_id=freelancer_id).first()
+        service = Service.query.filter_by(
+            id=service_id, freelancer_id=freelancer_id
+        ).first()
 
         if not service:
             return jsonify({"error": "Service not found"}), 404
@@ -379,9 +381,10 @@ def update_service(service_id):
 
 
 @freelancer_bp.route("/freelancer/analytics", methods=["GET"])
-@jwt_required()
+@require_auth
+@require_tier("analytics")  # maps to ["elite"] from FEATURES
 def get_analytics():
-    freelancer_id = int(get_jwt_identity())
+    freelancer_id = g.freelancer.id
     from sqlalchemy import func
 
     # Count totals by status
@@ -472,9 +475,10 @@ def get_analytics():
     )
 
 
-@freelancer_bp.route("/freelancer/support", methods=["POST"])
-@jwt_required()
-def send_support_request():
+@freelancer_bp.route("/freelancer/priority-support", methods=["POST"])
+@require_auth
+@require_tier("priority_support")
+def send_priority_support_request():
     freelancer_id = int(get_jwt_identity())
     data = request.get_json()
     subject = data.get("subject", "No Subject")
@@ -483,8 +487,8 @@ def send_support_request():
     freelancer = Freelancer.query.get(freelancer_id)
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
-    if freelancer.tier != "elite":
-        return jsonify({"error": "Only elite tier can access support"}), 403
+    # if freelancer.tier != "elite":
+    #     return jsonify({"error": "Only elite tier can access support"}), 403
 
     try:
         smtp_server = os.getenv("BREVO_SMTP_SERVER")
@@ -544,57 +548,66 @@ def reply_to_customer():
 
 
 @freelancer_bp.route("/freelancer/branding", methods=["PATCH"])
-@jwt_required()
+@require_auth
+@require_tier("custom_url")
 def update_freelancer_branding():
     print("🔥 Incoming PATCH payload:", request.json)
-    freelancer_id = int(get_jwt_identity())
-    data = request.get_json()
-    freelancer = Freelancer.query.get(freelancer_id)
+    data = request.get_json() or {}
+    f = g.freelancer
+    if not f:
+        return jsonify({"error": "auth_required"}), 401
 
-    if not freelancer:
-        return jsonify({"error": "Freelancer not found"}), 404
+    # --- allowlist updates (prevents sneaky field writes) ---
+    f.first_name = data.get("first_name", f.first_name)
+    f.last_name = data.get("last_name", f.last_name)
+    f.business_name = data.get("business_name", f.business_name)
+    f.business_address = data.get("business_address", f.business_address)
+    f.logo_url = data.get("logo_url", f.logo_url)
+    f.bio = data.get("bio", f.bio)
+    f.tagline = data.get("tagline", f.tagline)
+    f.timezone = data.get("timezone", f.timezone)
+    f.no_show_policy = data.get("no_show_policy", f.no_show_policy)
+    if "faq_items" in data:
+        f.faq_items = data["faq_items"]
 
-    freelancer.first_name = data.get("first_name", freelancer.first_name)
-    freelancer.last_name = data.get("last_name", freelancer.last_name)
-    freelancer.business_name = data.get("business_name", freelancer.business_name)
-    freelancer.business_address = data.get(
-        "business_address", freelancer.business_address
-    )
-    freelancer.logo_url = data.get("logo_url", freelancer.logo_url)
-    freelancer.bio = data.get("bio", freelancer.bio)
-    freelancer.tagline = data.get("tagline", freelancer.tagline)
-    freelancer.timezone = data.get("timezone", freelancer.timezone)
-    freelancer.no_show_policy = data.get("no_show_policy", freelancer.no_show_policy)
-    faq_items = data.get("faq_items")
-    if faq_items is not None:
-        freelancer.faq_items = faq_items
-
-    # ✅ Handle custom URL update
+    # --- custom_url: gate + validate + uniqueness ---
     if "custom_url" in data:
-        new_url = re.sub(r"[^a-z0-9_-]", "", data.get("custom_url", "").strip().lower())
+        current = (f.custom_url or "").strip().lower()
+        proposed = re.sub(
+            r"[^a-z0-9_-]", "", (data.get("custom_url") or "").strip().lower()
+        )
 
-        if new_url:  # Only validate if it's not empty
-            if not re.match(r"^[a-z0-9_-]{3,30}$", new_url):
+        # If changing the slug, enforce feature gate
+        if proposed != current:
+            tier = (g.user or {}).get("tier", "free")
+            if not is_feature_enabled("custom_url", tier):
                 return (
                     jsonify(
                         {
-                            "error": "Custom URL must be 3-30 characters, letters/numbers/dashes only."
+                            "error": "upgrade_required",
+                            "feature": "custom_url",
+                            "required_tiers": ["pro", "elite"],
                         }
                     ),
-                    400,
+                    403,
                 )
 
-            if new_url != freelancer.custom_url:
-                if Freelancer.query.filter(Freelancer.custom_url == new_url).first():
-                    return jsonify({"error": "Custom URL is already taken."}), 400
+        # Validate format (allow empty string to mean "clear it")
+        if proposed and not re.match(r"^[a-z0-9_-]{3,30}$", proposed):
+            return (
+                jsonify({"error": "Custom URL must be 3-30 chars (a-z, 0-9, _ , -)"}),
+                422,
+            )
 
-            freelancer.custom_url = new_url
-        else:
-            # Optional: allow clearing the custom URL if desired
-            freelancer.custom_url = ""
+        # Uniqueness (only if actually changing & not empty)
+        if proposed and proposed != current:
+            if Freelancer.query.filter(Freelancer.custom_url == proposed).first():
+                return jsonify({"error": "Custom URL is already taken."}), 422
+
+        f.custom_url = proposed  # can be "" to clear
 
     db.session.commit()
-    return jsonify({"message": "Branding updated"})
+    return jsonify({"message": "Branding updated"}), 200
 
 
 @freelancer_bp.route("/404")
@@ -604,34 +617,33 @@ def hardcoded_404():
 
 @freelancer_bp.route("/freelancer-info", methods=["GET"])
 @cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
-@jwt_required()
+@require_auth
 def get_freelancer_info():
-    freelancer_id = int(get_jwt_identity())
-    freelancer = Freelancer.query.get(freelancer_id)
-
-    if not freelancer:
-        return jsonify({"error": "Freelancer not found"}), 404
+    # middleware already set g.freelancer and g.user
+    f = g.freelancer
+    if not f:
+        return jsonify({"error": "auth_required"}), 401
 
     return (
         jsonify(
             {
-                "id": freelancer.id,
-                "first_name": freelancer.first_name,
-                "last_name": freelancer.last_name,
-                "business_name": freelancer.business_name,
-                "logo_url": freelancer.logo_url,
-                "tagline": freelancer.tagline,
-                "bio": freelancer.bio,
-                "timezone": freelancer.timezone,
-                "business_address": freelancer.business_address,
-                "custom_url": freelancer.custom_url,  # ✅ added
-                "no_show_policy": freelancer.no_show_policy,  # ✅ added
-                "faq_items": freelancer.faq_items,  # ✅ added
-                "tier": freelancer.tier,
-                "is_verified": freelancer.tier in ["pro", "elite"],
-                "location": freelancer.location,
-                "booking_instructions": freelancer.booking_instructions,
-                "preferred_payment_methods": freelancer.preferred_payment_methods,
+                "id": f.id,
+                "first_name": f.first_name,
+                "last_name": f.last_name,
+                "business_name": f.business_name,
+                "logo_url": f.logo_url,
+                "tagline": f.tagline,
+                "bio": f.bio,
+                "timezone": f.timezone,
+                "business_address": f.business_address,
+                "custom_url": f.custom_url,
+                "no_show_policy": f.no_show_policy,
+                "faq_items": f.faq_items,
+                "tier": f.tier,
+                "is_verified": f.tier in ["pro", "elite"],
+                "location": f.location,
+                "booking_instructions": f.booking_instructions,
+                "preferred_payment_methods": f.preferred_payment_methods,
             }
         ),
         200,

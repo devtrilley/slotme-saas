@@ -5,7 +5,7 @@ import IconDatePicker from "../Inputs/IconDatePicker";
 import { DateTime } from "luxon";
 import "react-datepicker/dist/react-datepicker.css";
 import { API_BASE } from "../../utils/constants";
-import GeneralModal from "../Modals/GeneralModal";
+import BaseModal from "../Modals/BaseModal";
 
 export default function BatchSlotForm({
   onBatchAdd,
@@ -274,7 +274,7 @@ export default function BatchSlotForm({
         </button>
       </form>
       {showConfirmModal && (
-        <GeneralModal
+        <BaseModal
           title="⚠️ Time Range Crosses Into Next Day"
           body={`Are you sure you want to generate time slots:\n\nFrom:\n${
             pendingPayload?.start_time

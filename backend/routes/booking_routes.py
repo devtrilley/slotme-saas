@@ -25,6 +25,34 @@ import pytz
 from datetime import timedelta
 
 from services.booking_service import clear_inherited_blocks
+from utils.decorators import require_auth, require_tier
+
+from datetime import datetime, timezone, timedelta
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+from config import (
+    name_pool,
+    ip_attempts,
+    BACKEND_ORIGIN,
+    ALLOWED_ORIGINS,
+    FRONTEND_ORIGIN,
+)
+import os, time, re
+from flask import (
+    Blueprint,
+    request,
+    jsonify,
+    Response,
+    g,
+    redirect,
+    make_response,
+    current_app as app,
+)
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_cors import cross_origin
+from models import db, Appointment, Freelancer, TimeSlot, MasterTimeSlot, User, Service
+from email_utils import send_branded_customer_reply
+from services.booking_service import clear_inherited_blocks
+from utils.decorators import require_auth
 
 serializer = URLSafeTimedSerializer(os.environ.get("SECRET_KEY"))
 
@@ -481,11 +509,11 @@ END:VCALENDAR"""
     supports_credentials=True,
     allow_headers=["Content-Type", "Authorization"],
 )
-@jwt_required()
+@require_auth
 def get_appointments():
-    g.freelancer_id = get_jwt_identity()
-    freelancer_id = g.freelancer_id
-    appointments = Appointment.query.filter_by(freelancer_id=freelancer_id).all()
+    f = g.freelancer
+
+    appointments = Appointment.query.filter_by(freelancer_id=f.id).all()
     result = []
 
     for a in appointments:
@@ -518,11 +546,12 @@ def get_appointments():
     supports_credentials=True,
     allow_headers=["Content-Type", "Authorization"],
 )
-@jwt_required()
+@require_auth
 def update_appointment(id):
-    freelancer_id = int(get_jwt_identity())
-    data = request.get_json()
+    f = g.freelancer
+    freelancer_id = f.id
 
+    data = request.get_json() or {}
     print(f"🔧 Updating appointment {id}...")
 
     appointment = Appointment.query.get(id)
@@ -530,17 +559,18 @@ def update_appointment(id):
         print("❌ Appointment not found.")
         return jsonify({"error": "Appointment not found"}), 404
 
+    # ownership
     if appointment.freelancer_id != freelancer_id:
         print(
-            f"🚫 Unauthorized. JWT freelancer {freelancer_id} does not match appointment.freelancer_id {appointment.freelancer_id}"
+            f"🚫 Forbidden. Caller {freelancer_id} != appointment.freelancer_id {appointment.freelancer_id}"
         )
-        return jsonify({"error": "Unauthorized"}), 403
+        return jsonify({"error": "forbidden"}), 403
 
-    # Handle status change
+    # --- status change ---
     if "status" in data:
         new_status = data["status"]
 
-        # ✅ Only allow cancelling via CRM, no manual confirming
+        # Only allow reverting to pending or cancelling via CRM
         if new_status not in ["pending", "cancelled"]:
             return jsonify({"error": "Invalid status value"}), 400
 
@@ -553,6 +583,7 @@ def update_appointment(id):
         appointment.status = new_status
 
         if new_status == "cancelled":
+            # free the root slot + inherited blocks
             appointment.slot.is_booked = False
             clear_inherited_blocks(
                 freelancer_id=freelancer_id,
@@ -561,7 +592,7 @@ def update_appointment(id):
                 duration_minutes=appointment.service.duration_minutes,
             )
 
-    # Handle slot change
+    # --- slot change ---
     if "slot_id" in data:
         new_slot = TimeSlot.query.get(data["slot_id"])
         if not new_slot or new_slot.freelancer_id != freelancer_id:
@@ -569,19 +600,20 @@ def update_appointment(id):
         if new_slot.is_booked:
             return jsonify({"error": "Time slot is already booked"}), 400
 
+        # free the old root slot + inherited blocks
         old_slot = appointment.slot
         old_slot.is_booked = False
-
-        # Clear inherited blocks from old slot
         clear_inherited_blocks(
             freelancer_id=freelancer_id,
-            day=appointment.slot.day,
-            start_label=appointment.slot.master_time.label,
+            day=old_slot.day,
+            start_label=old_slot.master_time.label,
             duration_minutes=appointment.service.duration_minutes,
         )
 
+        # move the appointment to the new root slot
         appointment.slot_id = new_slot.id
         new_slot.is_booked = True
+        # (optional: also mark inherited blocks for the new slot if your UI expects that)
 
     db.session.commit()
     print(f"✅ Appointment {id} updated. New status: {appointment.status}")
@@ -651,11 +683,11 @@ def create_time_slot():
                 continue
 
     # Optionally update freelancer's timezone if provided
-    timezone = data.get("timezone")
-    if timezone:
+    tz_value = data.get("timezone")
+    if tz_value:
         freelancer = Freelancer.query.get(freelancer_id)
         if freelancer:
-            freelancer.timezone = timezone
+            freelancer.timezone = tz_value
             db.session.commit()
 
     # Create the slot (with is_booked = True if it conflicts with any appointment block)
@@ -863,3 +895,56 @@ def check_booking_status(identifier):
         return jsonify({"status": "none"})
 
     return jsonify({"status": active.status})
+
+
+@booking_bp.route("/appointments/export-csv", methods=["GET"])
+@require_auth
+@require_tier("csv_export")
+def export_appointments_csv():
+    f = g.freelancer
+
+    appointments = Appointment.query.filter_by(freelancer_id=f.id).all()
+
+    import csv
+    from io import StringIO
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "Appointment ID",
+            "First Name",
+            "Last Name",
+            "Email",
+            "Phone",
+            "Date",
+            "Time",
+            "Status",
+            "Service",
+            "Duration (min)",
+        ]
+    )
+
+    for a in appointments:
+        user = a.user
+        writer.writerow(
+            [
+                a.id,
+                user.first_name,
+                user.last_name,
+                user.email,
+                user.phone,
+                a.slot.day,
+                a.slot.master_time.label,
+                a.status,
+                a.service.name if a.service else "",
+                a.service.duration_minutes if a.service else "",
+            ]
+        )
+
+    output.seek(0)
+    return Response(
+        output.read(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=appointments.csv"},
+    )

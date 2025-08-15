@@ -18,6 +18,8 @@ import SafeLoader from "../components/Layout/SafeLoader";
 import RefreshButton from "../components/Buttons/RefreshButton";
 import SortButton from "../components/Buttons/SortButton";
 import FilterButton from "../components/Buttons/FilterButton";
+import AccordionSection from "../components/Layout/AccordionSection";
+import TipChip from "../components/Callouts/TipChip";
 
 import { useFreelancer } from "../context/FreelancerContext";
 
@@ -315,7 +317,7 @@ export default function AdminPage() {
       error={!freelancerId ? "Your account session is missing." : null}
       onRetry={() => (window.location.href = "/auth")}
     >
-      <div className="max-w-md mx-auto p-6 space-y-6">
+      <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <div className="flex flex-col gap-2 items-center">
           <h2 className="text-2xl font-bold text-center">
             Freelancer Admin Dashboard
@@ -332,13 +334,11 @@ export default function AdminPage() {
             Logout
           </button>
         </div>
-
         <TierStatusCard
           tier={isLoggedIn ? freelancer?.tier : null}
           error={freelancerDetailsLoadError}
           notLoggedIn={!isLoggedIn}
         />
-
         {freelancerDetailsLoadError ? (
           <ErrorCard
             title="We couldn’t load your freelancerDetails info."
@@ -372,243 +372,268 @@ export default function AdminPage() {
             )}
           </>
         )}
-
-        <div className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow space-y-2">
-          <p className="text-sm font-medium text-center">
-            Your Public Booking Link
-          </p>
-          <p className="text-sm text-primary text-center break-words">
-            {freelancerDetailsLoadError || !isLoggedIn || !freelancerDetails?.id
-              ? "Booking link unavailable — your account details could not be loaded."
-              : shareUrl}
-          </p>
-          {freelancerDetailsLoadError ||
-          !isLoggedIn ||
-          !freelancerDetails?.id ? null : (
-            <div className="flex justify-center gap-2">
-              <button
-                className="btn btn-xs btn-outline"
-                onClick={() => {
-                  navigator.clipboard.writeText(shareUrl);
-                  showToast("Link copied to clipboard!");
-                }}
-              >
-                Copy Link
-              </button>
-              <a
-                href={shareUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-xs btn-primary"
-              >
-                Go to Booking Page
-              </a>
-            </div>
-          )}
+        <div className={`flex justify-center`}>
+          <TipChip className="sticky top-16 z-10" />
         </div>
-
-        <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
-          <AddSlotForm
-            onAdd={fetchSlots}
-            syncWith={syncDates ? selectedDate : null}
-            setSyncDate={syncDates ? setSelectedDate : null}
-            mode={slotTab}
-            setMode={updateSlotTab}
-          />
-        </section>
-
-        <div className="flex items-center gap-2 justify-center">
-          <input
-            type="checkbox"
-            checked={syncDates}
-            onChange={() => setSyncDates(!syncDates)}
-            className="checkbox checkbox-sm"
-          />
-          <label className="text-sm">
-            Sync Add Slot & Batch Slot dates with Time Slots calendar
-            (recommended)
-          </label>
-        </div>
-        {syncDates && (
-          <p className="text-center text-xs text-success italic -mt-2">
-            ✅ Sync is active — slot forms follow calendar date
-          </p>
-        )}
-
-        <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
-          <h3 className="text-lg font-semibold text-center border-b pb-1">
-            Your Time Slots
-          </h3>
-
-          <label className="text-sm text-gray-400 block text-center">
-            Select a date to view / edit your time slots:
-          </label>
-          <div className="flex justify-center">
-            <RefreshButton
-              onRefresh={handleRefresh}
-              toastMessage="🔄 Refreshing time slots..."
-            />
-          </div>
-          <div className="relative w-full">
-            <IconDatePicker
-              selected={selectedDate}
-              onChange={(date) => setSelectedDate(date)}
-              className="input input-bordered w-full pl-10"
-              wrapperClassName="w-full"
-              dateFormat="MMMM d, yyyy"
-              placeholderText="Choose a date"
-            />
-            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-              📅
-            </span>
-          </div>
-
-          <div className="flex flex-col items-center gap-2 mt-4">
-            {/* ✅ Toggle goes outside of conditional block */}
-            <div className="text-center mt-2">
-              <button
-                className="text-sm text-blue-400 hover:underline transition underline"
-                onClick={() => setShowFilters((prev) => !prev)}
-              >
-                {showFilters ? "Hide Sort & Filter" : "Show Sort & Filter"}
-              </button>
-            </div>
-
-            {/* ✅ Sort & Filter only rendered if toggled on */}
-            {showFilters && (
-              <div className="flex flex-col items-center gap-2 mt-4">
-                <div className="flex flex-col items-center w-full gap-1">
-                  <span className="text-sm text-gray-400">Sort:</span>
-                  <SortButton
-                    direction={sortDirection}
-                    onToggle={() =>
-                      setSortDirection((prev) =>
-                        prev === "asc" ? "desc" : "asc"
-                      )
-                    }
-                  />
-                </div>
-
-                <FilterButton
-                  label="Filter Status:"
-                  options={["all", "available", "booked", "passed"]}
-                  value={statusFilter}
-                  onChange={setStatusFilter}
-                />
+        <AccordionSection title="Account & Share Link" defaultOpen>
+          <div className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow space-y-2">
+            <p className="text-sm font-medium text-center">
+              Your Public Booking Link
+            </p>
+            <p className="text-sm text-primary text-center break-words">
+              {freelancerDetailsLoadError ||
+              !isLoggedIn ||
+              !freelancerDetails?.id
+                ? "Booking link unavailable — your account details could not be loaded."
+                : shareUrl}
+            </p>
+            {freelancerDetailsLoadError ||
+            !isLoggedIn ||
+            !freelancerDetails?.id ? null : (
+              <div className="flex justify-center gap-2">
+                <button
+                  className="btn btn-xs btn-outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(shareUrl);
+                    showToast("Link copied to clipboard!");
+                  }}
+                >
+                  Copy Link
+                </button>
+                <a
+                  href={shareUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-xs btn-primary"
+                >
+                  Go to Booking Page
+                </a>
               </div>
             )}
           </div>
-
-          {fetchError ? (
-            <ErrorCard
-              title="We couldn’t load your time slots."
-              message="Try refreshing or check your internet connection."
-              onRetry={handleRefresh}
-              variant="warning"
-              icon="🕒"
+        </AccordionSection>
+        <AccordionSection
+          title="Add / Generate Slots"
+          subtitle="Single or batch"
+        >
+          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <AddSlotForm
+              onAdd={fetchSlots}
+              syncWith={syncDates ? selectedDate : null}
+              setSyncDate={syncDates ? setSelectedDate : null}
+              mode={slotTab}
+              setMode={updateSlotTab}
             />
-          ) : filteredSlots.length === 0 ? (
-            <p className="text-center text-sm text-gray-400">
-              No slots for this day.
-            </p>
-          ) : (
-            <>
-              {sortedFilteredSlots.map((slot) => {
-                const isPast =
-                  new Date(`${slot.day} ${slot.time}`) < new Date();
+          </section>
+        </AccordionSection>
 
-                return (
-                  <div
-                    key={slot.id}
-                    className={`p-4 rounded-xl shadow-sm border ${
-                      slot.is_booked || slot.is_inherited_block
-                        ? "border-primary bg-[rgba(139,92,246,0.10)]" // ⬅️ slightly bolder purple background
-                        : isPast
-                        ? "border-gray-400 bg-[rgba(107,114,128,0.2)]" // ⬅️ faint silver/gray
-                        : "border-green-300 bg-[rgba(34,197,94,0.1)]" // ⬅️ faint mint green
-                    }`}
-                  >
-                    <p className="text-xs text-gray-400 mb-1">
-                      {formatDate(slot.day)}
-                    </p>
-                    <p className="text-lg font-semibold flex items-center gap-1">
-                      {slot.time}
-                      <span className="text-xs text-gray-400">UTC</span>
-                    </p>
-
-                    {slot.is_booked || slot.is_inherited_block ? (
-                      slot.appointment?.name &&
-                      slot.appointment?.email &&
-                      !slot.is_inherited_block ? (
-                        <>
-                          <p className="text-sm text-primary font-medium">
-                            Booked by:
-                          </p>
-                          <p className="text-sm text-primary">
-                            {slot.appointment.name} ({slot.appointment.email})
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-sm text-primary italic">
-                          Booked (part of earlier appointment)
-                        </p>
-                      )
-                    ) : isPast ? (
-                      <p className="text-sm text-gray-400">⏱️ Passed</p>
-                    ) : (
-                      <p className="text-sm text-green-400">Available</p>
-                    )}
-
-                    {!slot.is_booked && !slot.is_inherited_block && (
-                      <button
-                        onClick={() => handleDelete(slot.id)}
-                        className="btn btn-xs btn-error mt-2"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </>
-          )}
-        </section>
-
-        <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
-          <ServiceForm onServiceAdded={fetchServices} />
-        </section>
-
-        <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
-          {servicesError && services.length > 0 && (
-            <ErrorCard
-              title="Couldn't refresh your services."
-              message="You're seeing the cached version below."
-              variant="warning"
+        <AccordionSection
+          title="Date Sync"
+          subtitle="Sync slot forms with time slots"
+        >
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={syncDates}
+              onChange={() => setSyncDates(!syncDates)}
+              className="checkbox checkbox-sm mt-0.5 shrink-0"
+              aria-label="Sync Add Slot & Batch Slot dates with Time Slots calendar"
             />
-          )}
-          {services.length === 0 ? (
-            <div className="text-center text-sm text-gray-400 italic">
-              {servicesError
-                ? "Unable to load list of services. Please check your internet or server status."
-                : "No services available. Add one above!"}
-            </div>
-          ) : (
-            services.map((s) => (
-              <ServiceCard
-                key={s.id}
-                service={s}
-                onUpdate={fetchServices}
-                onDelete={handleDeleteService} // ✅ pass delete fn down
+
+            <span className="text-sm leading-6">
+              <span className="font-medium">
+                Sync Add Slot & Batch Slot dates with Time Slots calendar
+                <span className="opacity-70"> (recommended)</span>
+              </span>
+
+              {syncDates && (
+                <span className="block mt-1 text-xs text-success italic">
+                  ✅ Sync is active — slot forms follow calendar date
+                </span>
+              )}
+            </span>
+          </label>
+        </AccordionSection>
+
+        <AccordionSection title="Time Slots" subtitle="View, sort, filter">
+          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <h3 className="text-lg font-semibold text-center border-b pb-1">
+              Your Time Slots
+            </h3>
+
+            <label className="text-sm text-gray-400 block text-center">
+              Select a date to view / edit your time slots:
+            </label>
+            <div className="flex justify-center">
+              <RefreshButton
+                onRefresh={handleRefresh}
+                toastMessage="🔄 Refreshing time slots..."
               />
-            ))
-          )}
-        </section>
+            </div>
+            <div className="relative w-full">
+              <IconDatePicker
+                selected={selectedDate}
+                onChange={(date) => setSelectedDate(date)}
+                className="input input-bordered w-full pl-10"
+                wrapperClassName="w-full"
+                dateFormat="MMMM d, yyyy"
+                placeholderText="Choose a date"
+              />
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+                📅
+              </span>
+            </div>
 
-        <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
-          <FreelancerBranding
-            onUpdate={() => setFreelancerDetailsUpdated((n) => n + 1)}
-          />
-        </section>
+            <div className="flex flex-col items-center gap-2 mt-4">
+              {/* ✅ Toggle goes outside of conditional block */}
+              <div className="text-center mt-2">
+                <button
+                  className="text-sm text-blue-400 hover:underline transition underline"
+                  onClick={() => setShowFilters((prev) => !prev)}
+                >
+                  {showFilters ? "Hide Sort & Filter" : "Show Sort & Filter"}
+                </button>
+              </div>
+
+              {/* ✅ Sort & Filter only rendered if toggled on */}
+              {showFilters && (
+                <div className="flex flex-col items-center gap-2 mt-4">
+                  <div className="flex flex-col items-center w-full gap-1">
+                    <span className="text-sm text-gray-400">Sort:</span>
+                    <SortButton
+                      direction={sortDirection}
+                      onToggle={() =>
+                        setSortDirection((prev) =>
+                          prev === "asc" ? "desc" : "asc"
+                        )
+                      }
+                    />
+                  </div>
+
+                  <FilterButton
+                    label="Filter Status:"
+                    options={["all", "available", "booked", "passed"]}
+                    value={statusFilter}
+                    onChange={setStatusFilter}
+                  />
+                </div>
+              )}
+            </div>
+
+            {fetchError ? (
+              <ErrorCard
+                title="We couldn’t load your time slots."
+                message="Try refreshing or check your internet connection."
+                onRetry={handleRefresh}
+                variant="warning"
+                icon="🕒"
+              />
+            ) : filteredSlots.length === 0 ? (
+              <p className="text-center text-sm text-gray-400">
+                No slots for this day.
+              </p>
+            ) : (
+              <>
+                {sortedFilteredSlots.map((slot) => {
+                  const isPast =
+                    new Date(`${slot.day} ${slot.time}`) < new Date();
+
+                  return (
+                    <div
+                      key={slot.id}
+                      className={`p-4 rounded-xl shadow-sm border ${
+                        slot.is_booked || slot.is_inherited_block
+                          ? "border-primary bg-[rgba(139,92,246,0.10)]" // ⬅️ slightly bolder purple background
+                          : isPast
+                          ? "border-gray-400 bg-[rgba(107,114,128,0.2)]" // ⬅️ faint silver/gray
+                          : "border-green-300 bg-[rgba(34,197,94,0.1)]" // ⬅️ faint mint green
+                      }`}
+                    >
+                      <p className="text-xs text-gray-400 mb-1">
+                        {formatDate(slot.day)}
+                      </p>
+                      <p className="text-lg font-semibold flex items-center gap-1">
+                        {slot.time}
+                        <span className="text-xs text-gray-400">UTC</span>
+                      </p>
+
+                      {slot.is_booked || slot.is_inherited_block ? (
+                        slot.appointment?.name &&
+                        slot.appointment?.email &&
+                        !slot.is_inherited_block ? (
+                          <>
+                            <p className="text-sm text-primary font-medium">
+                              Booked by:
+                            </p>
+                            <p className="text-sm text-primary">
+                              {slot.appointment.name} ({slot.appointment.email})
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-sm text-primary italic">
+                            Booked (part of earlier appointment)
+                          </p>
+                        )
+                      ) : isPast ? (
+                        <p className="text-sm text-gray-400">⏱️ Passed</p>
+                      ) : (
+                        <p className="text-sm text-green-400">Available</p>
+                      )}
+
+                      {!slot.is_booked && !slot.is_inherited_block && (
+                        <button
+                          onClick={() => handleDelete(slot.id)}
+                          className="btn btn-xs btn-error mt-2"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </section>
+        </AccordionSection>
+        <AccordionSection title="Add a Service" subtitle="Create offerings">
+          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <ServiceForm onServiceAdded={fetchServices} />
+          </section>
+        </AccordionSection>
+        <AccordionSection title="Your Services" subtitle="Edit, price, delete">
+          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            {servicesError && services.length > 0 && (
+              <ErrorCard
+                title="Couldn't refresh your services."
+                message="You're seeing the cached version below."
+                variant="warning"
+              />
+            )}
+            {services.length === 0 ? (
+              <div className="text-center text-sm text-gray-400 italic">
+                {servicesError
+                  ? "Unable to load list of services. Please check your internet or server status."
+                  : "No services available. Add one above!"}
+              </div>
+            ) : (
+              services.map((s) => (
+                <ServiceCard
+                  key={s.id}
+                  service={s}
+                  onUpdate={fetchServices}
+                  onDelete={handleDeleteService} // ✅ pass delete fn down
+                />
+              ))
+            )}
+          </section>
+        </AccordionSection>
+        <AccordionSection title="Branding" subtitle="Logo, bio, tagline">
+          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <FreelancerBranding
+              onUpdate={() => setFreelancerDetailsUpdated((n) => n + 1)}
+            />
+          </section>
+        </AccordionSection>
       </div>
     </SafeLoader>
   );
