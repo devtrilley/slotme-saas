@@ -793,7 +793,7 @@ If you didn’t request this, feel free to ignore it.
     return jsonify({"success": True}), 200
 
 
-@booking_bp.route("/appointment/<int:appointment_id>")
+@booking_bp.route("/public-appointment/<int:appointment_id>")
 @cross_origin(origins=ALLOWED_ORIGINS)
 def get_public_appointment(appointment_id):
 
@@ -947,4 +947,35 @@ def export_appointments_csv():
         output.read(),
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=appointments.csv"},
+    )
+
+
+@booking_bp.route("/appointment/<int:appointment_id>", methods=["GET"])
+@require_auth
+def get_appointment_by_id(appointment_id):
+    appointment = Appointment.query.get(appointment_id)
+
+    if not appointment:
+        return jsonify({"error": "Appointment not found"}), 404
+
+    if appointment.slot.freelancer_id != g.freelancer.id:
+        return jsonify({"error": "unauthorized"}), 403
+
+    return jsonify(
+        {
+            "id": appointment.id,
+            "first_name": appointment.user.first_name,
+            "last_name": appointment.user.last_name,
+            "email": appointment.email,
+            "status": appointment.status,
+            "timestamp": appointment.timestamp.isoformat(),
+            "service": {
+                "name": appointment.service.name,
+                "duration": appointment.service.duration_minutes,
+            },
+            "slot": {
+                "day": appointment.slot.day,
+                "time": appointment.slot.master_time.label,
+            },
+        }
     )

@@ -5,6 +5,8 @@ from models import db, Freelancer
 from flask_jwt_extended import jwt_required, get_jwt_identity
 import stripe, os
 from config import FRONTEND_ORIGIN
+import json
+
 
 # stripe_bp = Blueprint("stripe", __name__)
 stripe_bp = Blueprint("stripe", __name__, url_prefix="/stripe")
@@ -65,10 +67,14 @@ def stripe_webhook():
     endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
     try:
-        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
-        print(f"📦 Received Stripe event: {event['id']} of type {event['type']}")
-    except stripe.error.SignatureVerificationError:
-        print("❌ Signature verification failed.")
+        if os.getenv("FLASK_ENV") == "development":
+            event = json.loads(payload)  # 🔥 Bypass Stripe signature check for local testing
+            print(f"📦 DEV MODE: Simulated event of type {event['type']}")
+        else:
+            event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+            print(f"📦 Received Stripe event: {event['id']} of type {event['type']}")
+    except Exception as e:
+        print("❌ Error in webhook parsing:", e)
         return jsonify(success=False), 400
 
     if event["type"] == "checkout.session.completed":
@@ -96,6 +102,7 @@ def stripe_webhook():
 
 @stripe_bp.route("/check-session-status/<session_id>", methods=["GET"])
 def check_session_status(session_id):
+    print("🚨 HIT check-session-status with no auth")
     try:
         session = stripe.checkout.Session.retrieve(session_id)
         print(f"🔍 Checking session {session_id}...")
@@ -112,7 +119,21 @@ def check_session_status(session_id):
             print(f"❌ No freelancer found for ID {freelancer_id}")
             return jsonify({"error": "Freelancer not found"}), 404
 
-        return jsonify({"tier": freelancer.tier}), 200
+        payment_status = session.get("payment_status")
+        if payment_status != "paid":
+            print(f"❌ Payment not completed. Status: {payment_status}")
+            return jsonify({"error": "Payment not completed"}), 400
+
+        return (
+            jsonify(
+                {
+                    "tier": freelancer.tier,
+                    "payment_status": payment_status,
+                    "session_status": session.get("status"),
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         print("❌ Failed to verify session:", e)

@@ -5,7 +5,8 @@ import { API_BASE } from "../utils/constants";
 import { showToast } from "../utils/toast";
 
 import { useFreelancer } from "../context/FreelancerContext";
-import axios from "../utils/axiosInstance"; // ✅ at the top
+import rawAxios from "axios";
+import axios from "../utils/axiosInstance";
 
 export default function UpgradeSuccess() {
   const { freelancer, setFreelancer } = useFreelancer();
@@ -27,13 +28,12 @@ export default function UpgradeSuccess() {
       }
 
       try {
-        const res = await fetch(
+        const res = await rawAxios.get(
           `${API_BASE}/stripe/check-session-status/${sessionId}`
         );
+        const data = res.data;
 
-        const data = await res.json();
-
-        if (res.ok && (data.tier === "pro" || data.tier === "elite")) {
+        if (data.tier === "pro" || data.tier === "elite") {
           // 🔄 Refetch full freelancer info and update localStorage
 
           // Inside your try block:
@@ -95,8 +95,6 @@ export default function UpgradeSuccess() {
     </div>
   );
 }
-
-
 
 // 1.	Backend – Signup Logic & Email Utils
 // 	•	routes/auth_routes.py (freelancer signup endpoint)

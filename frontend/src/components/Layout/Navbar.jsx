@@ -101,6 +101,11 @@ export default function Navbar() {
             </NavLink>
           </li>
           <li>
+            <NavLink className={navLinkClass} to="/settings">
+              Settings
+            </NavLink>
+          </li>
+          <li>
             <button onClick={() => handleLogout("freelancer")}>
               Logout as Freelancer
             </button>

@@ -32,6 +32,7 @@ import UpgradeCancelled from "./pages/UpgradeCancelled";
 import NavigatorInit from "./components/NavigatorInit";
 import { PUBLIC_SAFE_PATHS } from "./utils/constants";
 import AlreadyTaken from "./pages/AlreadyTaken";
+import Settings from "./pages/Settings";
 
 // Component Imports
 import Navbar from "./components/Layout/Navbar";
@@ -282,6 +283,15 @@ export default function App() {
 
           <Route path="/email-confirm" element={<EmailConfirmed />} />
           <Route path="/signup-confirmed" element={<EmailConfirmed />} />
+
+          <Route
+            path="/settings"
+            element={
+              <RequireFreelancerAuth>
+                <Settings />
+              </RequireFreelancerAuth>
+            }
+          />
         </Routes>
       </div>
     </div>

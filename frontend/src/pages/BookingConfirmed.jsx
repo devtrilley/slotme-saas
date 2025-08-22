@@ -14,7 +14,7 @@ export default function BookingConfirmed() {
     if (!appointmentId) return;
 
     axios
-      .get(`${API_BASE}/appointment/${appointmentId}`, {
+      .get(`${API_BASE}/public-appointment/${appointmentId}`, {
         withCredentials: false, // 👈 prevent accidental token sending
       })
       .then((res) => {

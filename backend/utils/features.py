@@ -3,7 +3,7 @@
 FEATURES = {
     "custom_url": ["pro", "elite"],
     "csv_export": ["pro", "elite"],
-    "analytics": ["elite"],
+    "analytics": ["pro", "elite"],
     "scan": ["elite"],
     "priority_support": ["elite"],
     # future: "email", "sms"

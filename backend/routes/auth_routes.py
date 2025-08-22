@@ -77,6 +77,7 @@ def signup_freelancer():
     # Send the actual tokenized link (frontend route expects ?token=...)
     send_verification_email(to_email=email, token=token)
     print(f"📨 Sent email verification for {email}")
+    print(f"EMAIL CONFIRM TOKEN: {token}")
 
     return (
         jsonify({"message": "Signup successful! Please check your email to confirm."}),

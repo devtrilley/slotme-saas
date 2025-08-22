@@ -11,6 +11,10 @@ import smtplib
 from datetime import datetime, timedelta
 from utils.decorators import require_auth, require_tier
 from utils.features import is_feature_enabled
+import re
+from werkzeug.security import generate_password_hash
+import stripe
+
 
 from models import (
     db,
@@ -841,5 +845,154 @@ def public_profile_by_url(custom_url):
             "location": freelancer.location,
             "booking_instructions": freelancer.booking_instructions,
             "preferred_payment_methods": freelancer.preferred_payment_methods,
+        }
+    )
+
+
+# ✅ Add these two new routes at the bottom of your `freelancer_bp` file
+# PATCH /freelancer/account — update email, password, name, business_name, phone
+# DELETE /freelancer/account — delete freelancer + optionally cancel subscription
+
+
+@freelancer_bp.route("/freelancer/account", methods=["PATCH"])
+@cross_origin(origins=ALLOWED_ORIGINS, headers=["Content-Type", "Authorization"])
+@jwt_required()
+def update_account():
+    freelancer_id = int(get_jwt_identity())
+    freelancer = Freelancer.query.get(freelancer_id)
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
+
+    data = request.get_json() or {}
+    print("🛠️ Update account payload:", data)
+
+    def is_valid_email(email):
+        return re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email)
+
+    def is_valid_phone(phone):
+        return re.match(r"^\+?[0-9\s\-()]{7,20}$", phone)
+
+    # Validate and update
+    if "email" in data:
+        email = data["email"].strip()
+        if not is_valid_email(email):
+            return jsonify({"error": "Invalid email format."}), 400
+        freelancer.contact_email = email
+
+    if "phone" in data:
+        phone = data["phone"].strip()
+        if not is_valid_phone(phone):
+            return jsonify({"error": "Invalid phone number."}), 400
+        freelancer.phone = phone
+
+    if "first_name" in data:
+        freelancer.first_name = data["first_name"].strip()
+
+    if "last_name" in data:
+        freelancer.last_name = data["last_name"].strip()
+
+    if "business_name" in data:
+        freelancer.business_name = data["business_name"].strip()
+
+    # Optional password update
+    if "new_password" in data:
+        new_password = data.get("new_password", "").strip()
+        current_password = data.get("password", "").strip()
+
+        if not current_password:
+            return (
+                jsonify(
+                    {"error": "Current password is required to change your password."}
+                ),
+                400,
+            )
+
+        from werkzeug.security import check_password_hash
+
+        if not check_password_hash(freelancer.password, current_password):
+            return jsonify({"error": "Incorrect current password."}), 403
+
+        if len(new_password) < 8:
+            return jsonify({"error": "Password must be at least 8 characters."}), 400
+
+        freelancer.password = generate_password_hash(new_password)
+
+    db.session.commit()
+    return jsonify({"message": "Account updated successfully."}), 200
+
+
+@freelancer_bp.route("/freelancer/account", methods=["DELETE"])
+@cross_origin(origins=ALLOWED_ORIGINS, headers=["Content-Type", "Authorization"])
+@jwt_required()
+def delete_account():
+    freelancer_id = int(get_jwt_identity())
+    freelancer = Freelancer.query.get(freelancer_id)
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
+
+    data = request.get_json() or {}
+    password = data.get("password", "").strip()
+
+    from werkzeug.security import check_password_hash
+
+    if not password or not check_password_hash(freelancer.password, password):
+        return jsonify({"error": "Invalid password"}), 403
+
+    print(f"🧨 Deleting freelancer ID {freelancer.id} ({freelancer.email})")
+
+    # ❗ Cancel active Stripe subscriptions (if any)
+    if freelancer.stripe_customer_id:
+        try:
+            subs = stripe.Subscription.list(
+                customer=freelancer.stripe_customer_id, status="active"
+            )
+            for sub in subs.auto_paging_iter():
+                stripe.Subscription.delete(sub.id)
+            try:
+                stripe.Customer.delete(freelancer.stripe_customer_id)
+            except Exception as e:
+                print("⚠️ Failed to delete Stripe customer:", e)
+        except Exception as e:
+            print("⚠️ Failed to cancel Stripe subscription(s):", e)
+
+    Service.query.filter_by(freelancer_id=freelancer.id).delete()
+    Appointment.query.filter_by(freelancer_id=freelancer.id).delete()
+    TimeSlot.query.filter_by(freelancer_id=freelancer.id).delete()
+
+    db.session.delete(freelancer)
+    db.session.commit()
+
+    return jsonify({"message": "Freelancer account deleted."}), 200
+
+
+@freelancer_bp.route("/freelancer/me", methods=["GET"])
+@require_auth
+def get_freelancer_profile():
+    f = g.freelancer
+    if not f:
+        return jsonify({"error": "auth_required"}), 401
+
+    print(
+        "📡 ME ROUTE PAYLOAD =",
+        {
+            "id": f.id,
+            "first_name": f.first_name,
+            "last_name": f.last_name,
+            "email": f.contact_email,
+            "phone": f.phone,
+            "business_name": f.business_name,
+            "tier": f.tier,
+        },
+    )
+
+    return jsonify(
+        {
+            "id": f.id,
+            "first_name": f.first_name,
+            "last_name": f.last_name,
+            "email": f.contact_email,
+            "phone": f.phone,
+            "business_name": f.business_name,
+            "tier": f.tier,
         }
     )

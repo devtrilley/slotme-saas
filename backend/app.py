@@ -89,6 +89,7 @@ from routes.public_routes import public_bp
 app.register_blueprint(auth_bp)
 app.register_blueprint(booking_bp)
 app.register_blueprint(dev_bp)
+# app.register_blueprint(freelancer_bp, url_prefix="/freelancer")
 app.register_blueprint(freelancer_bp)
 app.register_blueprint(reminder_bp)
 app.register_blueprint(stripe_bp)

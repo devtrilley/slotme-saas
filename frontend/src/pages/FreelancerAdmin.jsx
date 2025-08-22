@@ -334,11 +334,13 @@ export default function AdminPage() {
             Logout
           </button>
         </div>
-        <TierStatusCard
-          tier={isLoggedIn ? freelancer?.tier : null}
-          error={freelancerDetailsLoadError}
-          notLoggedIn={!isLoggedIn}
-        />
+        {freelancer && (
+  <TierStatusCard
+    tier={freelancer.tier || "free"}
+    error={freelancerDetailsLoadError}
+    notLoggedIn={!isLoggedIn}
+  />
+)}
         {freelancerDetailsLoadError ? (
           <ErrorCard
             title="We couldn’t load your freelancerDetails info."
@@ -358,8 +360,7 @@ export default function AdminPage() {
               bio={freelancerDetails.bio}
               isVerified={freelancerDetails.is_verified}
               onClick={() => setShowModal(true)}
-              tier={freelancer.tier}
-            />
+              tier={freelancer?.tier || "free"}            />
 
             {showModal && (
               <FreelancerModal

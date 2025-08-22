@@ -34,6 +34,7 @@ def load_freelancer():
         "/check-booking-status",
         "/resend-confirmation",
         "/check-session-status",
+        "/stripe/check-session-status",
         "/download-ics",
     )
 

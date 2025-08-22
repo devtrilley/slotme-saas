@@ -302,6 +302,7 @@ def seed_everything():
         business_name="SmartStart Tutoring",
         password="emily123",
         tagline="Score higher. Stress less.",
+        force_bookings=True,
         bio=(
             "I'm Emily, an experienced SAT tutor passionate about helping high school students boost their scores "
             "and get into their dream schools. I've helped over 100 students increase their scores by 100+ points "
@@ -365,8 +366,8 @@ def seed_everything():
             "03:45 PM",
         ],
         demo_bookings=[
-            ("Jane", "Doe", "jane.doe@mail.com", "09:00 AM", 45),
-            ("John", "Doe", "john.doe@mail.com", "10:00 AM", 30),
+            ("Jane", "Doe", "jane.doe@mail.com", "01:00 PM", "SAT Diagnostic Session"),
+            ("John", "Doe", "john.doe@mail.com", "02:00 PM", "SAT Math Focus"),
         ],
     )
     # 3. Seed Malik Jones (Pro Tier Barber)
@@ -377,6 +378,7 @@ def seed_everything():
         business_name="Fade Kings",
         password="malik123",
         tagline="Fresh fades. Clean lines. Always sharp.",
+        force_bookings=True,
         bio=(
             "I'm Malik, a licensed barber with 7+ years of experience specializing in clean fades, sharp lines, and premium grooming. "
             "Whether you're prepping for an event or just need your weekly fresh cut, I've got you. Located in downtown Atlanta — book ahead to skip the wait."
@@ -438,6 +440,10 @@ def seed_everything():
             "04:30 PM",
             "04:45 PM",
         ],
+        demo_bookings=[
+            ("Ling", "Po", "ling.po@mail.com", "02:00 PM", "Fade + Line Up"),
+            ("Ron", "Ho", "ron.ho@mail.com", "03:00 PM", "Beard Sculpt + Trim"),
+        ],
     )
     # 4. Seed Jade Bryant (Elite Tier Esthetician)
     f3, token3 = seed_freelancer(
@@ -446,6 +452,9 @@ def seed_everything():
         last_name="Bryant",
         business_name="Glow Skin Bar",
         password="jade123",
+        force_bookings=True,
+        phone="555-982-7782",
+        contact_email="jade@glowskinbar.com",
         tagline="Glow up. Show up. Repeat.",
         bio=(
             "I'm Jade, a licensed esthetician helping women and men achieve glowing, healthy skin with science-backed treatments. "
@@ -453,8 +462,6 @@ def seed_everything():
             "Located in Houston, TX. Come get your glow on ✨"
         ),
         logo_url="https://images.pexels.com/photos/8072270/pexels-photo-8072270.jpeg",
-        phone="555-982-7782",
-        contact_email="jade@glowskinbar.com",
         instagram_url="https://instagram.com/glowskinbar.atl",
         twitter_url="https://twitter.com/glowjade",
         no_show_policy="Deposits are non-refundable. No-shows or cancellations within 24 hours lose their deposit. Please respect my time — I respect yours.",
@@ -508,49 +515,17 @@ def seed_everything():
             "07:30 PM",
             "07:45 PM",
         ],
+        demo_bookings=[
+            ("Janet", "Donasti", "janet.donasti@mail.com", "06:00 PM", "Custom Facial"),
+            (
+                "JonJon",
+                "Doemitri",
+                "jonjon.doemitri@mail.com",
+                "07:30 PM",
+                "Brow Sculpt & Tint",
+            ),
+        ],
     )
-
-    token3 = create_access_token(identity=str(f3.id))
-
-    token2 = create_access_token(identity=str(f2.id))
-
-    today = utc_today()
-    demo_bookings = [
-        ("Jane", "Doe", "jane.doe@mail.com", "09:00 AM", 45),
-        ("John", "Doe", "john.doe@mail.com", "10:00 AM", 30),
-    ]
-    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
-    time_labels = [t.label for t in all_times]
-    demo_services = Service.query.filter_by(freelancer_id=f1.id).all()
-
-    for first, last, email, start_label, duration in demo_bookings:
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            user = User(first_name=first, last_name=last, email=email)
-            db.session.add(user)
-            db.session.commit()
-
-        service = next(
-            (s for s in demo_services if s.duration_minutes == duration), None
-        )
-        if not service:
-            continue
-
-        add_appointment(
-            freelancer=f1,
-            user=user,
-            service=service,
-            start_label=start_label,
-            day=today.isoformat(),
-        )
-
-    # ✅ REWRITE ELITE FREELANCER SEEDING TO BE ATOMIC
-
-    print("Emily freelancer ID:", f1.id)
-    # print("Elite freelancer ID:", f2.id)
-
-    token = create_access_token(identity=str(f1.id))
-    # token2 = create_access_token(identity=str(f2.id))
 
     return (
         jsonify(
