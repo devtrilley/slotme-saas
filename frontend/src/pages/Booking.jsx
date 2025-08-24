@@ -396,6 +396,26 @@ export default function BookingPage({ useCustomUrl = false }) {
 
   const filteredSlots = slots.filter((s) => s.day === selectedESTDate);
 
+  // ⏱ Drop past unbooked slots, keep booked or inherited ones (shows popularity)
+  const nowUTC = DateTime.utc();
+
+  const visibleSlots = filteredSlots.filter((slot) => {
+    const slotTime = parseTimeToDate(slot.time);
+    const slotUTC = DateTime.fromJSDate(slotTime).toUTC();
+
+    const isToday =
+      selectedESTDate ===
+      DateTime.now().setZone("America/New_York").toFormat("yyyy-MM-dd");
+
+    const isPast = isToday && slotUTC < nowUTC;
+
+    if (isPast && !slot.is_booked && !slot.is_inherited_block) {
+      return false;
+    }
+
+    return true;
+  });
+
   // T E M P - REMOVAL
   // if (error) {
   //   return (
@@ -600,7 +620,7 @@ export default function BookingPage({ useCustomUrl = false }) {
                     ⚠️ You’ve selected a past date — you can’t book this day.
                   </p>
                 )}
-              {filteredSlots.map((slot, index) => {
+              {visibleSlots.map((slot, index) => {
                 const isSelected = selectedSlotId === slot.id;
                 const isBlocked =
                   slot.is_booked ||
