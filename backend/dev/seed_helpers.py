@@ -21,14 +21,28 @@ def add_appointment(freelancer, user, service, start_label, day):
     if not mt_start:
         return None
 
-    start_slot = TimeSlot(
-        day=day,
-        master_time_id=mt_start.id,
-        freelancer_id=freelancer.id,
-        is_booked=True,
-    )
-    db.session.add(start_slot)
-    db.session.commit()
+    # Try to reuse existing open slot, otherwise create one
+    existing_start = TimeSlot.query.filter_by(
+        day=day, freelancer_id=freelancer.id, master_time_id=mt_start.id
+    ).first()
+
+    if existing_start:
+        if not existing_start.is_booked:
+            existing_start.is_booked = True
+            db.session.commit()
+            start_slot = existing_start
+        else:
+            print(f"⏭️ Slot already booked at {start_label} for {freelancer.first_name}")
+            return None
+    else:
+        start_slot = TimeSlot(
+            day=day,
+            master_time_id=mt_start.id,
+            freelancer_id=freelancer.id,
+            is_booked=True,
+        )
+        db.session.add(start_slot)
+        db.session.commit()
 
     # Book inherited blocks
     for label in required_labels[1:]:

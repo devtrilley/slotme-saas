@@ -96,6 +96,11 @@ class TimeSlot(db.Model):
 
     master_time = db.relationship("MasterTimeSlot", back_populates="slots")
     appointment = db.relationship("Appointment", back_populates="slot", uselist=False)
+    __table_args__ = (
+        db.UniqueConstraint(
+            "freelancer_id", "day", "master_time_id", name="uq_freelancer_day_time"
+        ),
+    )
 
 
 class Appointment(db.Model):

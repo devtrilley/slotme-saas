@@ -626,83 +626,85 @@ def create_time_slot():
     freelancer_id = int(get_jwt_identity())
     data = request.get_json()
 
-    day = data.get("day")  # "YYYY-MM-DD"
+    day = data.get("day")
     master_time_id = data.get("master_time_id")
 
     if not day or not master_time_id:
         return jsonify({"error": "Missing day or master_time_id"}), 400
 
-    from models import MasterTimeSlot
-
     master_time = MasterTimeSlot.query.get(master_time_id)
     if not master_time:
         return jsonify({"error": "Invalid master time ID"}), 400
 
+    # Check if slot already exists (FIXED: prevent duplicates)
     existing = TimeSlot.query.filter_by(
         freelancer_id=freelancer_id, day=day, master_time_id=master_time_id
     ).first()
 
     if existing:
-        return jsonify({"error": "Time slot already exists"}), 400
+        return (
+            jsonify(
+                {
+                    "error": "Time slot already exists",
+                    "slot_id": existing.id,
+                    "is_booked": existing.is_booked,
+                }
+            ),
+            400,
+        )
 
-    # ✅ NEW: Check if this time block overlaps with any appointment's duration
+    # Check if this time conflicts with existing appointments
     all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
     target_label = master_time.label
     time_labels = [t.label for t in all_times]
-    target_index = (
-        time_labels.index(target_label) if target_label in time_labels else -1
-    )
 
     is_booked = False
     is_inherited_block = False
 
-    if target_index != -1:
-        appointments = (
-            Appointment.query.join(TimeSlot, Appointment.slot_id == TimeSlot.id)
-            .join(MasterTimeSlot, TimeSlot.master_time_id == MasterTimeSlot.id)
-            .filter(TimeSlot.day == day)
-            .filter(Appointment.freelancer_id == freelancer_id)
-            .filter(Appointment.status != "cancelled")
-            .all()
-        )
+    # Check all confirmed appointments for this freelancer on this day
+    appointments = (
+        Appointment.query.join(TimeSlot, Appointment.slot_id == TimeSlot.id)
+        .join(MasterTimeSlot, TimeSlot.master_time_id == MasterTimeSlot.id)
+        .filter(TimeSlot.day == day)
+        .filter(Appointment.freelancer_id == freelancer_id)
+        .filter(Appointment.status == "confirmed")  # Only check confirmed appointments
+        .all()
+    )
 
-        for appt in appointments:
-            appt_start_label = appt.slot.master_time.label
-            duration_blocks = appt.service.duration_minutes // 15
+    for appt in appointments:
+        appt_start_label = appt.slot.master_time.label
+        duration_blocks = appt.service.duration_minutes // 15
 
-            try:
-                appt_index = time_labels.index(appt_start_label)
-                appt_labels = time_labels[appt_index : appt_index + duration_blocks]
+        try:
+            appt_index = time_labels.index(appt_start_label)
+            appt_labels = time_labels[appt_index : appt_index + duration_blocks]
 
-                if target_label in appt_labels:
-                    is_booked = True
-                    if target_label != appt_labels[0]:
-                        is_inherited_block = True
-                    break
-            except ValueError:
-                continue
+            if target_label in appt_labels:
+                is_booked = True
+                is_inherited_block = target_label != appt_labels[0]
+                break
+        except ValueError:
+            continue
 
-    # Optionally update freelancer's timezone if provided
-    tz_value = data.get("timezone")
-    if tz_value:
-        freelancer = Freelancer.query.get(freelancer_id)
-        if freelancer:
-            freelancer.timezone = tz_value
-            db.session.commit()
-
-    # Create the slot (with is_booked = True if it conflicts with any appointment block)
+    # Create the slot
     slot = TimeSlot(
         day=day,
         master_time_id=master_time_id,
         freelancer_id=freelancer_id,
         is_booked=is_booked,
+        is_inherited_block=is_inherited_block,
     )
-    db.session.add(slot)
-    db.session.commit()
+
+    try:
+        db.session.add(slot)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Failed to create slot"}), 500
 
     return (
         jsonify(
-            {"message": "Time slot created", "slot_id": slot.id, "booked": is_booked}
+            {"message": "Time slot created", "slot_id": slot.id, "is_booked": is_booked}
         ),
         201,
     )
@@ -977,5 +979,149 @@ def get_appointment_by_id(appointment_id):
                 "day": appointment.slot.day,
                 "time": appointment.slot.master_time.label,
             },
+        }
+    )
+
+
+@booking_bp.route("/appointments/internal", methods=["POST"])
+@require_auth
+def create_internal_appointment():
+    freelancer_id = g.freelancer.id
+    data = request.get_json()
+
+    # Required fields
+    first_name = data.get("first_name")
+    last_name = data.get("last_name")
+    email = data.get("email")
+    phone = data.get("phone")
+    slot_id = data.get("slot_id")
+    service_id = data.get("service_id")
+
+    if not all([first_name, last_name, email, phone, slot_id, service_id]):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    # Verify slot exists and belongs to this freelancer
+    slot = TimeSlot.query.get(slot_id)
+    if not slot or slot.freelancer_id != freelancer_id:
+        return jsonify({"error": "Invalid slot"}), 400
+
+    if slot.is_booked:
+        return jsonify({"error": "Slot is already booked"}), 400
+
+    # Verify service exists and belongs to this freelancer
+    service = Service.query.get(service_id)
+    if not service or service.freelancer_id != freelancer_id:
+        return jsonify({"error": "Invalid service"}), 400
+
+    # Create or update user
+    user = User.query.filter_by(email=email).first()
+    if user:
+        user.first_name = first_name
+        user.last_name = last_name
+        user.phone = phone
+    else:
+        user = User(
+            first_name=first_name, last_name=last_name, email=email, phone=phone
+        )
+        db.session.add(user)
+
+    db.session.commit()
+
+    # Check for existing active appointments (same logic as external booking)
+    existing_active = Appointment.query.filter(
+        Appointment.user_id == user.id,
+        Appointment.freelancer_id == freelancer_id,
+        Appointment.status.in_(["pending", "confirmed"]),
+    ).first()
+
+    if existing_active:
+        return (
+            jsonify({"error": "Customer already has an active booking with you"}),
+            400,
+        )
+
+    # Create appointment - DIRECTLY as confirmed (bypassing email confirmation)
+    appointment = Appointment(
+        slot_id=slot_id,
+        freelancer_id=freelancer_id,
+        user_id=user.id,
+        service_id=service_id,
+        status="confirmed",  # Direct confirmation for internal bookings
+        email=email,
+        phone=phone,
+        timestamp=datetime.now(timezone.utc),
+    )
+    db.session.add(appointment)
+
+    # Mark the slot as booked
+    slot.is_booked = True
+
+    # Mark inherited blocks as booked
+    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    time_labels = [t.label for t in all_times]
+    duration_blocks = service.duration_minutes // 15
+    start_label = slot.master_time.label
+
+    try:
+        start_index = time_labels.index(start_label)
+        required_labels = time_labels[start_index : start_index + duration_blocks]
+
+        for i, label in enumerate(required_labels):
+            mt = next((m for m in all_times if m.label == label), None)
+            if not mt:
+                continue
+
+            s = TimeSlot.query.filter_by(
+                day=slot.day, freelancer_id=freelancer_id, master_time_id=mt.id
+            ).first()
+
+            if s:
+                s.is_booked = True
+                s.is_inherited_block = i != 0  # First slot is root, rest are inherited
+
+    except ValueError:
+        pass
+
+    db.session.commit()
+
+    return (
+        jsonify(
+            {
+                "message": "Internal appointment created successfully",
+                "appointment_id": appointment.id,
+            }
+        ),
+        201,
+    )
+
+
+# Add this route for debugging
+@booking_bp.route("/debug/check-duplicates/<int:freelancer_id>", methods=["GET"])
+@require_auth
+def check_duplicates(freelancer_id):
+    if g.freelancer.id != freelancer_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    duplicates = (
+        db.session.query(
+            TimeSlot.freelancer_id,
+            TimeSlot.day,
+            TimeSlot.master_time_id,
+            db.func.count(TimeSlot.id).label("count"),
+        )
+        .filter_by(freelancer_id=freelancer_id)
+        .group_by(TimeSlot.freelancer_id, TimeSlot.day, TimeSlot.master_time_id)
+        .having(db.func.count(TimeSlot.id) > 1)
+        .all()
+    )
+
+    return jsonify(
+        {
+            "freelancer_id": freelancer_id,
+            "duplicate_slots": len(duplicates),
+            "details": [
+                {"day": d.day, "master_time_id": d.master_time_id, "count": d.count}
+                for d in duplicates
+            ],
         }
     )
