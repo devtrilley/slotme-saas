@@ -24,6 +24,7 @@ import Feedback from "./pages/Feedback";
 import SignupSuccess from "./pages/SignupSuccess";
 import BookingSuccess from "./pages/BookingSuccess";
 import BookingConfirmed from "./pages/BookingConfirmed";
+import BookingCancelled from "./pages/BookingCancelled";
 // import
 import EmailConfirmed from "./pages/EmailConfirmed";
 
@@ -292,6 +293,8 @@ export default function App() {
               </RequireFreelancerAuth>
             }
           />
+
+          <Route path="/cancel/:cancelToken" element={<BookingCancelled />} />
         </Routes>
       </div>
     </div>

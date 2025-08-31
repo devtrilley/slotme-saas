@@ -123,11 +123,33 @@ class Appointment(db.Model):
     )  # 'pending', 'confirmed', 'cancelled'
 
     confirmation_token = db.Column(db.String(64), unique=True, nullable=True)
+    cancel_token = db.Column(db.String(64), unique=True, nullable=True)
     service_id = db.Column(db.Integer, db.ForeignKey("services.id"), nullable=True)
 
     slot = db.relationship("TimeSlot", back_populates="appointment")
 
     service = db.relationship("Service")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "first_name": self.user.first_name if self.user else "",
+            "freelancer_name": (
+                self.slot.freelancer.first_name
+                if self.slot and self.slot.freelancer
+                else ""
+            ),
+            "service_name": self.service.name if self.service else "",
+            "day": self.slot.day if self.slot else None,
+            "time": (
+                self.slot.master_time.label
+                if self.slot and self.slot.master_time
+                else ""
+            ),
+            "timezone": (
+                self.freelancer.timezone if self.freelancer else "America/New_York"
+            ),
+        }
 
 
 class Service(db.Model):

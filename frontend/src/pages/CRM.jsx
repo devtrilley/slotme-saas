@@ -92,15 +92,10 @@ export default function CRM() {
     );
     if (!confirmCancel) return;
 
-    const token = localStorage.getItem("access_token");
-    if (!token) return; // Block unauthorized cancellation
-
     try {
-      await axios.patch(`/appointments/${id}`, {
-        status: "cancelled",
-      });
+      await axios.patch(`/appointments/${id}/cancel`);
       showToast("✅ Appointment canceled.", "success");
-      fetchAppointments();
+      fetchAppointments(); // Refresh CRM list
     } catch (err) {
       showToast("❌ Failed to cancel appointment.", "error");
       console.error("Cancel error:", err);

@@ -20,6 +20,8 @@ from flask_jwt_extended import (
     get_jwt,
 )
 from flask_jwt_extended.exceptions import NoAuthorizationError
+from config import FRONTEND_ORIGIN, BACKEND_ORIGIN, ALLOWED_ORIGINS
+
 
 from datetime import timezone
 
@@ -69,8 +71,6 @@ logging.getLogger("flask_cors").level = logging.DEBUG
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
-
-from config import FRONTEND_ORIGIN, BACKEND_ORIGIN, ALLOWED_ORIGINS
 
 app = Flask(__name__)
 # Route imports

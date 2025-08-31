@@ -9,6 +9,9 @@ from utils.navigation_utils import is_valid_public_slug
 def load_freelancer():
     request.path = request.path.rstrip("/")
 
+    if "/preview-cancel" in request.path:
+        print("✅ [middleware] Detected /preview-cancel in path")
+
     # 🚨 TOP-LEVEL DEBUG LOGS
     print("\n🛬 NEW REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     print("🔥 METHOD:", request.method)
@@ -36,6 +39,7 @@ def load_freelancer():
         "/check-session-status",
         "/stripe/check-session-status",
         "/download-ics",
+        "/preview-cancel",
     )
 
     open_paths = [

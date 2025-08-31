@@ -48,7 +48,6 @@ from flask import (
     current_app as app,
 )
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_cors import cross_origin
 from models import db, Appointment, Freelancer, TimeSlot, MasterTimeSlot, User, Service
 from email_utils import send_branded_customer_reply
 from services.booking_service import clear_inherited_blocks
@@ -382,7 +381,13 @@ def confirm_booking_email(token):
                 )
 
         # No conflicts, safe to confirm
+        import uuid
+
         appointment.status = "confirmed"
+
+        # ✅ Add this if it's missing
+        if not appointment.cancel_token:
+            appointment.cancel_token = str(uuid.uuid4())
         slot.is_booked = True
 
         # Book inherited blocks properly
@@ -432,19 +437,26 @@ def confirm_booking_email(token):
         subject = "📅 Your Appointment is Confirmed – SlotMe"
         body = f"""Hi {user.first_name},
 
-Thanks for confirming your booking!
+        Thanks for confirming your booking!
 
-✅ Appointment Details:
-• Freelancer: {freelancer.business_name or "your freelancer"}
-• Service: {service.name}
-• Date: {formatted_date}
-• Time: {formatted_time} (UTC)
-"""
+        ✅ Appointment Details:
+        • Freelancer: {freelancer.business_name or "your freelancer"}
+        • Service: {service.name}
+        • Date: {formatted_date}
+        • Time: {formatted_time} (UTC)
+        """
 
         if freelancer.business_address:
             body += f"• Location: {freelancer.business_address}\n"
+
         body += f"\n📅 Add to your calendar: {calendar_url}\n"
-        body += "\nIf you need to cancel or reschedule, please contact the freelancer directly.\n– The SlotMe Team"
+
+        # ✅ ADD THIS
+        cancel_token = appointment.cancel_token
+        cancel_link = f"{FRONTEND_ORIGIN}/cancel/{cancel_token}"
+        body += f"\n❌ Need to cancel?\nClick here: {cancel_link}\n"
+
+        body += "\nIf you need to reschedule or have questions, please contact the freelancer directly.\n– The SlotMe Team"
 
         try:
             send_branded_customer_reply(subject, body, user.email)
@@ -833,21 +845,19 @@ def get_public_appointment(appointment_id):
     )
 
 
-@booking_bp.route("/cancel-booking/<token>", methods=["GET"])
-def cancel_booking(token):
-    try:
-        data = serializer.loads(
-            token, salt="booking-confirm", max_age=600
-        )  # 600 seconds = 10 min
-        appointment_id = data["appointment_id"]
-    except SignatureExpired:
-        return redirect(f"{FRONTEND_ORIGIN}/expired")
-    except BadSignature:
-        return redirect(f"{FRONTEND_ORIGIN}/invalid")
+@booking_bp.route("/cancel-booking/<cancel_token>", methods=["GET"])
+@cross_origin(origins=ALLOWED_ORIGINS)
+def cancel_booking(cancel_token):
+    print("🔔 Cancel route hit with token:", cancel_token)
+    appointment = Appointment.query.filter_by(cancel_token=cancel_token).first()
 
-    appointment = Appointment.query.get(appointment_id)
-    if not appointment or appointment.status != "pending":
-        return redirect(f"{FRONTEND_ORIGIN}/not-found")
+    if not appointment:
+        print("❌ Invalid cancel token")
+        return jsonify({"error": "Invalid token"}), 404
+
+    if appointment.status != "confirmed":
+        print(f"🚫 Not cancellable. Status: {appointment.status}")
+        return jsonify({"error": "Not cancellable"}), 400
 
     appointment.status = "cancelled"
     appointment.slot.is_booked = False
@@ -860,9 +870,14 @@ def cancel_booking(token):
     )
 
     db.session.commit()
-    return redirect(
-        f"{FRONTEND_ORIGIN}/booking-page/{appointment.freelancer_id}?cancelled=true"
-    )
+    print("✅ Appointment cancelled.")
+
+    return jsonify({
+        "success": True,
+        "message": "Appointment cancelled.",
+        "appointment_id": appointment.id,
+        "freelancer_id": appointment.freelancer_id,
+    }), 200
 
 
 @booking_bp.route("/check-booking-status/<identifier>", methods=["GET", "OPTIONS"])
@@ -1125,3 +1140,51 @@ def check_duplicates(freelancer_id):
             ],
         }
     )
+
+
+@booking_bp.route("/preview-cancel/<cancel_token>", methods=["GET"])
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
+def preview_cancel(cancel_token):
+    print("✅ HIT preview_cancel route")
+    print("🪪 Cancel token received:", cancel_token)
+
+    appointment = Appointment.query.filter_by(cancel_token=cancel_token).first()
+    if not appointment:
+        print("❌ No appointment found for token")
+        return jsonify({"error": "Invalid token"}), 404
+    if appointment.status != "confirmed":
+        print("🚫 Appointment is not confirmed (status:", appointment.status, ")")
+        return jsonify({"error": "Not cancellable"}), 400
+
+    print("✅ Appointment found and valid. Returning data.")
+    return jsonify(appointment.to_dict()), 200
+
+
+@booking_bp.route("/debug-cancel-token/<token>", methods=["GET"])
+@cross_origin(origins=ALLOWED_ORIGINS)
+def debug_cancel_token(token):
+    try:
+        data = serializer.loads(token, salt="cancel-booking", max_age=86400)
+        appointment_id = data.get("appointment_id")
+
+        appt = Appointment.query.get(appointment_id)
+        if not appt:
+            return jsonify({"error": "Appointment not found"}), 404
+
+        return (
+            jsonify(
+                {
+                    "id": appt.id,
+                    "status": appt.status,
+                    "email": appt.email,
+                    "freelancer_id": appt.freelancer_id,
+                    "user_id": appt.user_id,
+                    "service_id": appt.service_id,
+                    "slot_id": appt.slot_id,
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
