@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ResponsivePie } from "@nivo/pie";
 
 // ✅ Simple, consistent color palette
 const colorPalette = [
-  "#EF4444", "#F59E0B", "#10B981", "#6366F1",
-  "#EC4899", "#8B5CF6", "#22D3EE", "#EAB308",
+  "#EF4444",
+  "#F59E0B",
+  "#10B981",
+  "#6366F1",
+  "#EC4899",
+  "#8B5CF6",
+  "#22D3EE",
+  "#EAB308",
 ];
 
 // 🎯 Assign colors in order per unique service name
@@ -23,6 +29,24 @@ const getColor = (() => {
 
 export default function ServiceRevenueChart({ data }) {
   const [activeId, setActiveId] = useState(null);
+  const wrapperRef = useRef(null);
+
+  // ⛔ Reset activeId when clicking outside the chart area
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target)
+      ) {
+        setActiveId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const pieData = data.map(({ service, revenue }) => ({
     id: service,
@@ -30,8 +54,13 @@ export default function ServiceRevenueChart({ data }) {
   }));
 
   return (
-    <div className="bg-white/5 rounded-lg p-4 shadow space-y-4">
-      <h2 className="text-center text-sm font-semibold">Revenue per Service</h2>
+    <div
+      ref={wrapperRef}
+      className="bg-white/5 rounded-lg p-4 shadow space-y-4"
+    >
+      <h2 className="text-center text-sm font-semibold">
+        Revenue per Service
+      </h2>
 
       <div className="w-full h-[220px]">
         <ResponsivePie
@@ -45,9 +74,7 @@ export default function ServiceRevenueChart({ data }) {
           activeOuterRadiusOffset={10}
           animate={true}
           motionConfig="gentle"
-          onClick={({ id }) =>
-            setActiveId((prev) => (prev === id ? null : id))
-          }
+          onClick={({ id }) => setActiveId(id)}
           colors={({ id }) => getColor(id)}
           borderWidth={2}
           borderColor="#fff"
@@ -75,11 +102,11 @@ export default function ServiceRevenueChart({ data }) {
           .map(({ service, revenue }) => (
             <div
               key={service}
-              onClick={() =>
-                setActiveId((prev) => (prev === service ? null : service))
-              }
+              onClick={() => setActiveId(service)}
               className={`flex items-center gap-2 cursor-pointer ${
-                activeId === service ? "text-white font-bold" : "text-gray-300"
+                activeId === service
+                  ? "text-white font-bold"
+                  : "text-gray-300"
               }`}
             >
               <span
