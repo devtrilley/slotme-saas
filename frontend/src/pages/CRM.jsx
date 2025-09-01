@@ -93,7 +93,7 @@ export default function CRM() {
     if (!confirmCancel) return;
 
     try {
-      await axios.patch(`/appointments/${id}/cancel`);
+      await axios.patch(`/appointments/${id}`, { status: "cancelled" });
       showToast("✅ Appointment canceled.", "success");
       fetchAppointments(); // Refresh CRM list
     } catch (err) {

@@ -1,18 +1,49 @@
-import { ResponsiveLine } from "@nivo/line";
+import { ResponsiveBar } from "@nivo/bar";
+import { useState } from "react";
+
+// Group bookings by week (start Monday)
+function groupByWeek(data) {
+  const grouped = {};
+  data.forEach(({ x, y }) => {
+    const date = new Date(x);
+    const day = date.getDay(); // Sunday = 0
+    const mondayOffset = (day + 6) % 7;
+    const monday = new Date(date);
+    monday.setDate(date.getDate() - mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+    const key = monday.toISOString().slice(0, 10); // yyyy-mm-dd
+    grouped[key] = (grouped[key] || 0) + y;
+  });
+  return Object.entries(grouped).map(([x, y]) => ({ x, y }));
+}
+
+// Group bookings by month (timezone-safe)
+function groupByMonth(data) {
+  const grouped = {};
+  data.forEach(({ x, y }) => {
+    const date = new Date(x);
+    const key = date.toISOString().slice(0, 7); // yyyy-mm
+    grouped[key] = (grouped[key] || 0) + y;
+  });
+  return Object.entries(grouped).map(([x, y]) => ({
+    x: `${x}-01`,
+    y,
+  }));
+}
 
 export default function BookingTrendChart({ trendData, signupDate }) {
-  const formattedData = [
-    {
-      id: "Bookings",
-      data:
-        trendData.length === 1
-          ? [
-              { x: signupDate, y: 0 },
-              ...trendData,
-            ]
-          : trendData,
-    },
-  ];
+  const [viewMode, setViewMode] = useState("day"); // day | week | month
+
+  let chartData = [...trendData];
+  if (chartData.length === 1) {
+    chartData = [{ x: signupDate, y: 0 }, ...chartData];
+  }
+
+  if (viewMode === "week") chartData = groupByWeek(chartData);
+  else if (viewMode === "month") chartData = groupByMonth(chartData);
+
+  // Sort left-to-right by real date
+  chartData.sort((a, b) => new Date(a.x) - new Date(b.x));
 
   return (
     <div className="bg-white/5 rounded-lg p-4 shadow space-y-4 min-h-[320px]">
@@ -22,43 +53,59 @@ export default function BookingTrendChart({ trendData, signupDate }) {
           ? new Date(trendData[0].x).toLocaleDateString("en-US")
           : "N/A"}
       </h2>
+
+      {/* Toggle */}
+      <div className="flex justify-center gap-2 text-xs">
+        {["day", "week", "month"].map((mode) => (
+          <button
+            key={mode}
+            onClick={() => setViewMode(mode)}
+            className={`px-2 py-1 rounded-full transition ${
+              viewMode === mode
+                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow"
+                : "bg-gray-700 text-gray-300"
+            }`}
+          >
+            {mode.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
       <div className="w-full h-[220px]">
-        <ResponsiveLine
-          data={formattedData}
+        <ResponsiveBar
+          data={chartData}
+          keys={["y"]}
+          indexBy="x"
           margin={{ top: 30, right: 20, bottom: 35, left: 40 }}
-          xScale={{ type: "point" }}
+          padding={0.3}
+          colors={() => "#4ade80"} // green-400 default (can replace with gradient logic)
+          borderRadius={4}
           yScale={{
             type: "linear",
             min: 0,
-            max: "auto",
             stacked: false,
-            nice: 2,
+            max: "auto",
+            nice: true,
           }}
-          curve="monotoneX"
           axisBottom={{
             tickRotation: -20,
             tickSize: 5,
             tickPadding: 8,
             format: (value) => {
               const date = new Date(value);
-              return `${date.getMonth() + 1}/${date.getDate()}/${String(
-                date.getFullYear()
-              ).slice(-2)}`;
+              return viewMode === "month"
+                ? `${date.toLocaleString("default", {
+                    month: "short",
+                  })} '${String(date.getFullYear()).slice(-2)}`
+                : `${date.getMonth() + 1}/${date.getDate()}`;
             },
           }}
           axisLeft={{
-            tickValues: [0, 1, 2, 3, 4, 5],
             tickSize: 5,
             tickPadding: 5,
+            tickValues: 5,
+            format: (v) => Math.floor(v),
           }}
-          enablePoints={true}
-          pointSize={6}
-          pointColor="#fff"
-          pointBorderWidth={2}
-          pointBorderColor="#3b82f6"
-          colors={{ scheme: "accent" }}
-          lineWidth={2}
-          useMesh={true}
           theme={{
             textColor: "#ccc",
             axis: {
@@ -73,18 +120,26 @@ export default function BookingTrendChart({ trendData, signupDate }) {
               },
             },
           }}
-          tooltip={({ point }) => (
-            <div className="text-xs p-1 bg-white text-black rounded shadow">
-              <strong>
-                {new Date(point.data.xFormatted).toLocaleDateString("en-US", {
-                  year: "2-digit",
-                  month: "numeric",
-                  day: "numeric",
-                })}
-              </strong>
-              : {point.data.yFormatted}
-            </div>
-          )}
+          tooltip={({ indexValue, value }) => {
+            const date = new Date(indexValue);
+            return (
+              <div className="text-xs p-1 bg-white text-black rounded shadow">
+                <strong>
+                  {viewMode === "month"
+                    ? date.toLocaleString("default", {
+                        month: "short",
+                        year: "2-digit",
+                      })
+                    : date.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "2-digit",
+                      })}
+                </strong>
+                : {value}
+              </div>
+            );
+          }}
         />
       </div>
     </div>
