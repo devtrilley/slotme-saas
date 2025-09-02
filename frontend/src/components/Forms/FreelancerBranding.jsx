@@ -3,6 +3,7 @@ import axios from "../../utils/axiosInstance";
 import { showToast } from "../../utils/toast";
 import { API_BASE } from "../../utils/constants";
 import { Link } from "react-router-dom";
+import LogoUploadModal from "../Modals/LogoUploadModal";
 
 import { useFreelancer } from "../../context/FreelancerContext"; // Add at the top if not already
 
@@ -31,6 +32,7 @@ export default function FreelancerBranding({ onUpdate }) {
   const toastLockRef = useRef(0);
 
   const [error, setError] = useState("");
+  const [showLogoModal, setShowLogoModal] = useState(false);
 
   const next =
     window.location.pathname + window.location.search + window.location.hash;
@@ -262,15 +264,18 @@ export default function FreelancerBranding({ onUpdate }) {
             </p>
           )}
         </div>
-        <label className="label text-sm text-white">Logo URL: (optional)</label>
-        <input
-          type="url"
-          name="logo_url"
-          value={form.logo_url}
-          onChange={handleChange}
-          placeholder="Logo URL (optional)"
-          className="input input-bordered w-full"
-        />
+        <div className="space-y-1">
+          <label className="text-sm text-white block">
+            Logo / Profile Photo:
+          </label>
+          <button
+            type="button"
+            className="btn btn-sm bg-white text-black border border-gray-300 hover:bg-gray-100 w-fit shadow-sm transition"
+            onClick={() => setShowLogoModal(true)}
+          >
+            {form.logo_url ? "Change Logo" : "Upload Logo"}
+          </button>
+        </div>
         <label className="label text-sm text-white">Tagline: (optional)</label>
         <input
           type="text"
@@ -454,6 +459,27 @@ export default function FreelancerBranding({ onUpdate }) {
           {error}
         </div>
       )}
+
+      <LogoUploadModal
+        show={showLogoModal}
+        onClose={() => setShowLogoModal(false)}
+        fallbackImage={form.logo_url} // ✅ NEW
+        onUploadComplete={async (url) => {
+          setForm((prev) => ({ ...prev, logo_url: url }));
+          showToast("✅ Logo uploaded!", "success");
+
+          try {
+            await axios.patch(`${API_BASE}/freelancer/branding`, {
+              logo_url: url,
+            });
+            setFreelancer((prev) => ({ ...(prev || {}), logo_url: url }));
+            showToast("✅ Logo saved!", "success");
+          } catch (err) {
+            console.error("❌ Failed to auto-save logo", err);
+            showToast("❌ Failed to auto-save logo", "error");
+          }
+        }}
+      />
     </div>
   );
 }

@@ -553,7 +553,7 @@ def reply_to_customer():
 
 @freelancer_bp.route("/freelancer/branding", methods=["PATCH"])
 @require_auth
-@require_tier("custom_url")
+# @require_tier("custom_url")
 def update_freelancer_branding():
     print("🔥 Incoming PATCH payload:", request.json)
     data = request.get_json() or {}
