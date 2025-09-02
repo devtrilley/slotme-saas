@@ -6,7 +6,12 @@ import axiosBase from "axios";
 import { showToast } from "../../utils/toast";
 import getCroppedImg from "../../utils/cropCanvas";
 
-export default function LogoUploadModal({ show, onClose, onUploadComplete }) {
+export default function LogoUploadModal({
+  show,
+  onClose,
+  onUploadComplete,
+  currentLogo,
+}) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [zoom, setZoom] = useState(1.2);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -88,16 +93,40 @@ export default function LogoUploadModal({ show, onClose, onUploadComplete }) {
       showCloseX
     >
       {!selectedFile ? (
-        <div className="space-y-2 text-center">
+        <div className="space-y-3 text-center">
+          {currentLogo && (
+            <div className="space-y-1">
+              <div className="flex justify-center">
+                <img
+                  src={currentLogo}
+                  alt="Current Logo"
+                  className="w-20 h-20 rounded-full object-cover mx-auto border shadow-md"
+                />
+              </div>
+              <p className="text-sm text-zinc-400 text-center italic">Current Logo</p>
+            </div>
+          )}
+
           <input
             type="file"
             accept="image/*"
-            onChange={(e) => setSelectedFile(e.target.files[0])}
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+
+              const maxSize = 40 * 1024 * 1024; // 40MB
+              if (file.size > maxSize) {
+                showToast("❌ Max upload size is 40MB.", "error");
+                return;
+              }
+
+              setSelectedFile(file);
+            }}
             className="file-input w-full max-w-xs mx-auto"
           />
+
           <p className="text-xs text-zinc-400">
-            Upload your profile photo or logo. It will appear on your public
-            booking page.
+            Upload your profile photo or logo. Max size: 40MB.
           </p>
         </div>
       ) : (

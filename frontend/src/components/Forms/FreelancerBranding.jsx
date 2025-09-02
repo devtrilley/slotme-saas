@@ -463,7 +463,7 @@ export default function FreelancerBranding({ onUpdate }) {
       <LogoUploadModal
         show={showLogoModal}
         onClose={() => setShowLogoModal(false)}
-        fallbackImage={form.logo_url} // ✅ NEW
+        currentLogo={form.logo_url} // ✅ NEW
         onUploadComplete={async (url) => {
           setForm((prev) => ({ ...prev, logo_url: url }));
           showToast("✅ Logo uploaded!", "success");
