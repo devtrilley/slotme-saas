@@ -996,3 +996,63 @@ def get_freelancer_profile():
             "tier": f.tier,
         }
     )
+
+
+@freelancer_bp.route("/freelancer/questions/<identifier>", methods=["GET"])
+@cross_origin(origins=ALLOWED_ORIGINS)
+def get_custom_questions(identifier):
+    freelancer = None
+    if identifier.isdigit():
+        freelancer = Freelancer.query.get(int(identifier))
+    else:
+        freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
+
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
+
+    return jsonify(
+        {
+            "questions": freelancer.custom_questions or [],
+            "enabled": freelancer.custom_questions_enabled,
+        }
+    )
+
+
+@freelancer_bp.route("/freelancer/questions", methods=["PATCH"])
+@require_auth
+def update_custom_questions():
+    data = request.get_json()
+    questions = data.get("custom_questions", [])
+    enabled = data.get("custom_questions_enabled", True)
+
+    # optional validation: check structure
+    if not isinstance(questions, list):
+        return jsonify({"error": "Questions must be a list"}), 400
+
+    for q in questions:
+        if "question" not in q or not isinstance(q["question"], str):
+            return (
+                jsonify({"error": "Each question must include a 'question' field"}),
+                400,
+            )
+        if "required" not in q or not isinstance(q["required"], bool):
+            return (
+                jsonify({"error": "Each question must include a 'required' boolean"}),
+                400,
+            )
+
+    g.freelancer.custom_questions = questions
+    g.freelancer.custom_questions_enabled = enabled
+    db.session.commit()
+    return jsonify({"message": "Custom questions updated!"}), 200
+
+
+@freelancer_bp.route("/freelancer/questions", methods=["GET"])
+@require_auth
+def get_own_custom_questions():
+    return jsonify(
+        {
+            "questions": g.freelancer.custom_questions or [],
+            "enabled": g.freelancer.custom_questions_enabled,
+        }
+    )

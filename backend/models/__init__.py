@@ -22,6 +22,8 @@ class Freelancer(db.Model):
     is_verified = db.Column(db.Boolean, default=False)
     no_show_policy = db.Column(db.Text, nullable=True)
     faq_items = db.Column(JSON, nullable=True)  # List of {"q": "...", "a": "..."}
+    custom_questions_enabled = db.Column(db.Boolean, default=False)
+    custom_questions = db.Column(JSON, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     early_access = db.Column(db.Boolean, default=False)
     email_confirmed = db.Column(db.Boolean, default=False)
@@ -129,6 +131,9 @@ class Appointment(db.Model):
     slot = db.relationship("TimeSlot", back_populates="appointment")
 
     service = db.relationship("Service")
+
+    # ✅ Responses to custom questions
+    custom_responses = db.Column(JSON, nullable=True)  # {"Question?": "Answer"}
 
     def to_dict(self):
         return {

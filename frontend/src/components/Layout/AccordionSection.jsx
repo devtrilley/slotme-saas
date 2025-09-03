@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { hasTierAccess } from "../../utils/tiers";
 
 export default function AccordionSection({
   title,
@@ -7,6 +8,9 @@ export default function AccordionSection({
   defaultOpen = false,
   children,
   id: idProp, // optional: if you want to pass a stable id
+  tier = "free", // the current user's tier
+  requiredTier = null, // "pro" or "elite"
+  onTierBlocked = null, // optional callback when blocked
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const bodyRef = useRef(null);
@@ -130,17 +134,33 @@ export default function AccordionSection({
         type="button"
         aria-expanded={open}
         aria-controls={`${id}-panel`}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          const isAllowed = hasTierAccess(tier, requiredTier || "free");
+
+          if (!isAllowed) {
+            wrapRef.current?.classList.add("animate-shake");
+            setTimeout(() => {
+              wrapRef.current?.classList.remove("animate-shake");
+            }, 500);
+            onTierBlocked?.();
+            return;
+          }
+
+          setOpen((o) => !o);
+        }}
         className={[
           "w-full h-11 md:h-12 rounded",
-          "bg-primary text-primary-content",
           "px-4 md:px-5",
+          hasTierAccess(tier, requiredTier || "free")
+            ? "bg-primary text-primary-content"
+            : "bg-primary/60 text-primary-content/70 cursor-not-allowed",
           "flex items-center justify-center relative",
           "shadow-md transition-all duration-150 hover:shadow-lg active:scale-[0.99]",
         ].join(" ")}
       >
         <div className="text-center leading-tight">
           <div className="text-[15px] md:text-base font-semibold truncate">
+            {!hasTierAccess(tier, requiredTier || "free") ? "🔒 " : ""}
             {title}
           </div>
           {subtitle ? (

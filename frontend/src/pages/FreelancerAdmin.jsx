@@ -22,6 +22,7 @@ import AccordionSection from "../components/Layout/AccordionSection";
 import TipChip from "../components/Callouts/TipChip";
 import TimeSlotCard from "../components/Cards/TimeSlotCard";
 import InternalBookingModal from "../components/Modals/InternalBookingModal";
+import CustomQuestionsForm from "../components/Forms/CustomQuestionsForm";
 
 import { useFreelancer } from "../context/FreelancerContext";
 
@@ -316,6 +317,21 @@ export default function AdminPage() {
       month: "short",
       day: "numeric",
     });
+  }
+
+  const tier = freelancer?.tier || "free";
+
+  function handleTierBlocked() {
+    showToast(
+      <span>
+        This feature is for <strong>PRO</strong> or <strong>ELITE</strong>{" "}
+        users.{" "}
+        <a href="/upgrade#elite?need=pro" className="underline font-medium">
+          Upgrade →
+        </a>
+      </span>,
+      "error"
+    );
   }
 
   return (
@@ -727,6 +743,17 @@ export default function AdminPage() {
                 />
               ))
             )}
+          </section>
+        </AccordionSection>
+        <AccordionSection
+          title="Custom Booking Questions"
+          subtitle="(Optional) shown to clients before booking"
+          tier={tier}
+          requiredTier="pro"
+          onTierBlocked={handleTierBlocked}
+        >
+          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <CustomQuestionsForm />
           </section>
         </AccordionSection>
         <AccordionSection title="Branding" subtitle="Logo, bio, tagline">

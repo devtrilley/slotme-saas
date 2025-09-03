@@ -36,9 +36,12 @@ export default function TimeSlotCard({ slot, onClick }) {
         !slot.is_inherited_block ? (
           <>
             <p className="text-sm text-primary font-medium">Booked by:</p>
-            <p className="text-sm text-primary">
+            <button
+              onClick={() => onClick(slot)}
+              className="underline text-primary text-sm text-left"
+            >
               {slot.appointment.name} ({slot.appointment.email})
-            </p>
+            </button>
           </>
         ) : (
           <p className="text-sm text-primary italic">

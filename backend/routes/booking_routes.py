@@ -79,6 +79,7 @@ def book_slot():
         "slot_id",
         "service_id",
         "website",  # explicitly allowed
+        "custom_responses",
     }
 
     # Dynamic trap — Any extra unexpected field triggers block if filled
@@ -120,6 +121,7 @@ def book_slot():
         "phone",
         "slot_id",
         "service_id",
+        "custom_responses",
     }
 
     # Separate unexpected keys
@@ -140,6 +142,7 @@ def book_slot():
     phone = data.get("phone")
     slot_id = data.get("slot_id")
     service_id = data.get("service_id")
+    custom_responses = data.get("custom_responses", {})
 
     # Validate required fields
     if not first_name or not last_name or not email or not slot_id or not service_id:
@@ -270,6 +273,7 @@ def book_slot():
         email=email,  # <- NEW
         phone=phone,
         timestamp=datetime.now(timezone.utc),
+        custom_responses=custom_responses,
     )
     db.session.add(appointment)
 
@@ -542,10 +546,11 @@ def get_appointments():
                 "slot_time": a.slot.master_time.label,
                 "status": a.status,
                 "freelancer_timezone": "UTC",
-                "service": a.service.name if a.service else None,  # ✅ add this
+                "service": a.service.name if a.service else None,
                 "service_duration_minutes": (
                     a.service.duration_minutes if a.service else None
-                ),  # ✅ and this
+                ),
+                "custom_responses": a.custom_responses or {},  # ✅ ADD THIS
             }
         )
 
@@ -872,12 +877,17 @@ def cancel_booking(cancel_token):
     db.session.commit()
     print("✅ Appointment cancelled.")
 
-    return jsonify({
-        "success": True,
-        "message": "Appointment cancelled.",
-        "appointment_id": appointment.id,
-        "freelancer_id": appointment.freelancer_id,
-    }), 200
+    return (
+        jsonify(
+            {
+                "success": True,
+                "message": "Appointment cancelled.",
+                "appointment_id": appointment.id,
+                "freelancer_id": appointment.freelancer_id,
+            }
+        ),
+        200,
+    )
 
 
 @booking_bp.route("/check-booking-status/<identifier>", methods=["GET", "OPTIONS"])
@@ -994,6 +1004,7 @@ def get_appointment_by_id(appointment_id):
                 "day": appointment.slot.day,
                 "time": appointment.slot.master_time.label,
             },
+            "custom_responses": appointment.custom_responses,
         }
     )
 

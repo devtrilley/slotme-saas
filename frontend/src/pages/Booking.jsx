@@ -59,6 +59,24 @@ export default function BookingPage({ useCustomUrl = false }) {
   const [bookingStatus, setBookingStatus] = useState(null);
   // null = unknown, "pending", "confirmed", "none"
 
+  const [customQuestions, setCustomQuestions] = useState([]);
+  const [customResponses, setCustomResponses] = useState({});
+
+  useEffect(() => {
+    if (!selectedSlotId) return;
+
+    axios
+      .get(`${API_BASE}/freelancer/questions/${freelancerId}`)
+      .then((res) => {
+        const data = res.data;
+        if (data.enabled && Array.isArray(data.questions)) {
+          setCustomQuestions(data.questions);
+        } else {
+          setCustomQuestions([]); // no display if disabled or malformed
+        }
+      });
+  }, [selectedSlotId]);
+
   const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const getRequiredBlocks = (durationMinutes) =>
     Math.ceil(durationMinutes / 15);
@@ -301,6 +319,8 @@ export default function BookingPage({ useCustomUrl = false }) {
         phone,
         slot_id: selectedSlotId,
         service_id: selectedServiceId,
+        website: honeypot?.trim() || "",
+        custom_responses: customResponses,
       };
 
       payload.website = honeypot?.trim() || "";
@@ -821,6 +841,36 @@ export default function BookingPage({ useCustomUrl = false }) {
             onChange={(e) => setPhone(e.target.value)}
             required
           />
+
+          {/* ✅ CUSTOM QUESTIONS SECTION */}
+          {customQuestions.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-center border-b pb-1">
+                Additional Questions
+              </h3>
+
+              {customQuestions.map((q, i) => (
+                <div key={i}>
+                  <label className="block text-sm font-medium text-white mb-1">
+                    {q.question}
+                    {q.required && <span className="text-red-500"> *</span>}
+                  </label>
+                  <input
+                    type="text"
+                    className="input input-bordered w-full"
+                    value={customResponses[q.question] || ""}
+                    onChange={(e) =>
+                      setCustomResponses({
+                        ...customResponses,
+                        [q.question]: e.target.value,
+                      })
+                    }
+                    required={q.required}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
           <HoneypotInput value={honeypot} setValue={setHoneypot} />
 

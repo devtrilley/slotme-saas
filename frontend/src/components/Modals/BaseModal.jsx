@@ -83,7 +83,7 @@ export default function BaseModal({
           <h2 className="text-lg font-bold text-center">{title}</h2>
         ) : null}
 
-        {children}
+        <div className="mt-4 max-h-[65vh] overflow-y-auto pr-1">{children}</div>
       </div>
     </div>
   );

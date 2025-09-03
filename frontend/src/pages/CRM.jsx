@@ -6,6 +6,7 @@ import { DateTime } from "luxon";
 import { API_BASE } from "../utils/constants";
 import { showToast } from "../utils/toast";
 import RefreshButton from "../components/Buttons/RefreshButton";
+import ViewBookingModal from "../components/Modals/ViewBookingModal";
 
 export default function CRM() {
   const { freelancer } = useFreelancer();
@@ -21,6 +22,7 @@ export default function CRM() {
   const [exportRange, setExportRange] = useState("selected_date");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(""); // ✅ NEW
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
 
   function parseLocalDate(str, timezone = "America/New_York") {
     return DateTime.fromISO(str).setZone(timezone).toJSDate();
@@ -269,6 +271,7 @@ export default function CRM() {
             <div
               key={a.id}
               className="p-4 border rounded-lg bg-base-200 shadow-sm space-y-2"
+              onClick={() => setSelectedAppointment(a)}
             >
               <p className="text-xs text-gray-400">Appointment ID: {a.id}</p>
               <p>
@@ -384,6 +387,14 @@ export default function CRM() {
             <option value="upcoming">📈 Upcoming</option>
             <option value="all">🌍 All Bookings</option>
           </select>
+
+          {selectedAppointment && (
+            <ViewBookingModal
+              appointment={selectedAppointment}
+              onClose={() => setSelectedAppointment(null)}
+              onCancel={handleCancel}
+            />
+          )}
 
           <button
             onClick={exportCSV}
