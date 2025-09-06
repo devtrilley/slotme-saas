@@ -7,6 +7,7 @@ import { API_BASE } from "../utils/constants";
 import { showToast } from "../utils/toast";
 import RefreshButton from "../components/Buttons/RefreshButton";
 import ViewBookingModal from "../components/Modals/ViewBookingModal";
+import ConfirmModal from "../components/Modals/ConfirmModal";
 
 export default function CRM() {
   const { freelancer } = useFreelancer();
@@ -23,6 +24,8 @@ export default function CRM() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(""); // ✅ NEW
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [cancelTargetId, setCancelTargetId] = useState(null);
 
   function parseLocalDate(str, timezone = "America/New_York") {
     return DateTime.fromISO(str).setZone(timezone).toJSDate();
@@ -88,19 +91,21 @@ export default function CRM() {
     return true;
   };
 
-  const handleCancel = async (id) => {
-    const confirmCancel = confirm(
-      "Are you sure you want to cancel this appointment?"
-    );
-    if (!confirmCancel) return;
+  const handleCancel = async () => {
+    if (!cancelTargetId) return;
 
     try {
-      await axios.patch(`/appointments/${id}`, { status: "cancelled" });
+      await axios.patch(`/appointments/${cancelTargetId}`, {
+        status: "cancelled",
+      });
       showToast("✅ Appointment canceled.", "success");
       fetchAppointments(); // Refresh CRM list
     } catch (err) {
       showToast("❌ Failed to cancel appointment.", "error");
       console.error("Cancel error:", err);
+    } finally {
+      setCancelTargetId(null);
+      setShowConfirmModal(false);
     }
   };
 
@@ -271,7 +276,6 @@ export default function CRM() {
             <div
               key={a.id}
               className="p-4 border rounded-lg bg-base-200 shadow-sm space-y-2"
-              onClick={() => setSelectedAppointment(a)}
             >
               <p className="text-xs text-gray-400">Appointment ID: {a.id}</p>
               <p>
@@ -313,14 +317,28 @@ export default function CRM() {
                   ? "✖ Cancelled"
                   : "⚠ Pending"}
               </p>
-              {a.status === "confirmed" && (
+
+              <div className="flex flex-wrap gap-2 pt-2">
                 <button
-                  className="btn btn-error btn-sm"
-                  onClick={() => handleCancel(a.id)}
+                  className="btn btn-primary btn-sm flex-1"
+                  onClick={() => setSelectedAppointment(a)}
                 >
-                  Cancel
+                  View Details
                 </button>
-              )}
+
+                {a.status === "confirmed" && (
+                  <button
+                    className="btn btn-error btn-sm flex-1"
+                    onClick={(e) => {
+                      e.stopPropagation(); // prevent opening view modal
+                      setCancelTargetId(a.id);
+                      setShowConfirmModal(true);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
             </div>
           ))
         )}
@@ -388,14 +406,6 @@ export default function CRM() {
             <option value="all">🌍 All Bookings</option>
           </select>
 
-          {selectedAppointment && (
-            <ViewBookingModal
-              appointment={selectedAppointment}
-              onClose={() => setSelectedAppointment(null)}
-              onCancel={handleCancel}
-            />
-          )}
-
           <button
             onClick={exportCSV}
             className="btn btn-outline w-full mt-2"
@@ -407,6 +417,28 @@ export default function CRM() {
           </button>
         </div>
       </div>
+
+      {selectedAppointment && (
+        <ViewBookingModal
+          appointment={selectedAppointment}
+          onClose={() => setSelectedAppointment(null)}
+          onCancel={handleCancel}
+        />
+      )}
+
+      {showConfirmModal && (
+        <ConfirmModal
+          title="Cancel Appointment?"
+          message="Are you sure you want to cancel this appointment?"
+          confirmText="Yes, Cancel It"
+          cancelText="Keep Booking"
+          onConfirm={handleCancel}
+          onClose={() => {
+            setCancelTargetId(null);
+            setShowConfirmModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

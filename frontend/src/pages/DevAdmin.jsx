@@ -114,7 +114,7 @@ export default function DevAdmin() {
       })
       .catch((err) => {
         console.error("❌ Failed to delete freelancer", err);
-        alert("Failed to delete freelancer. Try again.");
+        showToast("Failed to delete freelancer. Try again.", "error");
         setShowDeleteModal(null);
       });
   };

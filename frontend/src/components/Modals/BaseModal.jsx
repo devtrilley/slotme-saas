@@ -1,5 +1,6 @@
 // src/components/Modals/BaseModal.jsx
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 export default function BaseModal({
   // content
@@ -43,7 +44,7 @@ export default function BaseModal({
     if (e.key === "Escape") onClose?.();
   };
 
-  return (
+  const modalContent = (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center"
       style={{ backdropFilter: "blur(2px)" }}
@@ -51,8 +52,8 @@ export default function BaseModal({
       onClick={handleBackdropClick}
       onKeyDown={handleKeyDown}
     >
-      {/* lighter, see‑through overlay */}
-      <div className="absolute inset-0 bg-black/35 pointer-events-none" />
+      {/* Background overlay - this grays out everything */}
+      <div className="absolute inset-0 bg-black/50 pointer-events-none" />
 
       {/* modal card */}
       <div
@@ -87,4 +88,7 @@ export default function BaseModal({
       </div>
     </div>
   );
+
+  // 🎯 THIS IS THE KEY: Render at document.body level using React Portal
+  return createPortal(modalContent, document.body);
 }

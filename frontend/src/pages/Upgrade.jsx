@@ -122,11 +122,11 @@ export default function Upgrade() {
           window.location.href = data.url; // ✅ Delayed redirect
         }, 600); // give toast ~0.6s to render
       } else {
-        alert("Failed to create checkout session.");
+        showToast("Failed to create checkout session.", "error");
       }
     } catch (err) {
       console.error("❌ Stripe error:", err);
-      alert("Something went wrong. Try again.");
+      showToast("Something went wrong. Try again.", "error");
     }
   }
 

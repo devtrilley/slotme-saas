@@ -23,6 +23,7 @@ import TipChip from "../components/Callouts/TipChip";
 import TimeSlotCard from "../components/Cards/TimeSlotCard";
 import InternalBookingModal from "../components/Modals/InternalBookingModal";
 import CustomQuestionsForm from "../components/Forms/CustomQuestionsForm";
+import ConfirmModal from "../components/Modals/ConfirmModal";
 
 import { useFreelancer } from "../context/FreelancerContext";
 
@@ -76,9 +77,14 @@ export default function AdminPage() {
 
   const [statusFilter, setStatusFilter] = useState("all");
 
+  const [showSlotConfirm, setShowSlotConfirm] = useState(false);
+  const [slotToDelete, setSlotToDelete] = useState(null);
+
   const [selectedSlotTime, setSelectedSlotTime] = useState("");
   const [selectedSlotDate, setSelectedSlotDate] = useState("");
   const [selectedSlotId, setSelectedSlotId] = useState(null); // ✅ FIXED
+
+  const [selectedServiceForModal, setSelectedServiceForModal] = useState(null);
 
   const [slotTab, setSlotTab] = useState(() => {
     return localStorage.getItem("slot_tab") || "single";
@@ -188,11 +194,11 @@ export default function AdminPage() {
       });
   };
 
-  const handleDelete = (slotId) => {
-    if (!confirm("Are you sure you want to delete this time slot?")) return;
+  const handleDelete = () => {
+    if (!slotToDelete) return;
 
     axios
-      .delete(`${API_BASE}/slots/${slotId}`)
+      .delete(`${API_BASE}/slots/${slotToDelete}`)
       .then(() => {
         showToast("Slot deleted");
         quietFetchSlots();
@@ -201,6 +207,10 @@ export default function AdminPage() {
         console.error("❌ Delete failed:", err.response?.data || err.message);
         const msg = err.response?.data?.error || "Failed to delete slot";
         showToast(msg, "error");
+      })
+      .finally(() => {
+        setShowSlotConfirm(false);
+        setSlotToDelete(null);
       });
   };
 
@@ -607,7 +617,10 @@ export default function AdminPage() {
 
                       {!slot.is_booked && !slot.is_inherited_block && (
                         <button
-                          onClick={() => handleDelete(slot.id)}
+                          onClick={() => {
+                            setSlotToDelete(slot.id);
+                            setShowSlotConfirm(true);
+                          }}
                           className="btn btn-xs btn-error mt-2"
                         >
                           Delete
@@ -739,7 +752,8 @@ export default function AdminPage() {
                   key={s.id}
                   service={s}
                   onUpdate={fetchServices}
-                  onDelete={handleDeleteService} // ✅ pass delete fn down
+                  onDelete={handleDeleteService}
+                  setSelectedServiceForModal={setSelectedServiceForModal}
                 />
               ))
             )}
@@ -773,6 +787,35 @@ export default function AdminPage() {
           preselectedTime={selectedSlotTime}
           slotId={selectedSlotId}
         />
+
+        {showSlotConfirm && (
+          <ConfirmModal
+            isOpen={showSlotConfirm}
+            onClose={() => {
+              setSlotToDelete(null);
+              setShowSlotConfirm(false);
+            }}
+            onConfirm={handleDelete}
+            title="Delete Time Slot?"
+            message="Are you sure you want to delete this time slot?"
+            confirmText="Yes, Delete It"
+            cancelText="Keep Slot"
+            serviceCardElement={
+              slotToDelete && (
+                <div className="flex items-start gap-4">
+                  <div className="flex-1">
+                    <TimeSlotCard
+                      slot={slots.find((s) => s.id === slotToDelete)}
+                      showButton={false}
+                      onClick={() => {}}
+                      centered={true}
+                    />
+                  </div>
+                </div>
+              )
+            }
+          />
+        )}
       </div>
     </SafeLoader>
   );

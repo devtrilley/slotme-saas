@@ -123,6 +123,7 @@ CORS(
 )
 
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=15)
+# app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(seconds=20)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
     "DATABASE_URL", "sqlite:///scheduler.db"
 )

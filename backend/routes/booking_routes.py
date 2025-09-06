@@ -747,6 +747,20 @@ def delete_time_slot(slot_id):
         print("🚫 Cannot delete — slot is booked.")
         return jsonify({"error": "Cannot delete a booked slot"}), 400
 
+    # 🧼 Check if a CANCELLED appointment is still linked to this slot
+    linked_appt = Appointment.query.filter_by(slot_id=slot.id).first()
+    if linked_appt:
+        if linked_appt.status != "cancelled":
+            print(
+                f"🚫 Cannot delete — appointment {linked_appt.id} is still active ({linked_appt.status})"
+            )
+            return jsonify({"error": "Slot has an active appointment"}), 400
+        else:
+            print(
+                f"🧹 Removing cancelled appointment {linked_appt.id} before deleting slot..."
+            )
+            db.session.delete(linked_appt)  # hard delete the zombie appointment
+
     try:
         db.session.delete(slot)
         db.session.commit()

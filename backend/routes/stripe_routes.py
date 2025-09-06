@@ -45,7 +45,11 @@ def create_checkout_session():
         freelancer = Freelancer.query.get(freelancer_id)
 
         session = stripe.checkout.Session.create(
-            customer_email=freelancer.email,
+            **(
+                {"customer": freelancer.stripe_customer_id}
+                if freelancer.stripe_customer_id
+                else {"customer_email": freelancer.email}
+            ),
             success_url=success_url,
             cancel_url="http://localhost:5173/upgrade-cancelled",
             payment_method_types=["card"],
@@ -68,7 +72,9 @@ def stripe_webhook():
 
     try:
         if os.getenv("FLASK_ENV") == "development":
-            event = json.loads(payload)  # 🔥 Bypass Stripe signature check for local testing
+            event = json.loads(
+                payload
+            )  # 🔥 Bypass Stripe signature check for local testing
             print(f"📦 DEV MODE: Simulated event of type {event['type']}")
         else:
             event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
@@ -91,9 +97,16 @@ def stripe_webhook():
 
         freelancer = Freelancer.query.get(int(freelancer_id))
         if freelancer:
+            # ✅ Save Stripe customer ID if not already stored
+            customer_id = session.get("customer")
+            if customer_id and not freelancer.stripe_customer_id:
+                freelancer.stripe_customer_id = customer_id
+
             freelancer.tier = new_tier
             db.session.commit()
-            print(f"✅ Upgraded freelancer {freelancer_id} to {new_tier}")
+            print(
+                f"✅ Upgraded freelancer {freelancer_id} to {new_tier} and saved customer_id: {customer_id}"
+            )
         else:
             print(f"❌ Freelancer with ID {freelancer_id} not found")
 

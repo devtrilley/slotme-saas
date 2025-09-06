@@ -1,6 +1,11 @@
 import React from "react";
 
-export default function TimeSlotCard({ slot, onClick }) {
+export default function TimeSlotCard({
+  slot,
+  onClick,
+  showButton = true,
+  centered = false,
+}) {
   const isPast = new Date(`${slot.day} ${slot.time}`) < new Date();
 
   const bgColor =
@@ -22,10 +27,18 @@ export default function TimeSlotCard({ slot, onClick }) {
 
   return (
     <div
-      className={`p-4 rounded-xl shadow-sm border transition hover:shadow-md ${bgColor}`}
+      className={`p-4 rounded-xl shadow-sm border transition hover:shadow-md ${bgColor} ${
+        centered ? "text-center items-center" : ""
+      }`}
     >
-      <p className="text-xs text-gray-400 mb-1">{formatDate(slot.day)}</p>
-      <p className="text-lg font-semibold flex items-center gap-1">
+      <p className={`${centered ? "text-sm" : "text-xs"} text-gray-400 mb-1`}>
+        {formatDate(slot.day)}
+      </p>
+      <p
+        className={`${
+          centered ? "text-xl justify-center" : "text-lg"
+        } font-semibold flex items-center gap-1`}
+      >
         {slot.time}
         <span className="text-xs text-gray-400">UTC</span>
       </p>
@@ -51,10 +64,12 @@ export default function TimeSlotCard({ slot, onClick }) {
       ) : isPast ? (
         <p className="text-sm text-gray-400">⏱️ Passed</p>
       ) : (
-        <p className="text-sm text-green-400">Available</p>
+        <p className={`${centered ? "text-base" : "text-sm"} text-green-400`}>
+          Available
+        </p>
       )}
 
-      {!slot.is_booked && !slot.is_inherited_block && (
+      {showButton && !slot.is_booked && !slot.is_inherited_block && (
         <button
           onClick={(e) => {
             e.stopPropagation();

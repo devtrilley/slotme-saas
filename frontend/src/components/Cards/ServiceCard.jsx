@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "../../utils/axiosInstance";
 import { showToast } from "../../utils/toast";
 import { API_BASE } from "../../utils/constants";
+import ConfirmModal from "../Modals/ConfirmModal";
 
 export default function ServiceCard({
   service,
@@ -53,9 +54,10 @@ export default function ServiceCard({
       .finally(() => setLoading(false));
   };
 
+  const [showConfirm, setShowConfirm] = useState(false);
+
   const handleDelete = () => {
-    if (!confirm("Are you sure you want to delete this service?")) return;
-    if (onDelete) onDelete(id); // ✅ Let the parent handle the logic
+    if (onDelete) onDelete(id);
   };
 
   const handleToggle = () => {
@@ -73,130 +75,164 @@ export default function ServiceCard({
   };
 
   return (
-    <li
-      onClick={() => {
-        if (isPublicView && onClick) {
-          setIsFlashing(true);
-          onClick();
+    <>
+      <li
+        onClick={() => {
+          if (isPublicView && onClick) {
+            setIsFlashing(true);
+            onClick();
 
-          const wrapper = document.getElementById("service-select-wrapper");
-          if (wrapper) {
-            wrapper.classList.add(
-              "ring-2",
-              "ring-blue-400",
-              "ring-offset-2",
-              "ring-offset-black"
-            );
-            setTimeout(() => {
-              wrapper.classList.remove(
+            const wrapper = document.getElementById("service-select-wrapper");
+            if (wrapper) {
+              wrapper.classList.add(
                 "ring-2",
                 "ring-blue-400",
                 "ring-offset-2",
                 "ring-offset-black"
               );
-            }, 1000);
+              setTimeout(() => {
+                wrapper.classList.remove(
+                  "ring-2",
+                  "ring-blue-400",
+                  "ring-offset-2",
+                  "ring-offset-black"
+                );
+              }, 1000);
+            }
+
+            setTimeout(() => setIsFlashing(false), 1000);
           }
-
-          setTimeout(() => setIsFlashing(false), 1000);
-        }
-      }}
-      className={`bg-white/10 backdrop-blur-md rounded-xl px-4 py-4 list-none space-y-2 cursor-pointer transition-all duration-300 border ${
-        isFlashing
-          ? "border-blue-400 ring-2 ring-blue-400 ring-offset-2 ring-offset-black"
-          : "border-white/20 hover:shadow-md"
-      }`}
-    >
-      {editing ? (
-        <div className="space-y-2">
-          <input
-            className="input input-sm input-bordered w-full"
-            value={form.name}
-            onChange={handleChange("name")}
-          />
-          <textarea
-            className="textarea textarea-sm textarea-bordered w-full"
-            value={form.description}
-            onChange={handleChange("description")}
-          />
-          <div className="space-y-1 text-sm text-gray-400">
-            <label className="block">Duration:</label>
+        }}
+        className={`bg-white/10 backdrop-blur-md rounded-xl px-4 py-4 list-none space-y-2 cursor-pointer transition-all duration-300 border ${
+          isFlashing
+            ? "border-blue-400 ring-2 ring-blue-400 ring-offset-2 ring-offset-black"
+            : "border-white/20 hover:shadow-md"
+        }`}
+      >
+        {editing ? (
+          <div className="space-y-2">
             <input
-              type="number"
-              className="input input-xs bg-white text-black w-full"
-              value={form.duration_minutes ?? ""}
-              onChange={handleChange("duration_minutes")}
+              className="input input-sm input-bordered w-full"
+              value={form.name}
+              onChange={handleChange("name")}
             />
+            <textarea
+              className="textarea textarea-sm textarea-bordered w-full"
+              value={form.description}
+              onChange={handleChange("description")}
+            />
+            <div className="space-y-1 text-sm text-gray-400">
+              <label className="block">Duration:</label>
+              <input
+                type="number"
+                className="input input-xs bg-white text-black w-full"
+                value={form.duration_minutes ?? ""}
+                onChange={handleChange("duration_minutes")}
+              />
 
-            <label className="block">Price:</label>
-            <input
-              type="number"
-              className="input input-xs bg-white text-black w-full"
-              value={form.price_usd ?? ""}
-              onChange={handleChange("price_usd")}
-            />
+              <label className="block">Price:</label>
+              <input
+                type="number"
+                className="input input-xs bg-white text-black w-full"
+                value={form.price_usd ?? ""}
+                onChange={handleChange("price_usd")}
+              />
+            </div>
           </div>
-        </div>
-      ) : (
-        <>
-          <h3 className="font-semibold text-white text-sm">{form.name}</h3>
-          <p className="text-sm text-gray-300">{form.description}</p>
-          <p className="text-xs text-gray-400">
-            Duration: {form.duration_minutes} mins
-          </p>
-          <p className="text-xs text-green-400">
-            ${parseFloat(form.price_usd || 0).toFixed(2)}
-          </p>
-          {!isPublicView && !isEnabled && (
-            <p className="text-xs text-red-400 font-medium">Disabled</p>
-          )}
-        </>
-      )}
+        ) : (
+          <>
+            <h3 className="font-semibold text-white text-sm">{form.name}</h3>
+            <p className="text-sm text-gray-300">{form.description}</p>
+            <p className="text-xs text-gray-400">
+              Duration: {form.duration_minutes} mins
+            </p>
+            <p className="text-xs text-green-400">
+              ${parseFloat(form.price_usd || 0).toFixed(2)}
+            </p>
+            {!isPublicView && !isEnabled && (
+              <p className="text-xs text-red-400 font-medium">Disabled</p>
+            )}
+          </>
+        )}
 
-      {!isPublicView && (
-        <div className="flex flex-wrap gap-2 mt-3">
-          {editing ? (
-            <>
+        {!isPublicView && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {editing ? (
+              <>
+                <button
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="btn btn-xs btn-success"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => {
+                    setForm({
+                      name,
+                      description,
+                      duration_minutes: String(duration_minutes ?? ""),
+                      price_usd: String(price_usd ?? ""),
+                    });
+                    setEditing(false);
+                  }}
+                  className="btn btn-xs btn-outline"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
               <button
-                onClick={handleSave}
-                disabled={loading}
-                className="btn btn-xs btn-success"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => {
-                  setForm({
-                    name,
-                    description,
-                    duration_minutes: String(duration_minutes ?? ""),
-                    price_usd: String(price_usd ?? ""),
-                  });
-                  setEditing(false);
-                }}
+                onClick={() => setEditing(true)}
                 className="btn btn-xs btn-outline"
               >
-                Cancel
+                Edit
               </button>
-            </>
-          ) : (
+            )}
             <button
-              onClick={() => setEditing(true)}
-              className="btn btn-xs btn-outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowConfirm(true);
+              }}
+              className="btn btn-xs btn-error hover:brightness-110 transition-all"
             >
-              Edit
+              Delete
             </button>
-          )}
-          <button onClick={handleDelete} className="btn btn-xs btn-error">
-            Delete
-          </button>
-          <button
-            onClick={handleToggle}
-            className={`btn btn-xs ${isEnabled ? "btn-warning" : "btn-accent"}`}
-          >
-            {isEnabled ? "Disable" : "Enable"}
-          </button>
-        </div>
-      )}
-    </li>
+            <button
+              onClick={handleToggle}
+              className={`btn btn-xs ${
+                isEnabled ? "btn-warning" : "btn-accent"
+              }`}
+            >
+              {isEnabled ? "Disable" : "Enable"}
+            </button>
+          </div>
+        )}
+        <ConfirmModal
+          isOpen={showConfirm}
+          onClose={() => setShowConfirm(false)}
+          onConfirm={handleDelete}
+          onDisable={handleToggle}
+          message="Are you sure you want to delete this service? You can also choose to disable it instead."
+          confirmText="Delete"
+          cancelText="Keep Service"
+          serviceCardElement={
+            <div className="text-left text-sm text-gray-300 space-y-1">
+              <p className="font-semibold text-white">{form.name}</p>
+              <p>{form.description}</p>
+              <p className="text-xs">Duration: {form.duration_minutes} mins</p>
+              <p className="text-xs text-green-400">
+                ${parseFloat(form.price_usd || 0).toFixed(2)}
+              </p>
+              {!isEnabled && (
+                <p className="text-xs text-red-400 font-medium">
+                  Currently Disabled
+                </p>
+              )}
+            </div>
+          }
+        />
+      </li>
+    </>
   );
 }

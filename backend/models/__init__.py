@@ -35,6 +35,9 @@ class Freelancer(db.Model):
     # ✅ Tier field added here
     tier = db.Column(db.String(20), default="free")  # "free", "pro", "elite"
 
+    # ✅ Stripe customer ID (used to prevent duplicate creation)
+    stripe_customer_id = db.Column(db.String(100), nullable=True)
+
     custom_url = db.Column(db.String(50), unique=True, nullable=True)
 
     # ✅ New contact fields
