@@ -280,7 +280,8 @@ def book_slot():
         phone=phone,
         timestamp=datetime.now(timezone.utc),
         custom_responses=custom_responses,
-        freelancer_timezone=freelancer.timezone,
+        freelancer_timezone=slot.timezone
+        or freelancer.timezone,  # 🔥 Use slot's frozen timezone
     )
     db.session.add(appointment)
 
@@ -491,22 +492,29 @@ def download_ics(appointment_id):
     description = f"Service: {service.name}\\nBooked via SlotMe"
     location = freelancer.business_address or "Online"
 
+    # 🔥 Include frozen timezone in ICS file
+    from zoneinfo import ZoneInfo
+
+    frozen_tz = ZoneInfo(appt.freelancer_timezone or "America/New_York")
+    local_start = utc_start.astimezone(frozen_tz)
+    timezone_abbr = local_start.tzname()
+
     # ✅ Include timezone info for better calendar compatibility
     ics = f"""BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//SlotMe//Booking System//EN
-METHOD:PUBLISH
-BEGIN:VEVENT
-UID:{appt.id}@slotme.xyz
-DTSTAMP:{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}
-DTSTART:{start_utc_str}
-DTEND:{end_utc_str}
-SUMMARY:{title}
-DESCRIPTION:{description}
-LOCATION:{location}
-STATUS:CONFIRMED
-END:VEVENT
-END:VCALENDAR"""
+    VERSION:2.0
+    PRODID:-//SlotMe//Booking System//EN
+    METHOD:PUBLISH
+    BEGIN:VEVENT
+    UID:{appt.id}@slotme.xyz
+    DTSTAMP:{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}
+    DTSTART:{start_utc_str}
+    DTEND:{end_utc_str}
+    SUMMARY:{title}
+    DESCRIPTION:{description}\\nTimezone: {timezone_abbr}
+    LOCATION:{location}
+    STATUS:CONFIRMED
+    END:VEVENT
+    END:VCALENDAR"""
 
     return Response(
         ics,
@@ -531,9 +539,10 @@ def get_appointments():
     for a in appointments:
         user = a.user
 
-        # ✅ Convert UTC slot time to freelancer's local timezone for display
+        # ✅ Convert UTC slot time to appointment's frozen timezone
         try:
-            freelancer_tz = ZoneInfo(a.freelancer.timezone or "America/New_York")
+            # 🔥 Use the frozen timezone from when appointment was created
+            frozen_tz = ZoneInfo(a.freelancer_timezone or "America/New_York")
 
             # Parse the UTC time stored in the DB
             slot_date = datetime.strptime(a.slot.day, "%Y-%m-%d").date()
@@ -542,7 +551,7 @@ def get_appointments():
             utc_dt = datetime.combine(slot_date, utc_time).replace(
                 tzinfo=ZoneInfo("UTC")
             )
-            local_dt = utc_dt.astimezone(freelancer_tz)
+            local_dt = utc_dt.astimezone(frozen_tz)
 
             local_time_display = local_dt.strftime("%I:%M %p").lstrip("0")
             timezone_abbr = local_dt.tzname()
@@ -677,9 +686,15 @@ def create_time_slot():
     if not master_time:
         return jsonify({"error": "Invalid master time ID"}), 400
 
-    # Check if slot already exists (FIXED: prevent duplicates)
+    # Check if slot already exists for this timezone (🔥 compare frozen zone too)
+    freelancer = Freelancer.query.get(freelancer_id)
+    frozen_timezone = (freelancer.timezone or "America/New_York").strip()
+
     existing = TimeSlot.query.filter_by(
-        freelancer_id=freelancer_id, day=day, master_time_id=master_time_id
+        freelancer_id=freelancer_id,
+        day=day,
+        master_time_id=master_time_id,
+        timezone=frozen_timezone,  # ✅ Now we check for exact timezone match
     ).first()
 
     if existing:
@@ -728,12 +743,16 @@ def create_time_slot():
             continue
 
     # Create the slot
+    freelancer = Freelancer.query.get(freelancer_id)
     slot = TimeSlot(
         day=day,
         master_time_id=master_time_id,
         freelancer_id=freelancer_id,
         is_booked=is_booked,
         is_inherited_block=is_inherited_block,
+        timezone=(
+            freelancer.timezone if freelancer else "America/New_York"
+        ),  # 🔥 FREEZE timezone
     )
 
     try:
@@ -858,15 +877,16 @@ def get_public_appointment(appointment_id):
     if not appt or appt.status == "cancelled":
         return jsonify({"error": "Not found"}), 404
 
-    # ✅ Convert UTC time to freelancer's timezone
-    freelancer_tz = ZoneInfo(appt.freelancer.timezone or "America/New_York")
+    # ✅ Convert UTC time to slot's frozen timezone
+    # 🔥 Use appointment.freelancer_timezone (frozen at booking time)
+    frozen_tz = ZoneInfo(appt.freelancer_timezone or "America/New_York")
 
     slot_date = datetime.strptime(appt.slot.day, "%Y-%m-%d").date()
     utc_time = dt_time.fromisoformat(appt.slot.master_time.time_24h)
     utc_dt = datetime.combine(slot_date, utc_time).replace(tzinfo=ZoneInfo("UTC"))
 
-    # Convert to freelancer's local time
-    local_dt = utc_dt.astimezone(freelancer_tz)
+    # Convert to the frozen timezone
+    local_dt = utc_dt.astimezone(frozen_tz)
     local_time_display = local_dt.strftime("%I:%M %p").lstrip("0")
     timezone_abbr = local_dt.tzname()
 
@@ -1170,7 +1190,9 @@ def create_internal_appointment():
         )
 
     # Create appointment - DIRECTLY as confirmed (bypassing email confirmation)
-    freelancer_timezone = data.get("freelancer_timezone") or g.freelancer.timezone
+    freelancer_timezone = (
+        slot.timezone or data.get("freelancer_timezone") or g.freelancer.timezone
+    )
 
     appointment = Appointment(
         slot_id=slot_id,
@@ -1180,7 +1202,7 @@ def create_internal_appointment():
         status="confirmed",
         email=email,
         phone=phone,
-        freelancer_timezone=freelancer_timezone,  # ✅ critical fix
+        freelancer_timezone=freelancer_timezone,  # 🔥 Use slot's frozen timezone
         timestamp=datetime.now(timezone.utc),
     )
     db.session.add(appointment)
@@ -1272,7 +1294,8 @@ def preview_cancel(cancel_token):
     from zoneinfo import ZoneInfo
     from datetime import datetime, time as dt_time
 
-    freelancer_tz = ZoneInfo(appointment.freelancer.timezone or "America/New_York")
+    # 🔥 Use frozen timezone from appointment
+    frozen_tz = ZoneInfo(appointment.freelancer_timezone or "America/New_York")
 
     # ✅ Step 1: Rebuild the slot datetime in UTC
     slot_day = appointment.slot.day  # '2025-10-15'
@@ -1281,15 +1304,14 @@ def preview_cancel(cancel_token):
         tzinfo=timezone.utc
     )
 
-    # ✅ Step 2: Convert to freelancer's local timezone
-    freelancer_tz = ZoneInfo(appointment.freelancer.timezone or "America/New_York")
-    local_dt = utc_dt.astimezone(freelancer_tz)
+    # ✅ Step 2: Convert to frozen timezone
+    local_dt = utc_dt.astimezone(frozen_tz)
 
     # Convert to UTC to verify
     utc_dt = local_dt.astimezone(ZoneInfo("UTC"))
 
-    # Convert back to local for display
-    display_local_dt = utc_dt.astimezone(freelancer_tz)
+    # Convert back to frozen timezone for display
+    display_local_dt = utc_dt.astimezone(frozen_tz)
 
     local_time_display = display_local_dt.strftime("%I:%M %p").lstrip("0")
     timezone_abbr = display_local_dt.tzname()

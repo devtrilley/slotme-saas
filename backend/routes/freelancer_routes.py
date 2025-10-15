@@ -142,6 +142,7 @@ def get_public_time_slots(identifier):
                 "appointment": user_info,
                 "service_name": service_name,
                 "duration_minutes": duration_minutes,
+                "timezone": slot.timezone,  # 🔥 NEW: Send frozen timezone
             }
         )
 
@@ -618,7 +619,7 @@ def update_freelancer_branding():
             if Freelancer.query.filter(Freelancer.custom_url == proposed).first():
                 return jsonify({"error": "Custom URL is already taken."}), 422
 
-        f.custom_url = proposed  # can be "" to clear
+        f.custom_url = proposed or None  # store as NULL if empty
 
     db.session.commit()
     return jsonify({"message": "Branding updated"}), 200
@@ -970,6 +971,12 @@ def create_batch_slots_v2():
         start_utc = start_local.astimezone(ZoneInfo("UTC"))
         end_utc = end_local.astimezone(ZoneInfo("UTC"))
 
+        # 🔥 SAFETY FIX: handle UTC day rollover automatically
+        if end_utc <= start_utc:
+            end_utc += timedelta(days=1)
+            print("🕐 Adjusted end_utc forward by one day (UTC day rollover detected)")
+
+
         created_slots = []
         current_utc = start_utc
 
@@ -988,20 +995,23 @@ def create_batch_slots_v2():
                 current_utc += timedelta(minutes=interval)
                 continue
 
-            # Check if slot already exists
+            # 🔥 FIX: Check if slot already exists WITH SAME TIMEZONE
+            # This allows different timezones to have independent slots at the same UTC time
             existing_slot = TimeSlot.query.filter_by(
                 freelancer_id=freelancer_id,
-                day=utc_day,  # 🔥 STORE UTC DATE
+                day=utc_day,
                 master_time_id=master_time.id,
+                timezone=freelancer.timezone,  # 🔥 NEW: Include timezone in duplicate check
             ).first()
 
             if not existing_slot:
                 new_slot = TimeSlot(
                     freelancer_id=freelancer_id,
-                    day=utc_day,  # 🔥 STORE UTC DATE
+                    day=utc_day,
                     master_time_id=master_time.id,
                     is_booked=False,
                     is_inherited_block=False,
+                    timezone=freelancer.timezone,  # 🔥 FREEZE timezone at creation
                 )
                 db.session.add(new_slot)
 

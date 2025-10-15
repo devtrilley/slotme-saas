@@ -259,6 +259,13 @@ export default function BatchSlotForm({
           Generate Time Slots in Bulk
         </h3>
 
+        <p className="text-sm text-center text-gray-400 mt-1">
+          ⏰ Slots will be created in your selected timezone:{" "}
+          <span className="font-semibold">
+            {DateTime.now().setZone(freelancerTimezone).offsetNameShort}
+          </span>
+        </p>
+
         <div>
           <label className="label text-xs text-gray-400 mb-1">Date</label>
           <IconDatePicker selected={selectedDate} onChange={setSelectedDate} />

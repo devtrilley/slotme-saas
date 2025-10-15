@@ -71,8 +71,7 @@ export default function AdminPage() {
   const [servicesError, setServicesError] = useState(false);
   const [freelancerDetailsLoadError, setFreelancerDetailsLoadError] =
     useState(false);
-  const [freelancerDetails, setFreelancerDetails] = useState(
-    freelancer || {
+    const [freelancerDetails, setFreelancerDetails] = useState(freelancer || {
       business_name: "",
       first_name: "",
       last_name: "",
@@ -81,8 +80,18 @@ export default function AdminPage() {
       bio: "",
       is_verified: false,
       tier: "free",
-    }
-  );
+    });
+    
+    // 🔥 AUTO-SYNC freelancerDetails when context freelancer updates
+    useEffect(() => {
+      if (freelancer) {
+        setFreelancerDetails((prev) => ({
+          ...prev,
+          ...freelancer,
+        }));
+      }
+    }, [freelancer]);
+    
 
   const freelancerTimezone = freelancerDetails.timezone || "America/New_York";
 
@@ -94,6 +103,7 @@ export default function AdminPage() {
   const [showFilters, setShowFilters] = useState(true);
 
   const [statusFilter, setStatusFilter] = useState("all");
+  const [timezoneFilter, setTimezoneFilter] = useState("all"); // 🔥 NEW: Timezone filter
 
   const [showSlotConfirm, setShowSlotConfirm] = useState(false);
   const [slotToDelete, setSlotToDelete] = useState(null);
@@ -117,9 +127,15 @@ export default function AdminPage() {
     const isSameDay = isSlotOnDate(slot, selectedDate, freelancerTimezone);
     if (!isSameDay) return false;
 
-    const isPast = isSlotInPast(slot, freelancerTimezone, true); // stored in UTC
+    const isPast = isSlotInPast(slot, freelancerTimezone, true);
     const isBooked = slot.is_booked || slot.is_inherited_block;
 
+    // 🔥 NEW: Timezone filter
+    if (timezoneFilter !== "all" && slot.timezone !== timezoneFilter) {
+      return false;
+    }
+
+    // Status filter
     if (statusFilter === "all") return true;
     if (statusFilter === "available" && !isBooked && !isPast) return true;
     if (statusFilter === "booked" && isBooked) return true;
@@ -128,27 +144,35 @@ export default function AdminPage() {
     return false;
   });
 
-  // Sort time slots by freelancer-local time (slot.time is not in UTC)
+  // 🔥 NEW: Group by timezone, then sort chronologically within each group
   const sortedFilteredSlots = [...filteredSlots].sort((a, b) => {
-    // slot.time is 24-hour format like "18:00"
+    const timezoneA = a.timezone || freelancerTimezone;
+    const timezoneB = b.timezone || freelancerTimezone;
+
+    // 🔥 FIRST: Group by timezone (alphabetical order for consistency)
+    if (timezoneA !== timezoneB) {
+      return timezoneA.localeCompare(timezoneB);
+    }
+
+    // 🔥 SECOND: Within same timezone, sort by time
     const dateA = DateTime.fromFormat(
       `${a.day} ${a.time_24h || a.time}`,
-      "yyyy-MM-dd HH:mm",  // 🔥 FIXED: Capital HH for 24-hour format
+      "yyyy-MM-dd HH:mm",
       { zone: "UTC" }
-    ).setZone(freelancerTimezone);
-    
+    ).setZone(timezoneA);
+
     const dateB = DateTime.fromFormat(
       `${b.day} ${b.time_24h || b.time}`,
-      "yyyy-MM-dd HH:mm",  // 🔥 FIXED: Capital HH for 24-hour format
+      "yyyy-MM-dd HH:mm",
       { zone: "UTC" }
-    ).setZone(freelancerTimezone);
-    
+    ).setZone(timezoneB);
+
     // Add validation in case parsing fails
     if (!dateA.isValid || !dateB.isValid) {
       console.error("Failed to parse slot dates:", { a, b, dateA, dateB });
       return 0;
     }
-    
+
     return sortDirection === "asc"
       ? dateA.toMillis() - dateB.toMillis()
       : dateB.toMillis() - dateA.toMillis();
@@ -612,6 +636,21 @@ export default function AdminPage() {
                     value={statusFilter}
                     onChange={setStatusFilter}
                   />
+
+                  {/* 🔥 NEW: Timezone filter */}
+                  <FilterButton
+                    label="Filter Timezone:"
+                    options={[
+                      "all",
+                      ...Array.from(
+                        new Set(
+                          slots.map((s) => s.timezone || freelancerTimezone)
+                        )
+                      ).sort(),
+                    ]}
+                    value={timezoneFilter}
+                    onChange={setTimezoneFilter}
+                  />
                 </div>
               )}
             </div>
@@ -630,29 +669,48 @@ export default function AdminPage() {
               </p>
             ) : (
               <>
-                {sortedFilteredSlots.map((slot) => (
-                  <TimeSlotCard
-                    key={slot.id}
-                    slot={slot}
-                    freelancerTimezone={freelancerTimezone}
-                    onClick={(slot) => {
-                      // 🔥 FIX: Check if this is a delete action
-                      if (slot._deleteAction) {
-                        setSlotToDelete(slot.id);
-                        setShowSlotConfirm(true);
-                        return;
-                      }
-                    
-                      // Otherwise, it's a booking action
-                      const { formattedTime, abbreviation } =
-                        formatSlotTimeParts(slot, freelancerTimezone);
-                      setSelectedSlotId(slot.id);
-                      setSelectedSlotTime(`${formattedTime} ${abbreviation}`);
-                      setSelectedSlotDate(slot.day);
-                      setShowInternalModal(true);
-                    }}
-                  />
-                ))}
+                {(() => {
+                  let lastTimezone = null;
+                  return sortedFilteredSlots.map((slot, index) => {
+                    const slotTimezone = slot.timezone || freelancerTimezone;
+                    const showHeader = slotTimezone !== lastTimezone;
+                    lastTimezone = slotTimezone;
+
+                    return (
+                      <div key={slot.id}>
+                        {/* 🔥 Timezone group header */}
+                        {showHeader && (
+                          <div className="mt-4 mb-2 text-center">
+                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                              {slotTimezone.replace("America/", "")} Timezone
+                            </span>
+                          </div>
+                        )}
+
+                        <TimeSlotCard
+                          slot={slot}
+                          freelancerTimezone={freelancerTimezone}
+                          onClick={(slot) => {
+                            if (slot._deleteAction) {
+                              setSlotToDelete(slot.id);
+                              setShowSlotConfirm(true);
+                              return;
+                            }
+
+                            const { formattedTime, abbreviation } =
+                              formatSlotTimeParts(slot, freelancerTimezone);
+                            setSelectedSlotId(slot.id);
+                            setSelectedSlotTime(
+                              `${formattedTime} ${abbreviation}`
+                            );
+                            setSelectedSlotDate(slot.day);
+                            setShowInternalModal(true);
+                          }}
+                        />
+                      </div>
+                    );
+                  });
+                })()}
               </>
             )}
           </section>

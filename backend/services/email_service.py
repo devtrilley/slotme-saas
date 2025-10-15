@@ -28,15 +28,16 @@ def send_booking_confirmation_email(appointment, customer_timezone=None):
 
         cancel_link = f"\n\n🔗 Need to cancel? {BACKEND_ORIGIN}/cancel-booking/{appointment.cancel_token}"
 
-    # Convert UTC time to freelancer's local timezone
+    # Convert UTC time to slot's frozen timezone (stored in appointment)
     from zoneinfo import ZoneInfo
 
-    freelancer_tz = ZoneInfo(freelancer.timezone or "America/New_York")
+    # 🔥 Use the frozen timezone from when the slot was created
+    frozen_tz = ZoneInfo(appointment.freelancer_timezone or "America/New_York")
     slot_date = datetime.strptime(slot.day, "%Y-%m-%d").date()
     utc_time = datetime.strptime(slot.master_time.time_24h, "%H:%M").time()
     utc_dt = datetime.combine(slot_date, utc_time).replace(tzinfo=ZoneInfo("UTC"))
 
-    local_dt = utc_dt.astimezone(freelancer_tz)
+    local_dt = utc_dt.astimezone(frozen_tz)
     local_time_display = local_dt.strftime("%I:%M %p").lstrip("0")
     timezone_abbr = local_dt.tzname()
     local_date_display = local_dt.strftime("%Y-%m-%d")  # ✅ Extract local date

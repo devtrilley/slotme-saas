@@ -99,13 +99,12 @@ class TimeSlot(db.Model):
     # ✅ New field to track inherited block status
     is_inherited_block = db.Column(db.Boolean, default=False)
 
+    # 🔥 NEW: Freeze timezone at creation time
+    timezone = db.Column(db.String(50), nullable=True)  # e.g., "America/Los_Angeles"
+
     master_time = db.relationship("MasterTimeSlot", back_populates="slots")
     appointment = db.relationship("Appointment", back_populates="slot", uselist=False)
-    __table_args__ = (
-        db.UniqueConstraint(
-            "freelancer_id", "day", "master_time_id", name="uq_freelancer_day_time"
-        ),
-    )
+    # 🔥 REMOVED OLD CONSTRAINT - will be replaced by migration
 
 
 class Appointment(db.Model):

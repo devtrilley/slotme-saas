@@ -92,9 +92,7 @@ export default function SingleSlotForm({
       })
       .then(() => {
         showToast("Time slot added!");
-        if (!userChangedDate) {
-          setSelectedDate(new Date());
-        }
+
         if (onAdd) onAdd();
       })
       .catch((err) => {
@@ -133,6 +131,13 @@ export default function SingleSlotForm({
       <h3 className="text-md font-bold text-center mb-1">
         Add a New Time Slot
       </h3>
+
+      <p className="text-sm text-center text-gray-400 mt-1">
+        ⏰ Slot will be created in your selected timezone:{" "}
+        <span className="font-semibold">
+          {DateTime.now().setZone(timezone).offsetNameShort}
+        </span>
+      </p>
 
       <div className="space-y-2">
         <label className="label text-xs text-gray-400">Date</label>

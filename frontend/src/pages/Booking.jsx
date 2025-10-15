@@ -92,6 +92,15 @@ export default function BookingPage({ useCustomUrl = false }) {
 
   const sortSlots = (slots) => {
     return [...slots].sort((a, b) => {
+      const timezoneA = a.timezone || freelancerTimeZone;
+      const timezoneB = b.timezone || freelancerTimeZone;
+
+      // 🔥 FIRST: Group by timezone (alphabetical)
+      if (timezoneA !== timezoneB) {
+        return timezoneA.localeCompare(timezoneB);
+      }
+
+      // 🔥 SECOND: Within same timezone, sort by time
       const timeA = DateTime.fromFormat(a.time, "hh:mm a");
       const timeB = DateTime.fromFormat(b.time, "hh:mm a");
       return timeA.toMillis() - timeB.toMillis();
@@ -611,160 +620,207 @@ export default function BookingPage({ useCustomUrl = false }) {
             </div>
           )}
 
-          {freelancerTimeZone && (
-            <p className="text-sm text-gray-400 text-center mt-2 italic">
-              *All times shown in {getTimezoneFullName(freelancerTimeZone)}{" "}
-              <span className="text-gray-500">
-                ({getTimezoneAbbreviation(freelancerTimeZone)})
-              </span>
-              *
-            </p>
-          )}
+          {/* 🧭 Dynamic timezone label */}
+          {(() => {
+            // Collect unique timezones from visible slots
+            const uniqueZones = [
+              ...new Set(
+                visibleSlots.map((s) => s.timezone || freelancerTimeZone)
+              ),
+            ];
+
+            // If more than one timezone, show plural message
+            if (uniqueZones.length > 1) {
+              return (
+                <p className="text-sm text-gray-400 text-center mt-2 italic">
+                  *Slots shown in each freelancer timezone (e.g.{" "}
+                  {uniqueZones.map((z, i) => (
+                    <span key={z}>
+                      {getTimezoneAbbreviation(z)}
+                      {i < uniqueZones.length - 1 ? ", " : ""}
+                    </span>
+                  ))}
+                  )*
+                </p>
+              );
+            }
+
+            // Otherwise, single timezone
+            const tz = uniqueZones[0];
+            return (
+              <p className="text-sm text-gray-400 text-center mt-2 italic">
+                *All times shown in {getTimezoneFullName(tz)}{" "}
+                <span className="text-gray-500">
+                  ({getTimezoneAbbreviation(tz)})
+                </span>
+                *
+              </p>
+            );
+          })()}
         </div>
         {loading ? (
           <p className="text-center">Loading slots...</p>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-4">
-              {visibleSlots.map((slot, index) => {
-                const isSelected = selectedSlotId === slot.id;
-                const isBlocked =
-                  slot.is_booked ||
-                  slot.is_inherited_block ||
-                  !selectedServiceId;
+              {(() => {
+                let lastTimezone = null;
+                return visibleSlots.map((slot, index) => {
+                  const slotTimezone = slot.timezone || freelancerTimeZone;
+                  const showHeader = slotTimezone !== lastTimezone;
+                  lastTimezone = slotTimezone;
 
-                const isPast = isSlotInPast(slot, freelancerTimeZone);
-                const isDisabled = isBlocked || isPast;
+                  const isSelected = selectedSlotId === slot.id;
+                  const isBlocked =
+                    slot.is_booked ||
+                    slot.is_inherited_block ||
+                    !selectedServiceId;
 
-                const handleSelectSlot = () => {
-                  const requiredBlocks = getRequiredBlocks(
-                    selectedServiceDuration
-                  );
-                  const futureSlots = filteredSlots.slice(index);
+                  const isPast = isSlotInPast(slot, freelancerTimeZone);
+                  const isDisabled = isBlocked || isPast;
 
-                  const relevantSlice = futureSlots.slice(0, requiredBlocks);
-
-                  // NEW LOGIC: Allow booking even if inherited blocks go beyond seeded slots
-                  const visibleFree = relevantSlice.every(
-                    (s) => !s.is_booked && !s.is_inherited_block
-                  );
-
-                  const slotsExist = relevantSlice.length;
-                  const missingSlots = requiredBlocks - slotsExist;
-
-                  const startSlot = futureSlots[0];
-                  if (
-                    !startSlot ||
-                    startSlot.is_booked ||
-                    startSlot.is_inherited_block
-                  ) {
-                    showToast(
-                      "❌ That time overlaps with an existing booking. Try a different time slot.",
-                      "error"
+                  const handleSelectSlot = () => {
+                    const requiredBlocks = getRequiredBlocks(
+                      selectedServiceDuration
                     );
-                    return;
-                  }
+                    const futureSlots = filteredSlots.slice(index);
 
-                  if (!visibleFree) {
-                    showToast(
-                      "❌ That time overlaps with an existing booking. Try a different time slot.",
-                      "error"
+                    const relevantSlice = futureSlots.slice(0, requiredBlocks);
+
+                    const visibleFree = relevantSlice.every(
+                      (s) => !s.is_booked && !s.is_inherited_block
                     );
-                    return;
-                  }
 
-                  // ⚡ If slots run out but it's the last visible slot — allow inherited blocks to fall off map
-                  if (missingSlots > 0 && !isSelected) {
-                    console.warn(
-                      "⚠️ Booking extends beyond visible slots — inherited blocks will apply server-side."
+                    const slotsExist = relevantSlice.length;
+                    const missingSlots = requiredBlocks - slotsExist;
+
+                    const startSlot = futureSlots[0];
+                    if (
+                      !startSlot ||
+                      startSlot.is_booked ||
+                      startSlot.is_inherited_block
+                    ) {
+                      showToast(
+                        "❌ That time overlaps with an existing booking. Try a different time slot.",
+                        "error"
+                      );
+                      return;
+                    }
+
+                    if (!visibleFree) {
+                      showToast(
+                        "❌ That time overlaps with an existing booking. Try a different time slot.",
+                        "error"
+                      );
+                      return;
+                    }
+
+                    if (missingSlots > 0 && !isSelected) {
+                      console.warn(
+                        "⚠️ Booking extends beyond visible slots – inherited blocks will apply server-side."
+                      );
+                    }
+
+                    setSelectedSlotId((prev) =>
+                      prev === slot.id ? null : slot.id
                     );
-                  }
+                  };
 
-                  setSelectedSlotId((prev) =>
-                    prev === slot.id ? null : slot.id
-                  );
-                };
-
-                return (
-                  <div key={slot.id} className="flex flex-col">
-                    <button
-                      className={`btn w-full text-sm ${
-                        isDisabled
-                          ? "bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
-                          : isSelected
-                          ? "btn-primary text-white"
-                          : "btn-outline text-white border-white"
-                      }`}
-                      onClick={() => {
-                        if (loading) return;
-
-                        if (!selectedServiceId) {
-                          showToast(
-                            "❌ Please select a service first.",
-                            "error"
-                          );
-                          return;
-                        }
-
-                        if (isDisabled) {
-                          const nowInFreelancerTZ = DateTime.now()
-                            .setZone(freelancerTimeZone)
-                            .startOf("day");
-                          const selectedEST =
-                            DateTime.fromJSDate(selectedDate).startOf("day");
-
-                          if (selectedEST < nowInFreelancerTZ) {
-                            showToast(
-                              "⚠️ This is a past date. Please choose another day.",
-                              "warning"
-                            );
-                          } else {
-                            showToast(
-                              "⏳ This time has already passed.",
-                              "warning"
-                            );
-                          }
-                          return;
-                        }
-
-                        handleSelectSlot();
-                      }}
-                      type="button"
-                    >
-                      {(() => {
-                        const { formattedTime, abbreviation } =
-                          formatSlotTimeParts(slot, freelancerTimeZone);
-                        return (
-                          <span className="text-xs w-full text-center flex justify-center items-center gap-1">
-                            <span>{formattedTime}</span>
-                            <span className="text-[0.65rem] text-gray-400">
-                              {abbreviation}
-                            </span>
+                  return (
+                    <>
+                      {/* 🔥 Timezone group header - spans full width */}
+                      {showHeader && (
+                        <div className="col-span-2 mt-4 mb-2 text-center">
+                          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                            {slotTimezone.replace("America/", "")} Timezone
                           </span>
-                        );
-                      })()}
-                    </button>
-                    {slot.is_booked && (
-                      <div className="text-xs text-red-400 mt-1 text-center">
-                        {slot.service_name ? (
-                          <>
-                            Booked: <strong>{slot.service_name}</strong> (
-                            {slot.duration_minutes} min)
-                          </>
-                        ) : (
-                          <>Booked</>
+                        </div>
+                      )}
+
+                      <div key={slot.id} className="flex flex-col">
+                        <button
+                          className={`btn w-full text-sm ${
+                            isDisabled
+                              ? "bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
+                              : isSelected
+                              ? "btn-primary text-white"
+                              : "btn-outline text-white border-white"
+                          }`}
+                          onClick={() => {
+                            if (loading) return;
+
+                            if (!selectedServiceId) {
+                              showToast(
+                                "❌ Please select a service first.",
+                                "error"
+                              );
+                              return;
+                            }
+
+                            if (isDisabled) {
+                              const nowInFreelancerTZ = DateTime.now()
+                                .setZone(freelancerTimeZone)
+                                .startOf("day");
+                              const selectedEST =
+                                DateTime.fromJSDate(selectedDate).startOf(
+                                  "day"
+                                );
+
+                              if (selectedEST < nowInFreelancerTZ) {
+                                showToast(
+                                  "⚠️ This is a past date. Please choose another day.",
+                                  "warning"
+                                );
+                              } else {
+                                showToast(
+                                  "⏳ This time has already passed.",
+                                  "warning"
+                                );
+                              }
+                              return;
+                            }
+
+                            handleSelectSlot();
+                          }}
+                          type="button"
+                        >
+                          {(() => {
+                            const { formattedTime, abbreviation } =
+                              formatSlotTimeParts(slot, freelancerTimeZone);
+                            return (
+                              <span className="text-xs w-full text-center flex justify-center items-center gap-1">
+                                <span>{formattedTime}</span>
+                                <span className="text-[0.65rem] text-gray-400">
+                                  {abbreviation}
+                                </span>
+                              </span>
+                            );
+                          })()}
+                        </button>
+                        {slot.is_booked && (
+                          <div className="text-xs text-red-400 mt-1 text-center">
+                            {slot.service_name ? (
+                              <>
+                                Booked: <strong>{slot.service_name}</strong> (
+                                {slot.duration_minutes} min)
+                              </>
+                            ) : (
+                              <>Booked</>
+                            )}
+                          </div>
+                        )}
+                        {slot.is_inherited_block && (
+                          <div className="text-xs text-purple-400 mt-1 text-center italic">
+                            Blocked (part of earlier appointment)
+                          </div>
                         )}
                       </div>
-                    )}
-                    {slot.is_inherited_block && (
-                      <div className="text-xs text-purple-400 mt-1 text-center italic">
-                        Blocked (part of earlier appointment)
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                    </>
+                  );
+                });
+              })()}
             </div>
+
             {!loading && filteredSlots.length === 0 && (
               <NoAvailableSlotsCard
                 selectedDate={selectedDate}

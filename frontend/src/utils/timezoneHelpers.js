@@ -39,6 +39,9 @@ export function formatSlotTimePartsFromUTC(slot, freelancerTimezone) {
  */
 export function formatSlotDate(slot, freelancerTimezone) {
   try {
+    // 🔥 Use slot's frozen timezone if available
+    const targetTimezone = slot.timezone || freelancerTimezone;
+    
     // Reuse the same parsing logic as formatSlotTimeParts
     const utcDateTime = parseSlotToUTCDateTime(slot);
 
@@ -47,8 +50,8 @@ export function formatSlotDate(slot, freelancerTimezone) {
       return slot.day; // Fallback to raw date if parsing fails
     }
 
-    // Convert UTC to freelancer's local timezone
-    const freelancerTime = utcDateTime.setZone(freelancerTimezone);
+    // Convert UTC to target timezone
+    const freelancerTime = utcDateTime.setZone(targetTimezone);
 
     // 🔥 DEBUG: Remove after testing
     // console.log("🕐 Slot conversion:", {
@@ -216,6 +219,9 @@ function parseSlotToUTCDateTime(slot) {
  */
 export function isSlotInPast(slot, freelancerTimezone) {
   try {
+    // 🔥 Use slot's frozen timezone if available
+    const targetTimezone = slot.timezone || freelancerTimezone;
+    
     // Parse the slot time as UTC first
     const slotDateTimeUTC = parseSlotToUTCDateTime(slot);
 
@@ -224,8 +230,8 @@ export function isSlotInPast(slot, freelancerTimezone) {
       return false;
     }
 
-    // Convert UTC slot time to freelancer timezone
-    const slotInFreelancerTZ = slotDateTimeUTC.setZone(freelancerTimezone);
+    // Convert UTC slot time to target timezone
+    const slotInFreelancerTZ = slotDateTimeUTC.setZone(targetTimezone);
 
     // Get current time in freelancer timezone
     const nowInFreelancerTZ = DateTime.now().setZone(freelancerTimezone);
@@ -254,6 +260,9 @@ export function isSlotInPast(slot, freelancerTimezone) {
 
 export function formatSlotTimeParts(slot, freelancerTimezone) {
   try {
+    // 🔥 Use slot's frozen timezone if available, otherwise fall back
+    const targetTimezone = slot.timezone || freelancerTimezone;
+    
     // Use the same UTC parsing logic
     const utcDateTime = parseSlotToUTCDateTime(slot);
 
@@ -261,13 +270,13 @@ export function formatSlotTimeParts(slot, freelancerTimezone) {
       throw new Error(`Invalid time format in slot: ${JSON.stringify(slot)}`);
     }
 
-    // Convert UTC to freelancer's timezone
-    const freelancerTime = utcDateTime.setZone(freelancerTimezone);
+    // Convert UTC to target timezone
+    const localTime = utcDateTime.setZone(targetTimezone);
 
     return {
-      formattedTime: freelancerTime.toFormat("h:mm a"),
+      formattedTime: localTime.toFormat("h:mm a"),
       abbreviation:
-        freelancerTime.offsetNameShort || freelancerTime.toFormat("ZZZZ"),
+        localTime.offsetNameShort || localTime.toFormat("ZZZZ"),
     };
   } catch (error) {
     console.error("Failed to format slot time:", error, slot);
@@ -283,6 +292,9 @@ export function formatSlotTimeParts(slot, freelancerTimezone) {
  */
 export function isSlotOnDate(slot, selectedDate, timezone) {
   try {
+    // 🔥 Use slot's frozen timezone if available
+    const targetTimezone = slot.timezone || timezone;
+    
     // Parse the UTC slot datetime
     const utcTime24h = slot.time_24h || slot.time;
     if (!utcTime24h || !slot.day) return false;
@@ -296,8 +308,8 @@ export function isSlotOnDate(slot, selectedDate, timezone) {
 
     if (!slotDateTimeUTC.isValid) return false;
 
-    // Convert to freelancer's timezone
-    const slotInLocalTZ = slotDateTimeUTC.setZone(timezone);
+    // Convert to target timezone
+    const slotInLocalTZ = slotDateTimeUTC.setZone(targetTimezone);
 
     // 🔥 FIX: Treat selectedDate as a calendar date, not an instant
     // Create a new DateTime at midnight in the freelancer's timezone
