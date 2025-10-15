@@ -1,1 +1,1 @@
-from .email_service import send_feedback_submission, send_branded_customer_reply
+from .email_service import send_booking_confirmation_email

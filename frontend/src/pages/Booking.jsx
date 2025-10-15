@@ -18,6 +18,15 @@ import SafeLoader from "../components/Layout/SafeLoader";
 import NoAvailableSlotsCard from "../components/Cards/NoAvailableSlotsCard";
 import RefreshButton from "../components/Buttons/RefreshButton";
 import BookingInstructionsCard from "../components/Cards/BookingInstructionsCard";
+import {
+  getUserTimezone,
+  getTimezoneAbbreviation,
+  getTimezoneFullName,
+  formatSlotDate,
+  isSlotInPast,
+  formatSlotTimeParts,
+  isSlotOnDate,
+} from "../utils/timezoneHelpers";
 
 export default function BookingPage({ useCustomUrl = false }) {
   const params = useParams();
@@ -77,38 +86,15 @@ export default function BookingPage({ useCustomUrl = false }) {
       });
   }, [selectedSlotId]);
 
-  const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const userTimeZone = getUserTimezone();
   const getRequiredBlocks = (durationMinutes) =>
     Math.ceil(durationMinutes / 15);
 
-  const getTZAbbreviation = (tz) => {
-    const map = {
-      "America/New_York": "EST",
-      "America/Detroit": "EST",
-      "America/Chicago": "CST",
-      "America/Denver": "MST",
-      "America/Phoenix": "MST",
-      "America/Los_Angeles": "PST",
-      "America/Anchorage": "AKST",
-      "America/Adak": "HST",
-    };
-    return map[tz] || "Local";
-  };
-
-  const parseTimeToDate = (timeStr) => {
-    const [h, m] = timeStr.split(/[: ]/);
-    let hour = parseInt(h),
-      minute = parseInt(m);
-    if (timeStr.includes("PM") && hour !== 12) hour += 12;
-    if (timeStr.includes("AM") && hour === 12) hour = 0;
-    const date = new Date();
-    date.setHours(hour, minute, 0, 0);
-    return date;
-  };
-
   const sortSlots = (slots) => {
     return [...slots].sort((a, b) => {
-      return parseTimeToDate(a.time) - parseTimeToDate(b.time);
+      const timeA = DateTime.fromFormat(a.time, "hh:mm a");
+      const timeB = DateTime.fromFormat(b.time, "hh:mm a");
+      return timeA.toMillis() - timeB.toMillis();
     });
   };
 
@@ -128,7 +114,10 @@ export default function BookingPage({ useCustomUrl = false }) {
       ]);
       setSlots(sortSlots(slotsRes.data));
       const data = infoRes.data;
-      setFreelancerDetails({ ...data });
+      setFreelancerDetails({
+        ...data,
+        tier: data.tier?.toLowerCase() || "free",
+      });
       setFreelancerTimeZone(data.timezone || "America/New_York");
       setNoShowPolicy(data.no_show_policy || "");
 
@@ -149,7 +138,10 @@ export default function BookingPage({ useCustomUrl = false }) {
     axios
       .get(`${API_BASE}/freelancer/public-info/${freelancerId}`)
       .then((res) => {
-        setFreelancerDetails({ ...res.data });
+        setFreelancerDetails({
+          ...res.data,
+          tier: res.data.tier?.toLowerCase() || "free",
+        });
         setFreelancerTimeZone(res.data.timezone || "America/New_York");
         setNoShowPolicy(res.data.no_show_policy || "");
         const enabled = res.data.services || [];
@@ -321,6 +313,7 @@ export default function BookingPage({ useCustomUrl = false }) {
         service_id: selectedServiceId,
         website: honeypot?.trim() || "",
         custom_responses: customResponses,
+        customer_timezone: userTimeZone,
       };
 
       payload.website = honeypot?.trim() || "";
@@ -348,42 +341,49 @@ export default function BookingPage({ useCustomUrl = false }) {
             err.response?.data?.error || err.message || "Booking failed";
 
           if (msg.includes("already have a booking")) {
-            const wrapper = document.createElement("div");
-            const text1 = document.createElement("p");
-            text1.textContent =
-              "You're already booked with this freelancer! You'll need to cancel first.";
-            text1.style.fontWeight = "bold";
-            text1.style.fontSize = "0.95rem";
-            text1.style.marginBottom = "0.5rem";
-            wrapper.appendChild(text1);
-
             const appointmentId = err.response?.data?.appointment_id;
             const extractedId = !appointmentId && msg?.match(/ID: (\d+)/)?.[1];
             const safeAppointmentId = appointmentId || extractedId;
 
-            if (status === "pending" && safeAppointmentId) {
-              const resendBtn = document.createElement("button");
-              resendBtn.textContent = "Resend confirmation email";
-              resendBtn.className =
-                "underline text-purple-800 cursor-pointer text-sm";
-              resendBtn.disabled = resendLoading;
-              resendBtn.onclick = () => resendConfirmation(safeAppointmentId);
-              wrapper.appendChild(resendBtn);
-            } else if (status === "confirmed") {
-              const msgElem = document.createElement("p");
-              msgElem.textContent =
-                "This appointment is already confirmed. You're good to go!";
-              msgElem.className = "text-white text-sm mt-1";
-              wrapper.appendChild(msgElem);
-            } else {
-              const fallback = document.createElement("p");
-              fallback.textContent =
-                "Status unknown — please check your email.";
-              fallback.className = "text-yellow-400 text-sm mt-1";
-              wrapper.appendChild(fallback);
-            }
+            // ✅ Use React JSX instead of createElement
+            const toastContent = (
+              <div>
+                <p
+                  style={{
+                    fontWeight: "bold",
+                    fontSize: "0.95rem",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  You're already booked with this freelancer! You'll need to
+                  cancel first.
+                </p>
 
-            showToast(wrapper, "error", 8000);
+                {status === "pending" && safeAppointmentId && (
+                  <button
+                    className="underline text-purple-800 cursor-pointer text-sm"
+                    disabled={resendLoading}
+                    onClick={() => resendConfirmation(safeAppointmentId)}
+                  >
+                    Resend confirmation email
+                  </button>
+                )}
+
+                {status === "confirmed" && (
+                  <p className="text-white text-sm mt-1">
+                    This appointment is already confirmed. You're good to go!
+                  </p>
+                )}
+
+                {status !== "pending" && status !== "confirmed" && (
+                  <p className="text-yellow-400 text-sm mt-1">
+                    Status unknown — please check your email.
+                  </p>
+                )}
+              </div>
+            );
+
+            showToast(toastContent, "error", 8000);
           } else {
             showToast(msg, "error");
           }
@@ -396,38 +396,20 @@ export default function BookingPage({ useCustomUrl = false }) {
     }
   };
 
-  const convertToUserTime = (time, sourceTZ, userTZ) => {
-    const [label, meridian] = time.split(" ");
-    let [hour, minute] = label.split(":").map(Number);
-    if (meridian === "PM" && hour !== 12) hour += 12;
-    if (meridian === "AM" && hour === 12) hour = 0;
-
-    const dateInSourceTZ = DateTime.fromObject(
-      { hour, minute },
-      { zone: sourceTZ }
-    );
-
-    return dateInSourceTZ.setZone(userTZ).toLocaleString(DateTime.TIME_SIMPLE);
-  };
-
-  const selectedESTDate = DateTime.fromJSDate(selectedDate)
-    .setZone("America/New_York")
+  const selectedFreelancerDate = DateTime.fromJSDate(selectedDate)
+    .setZone(freelancerTimeZone)
     .toFormat("yyyy-MM-dd");
 
-  const filteredSlots = slots.filter((s) => s.day === selectedESTDate);
+  // const filteredSlots = slots.filter((s) => s.day === selectedFreelancerDate);
+
+  // Claude said to replace above with this
+  const filteredSlots = slots.filter((s) =>
+    isSlotOnDate(s, selectedDate, freelancerTimeZone)
+  );
 
   // ⏱ Drop past unbooked slots, keep booked or inherited ones (shows popularity)
-  const nowUTC = DateTime.utc();
-
   const visibleSlots = filteredSlots.filter((slot) => {
-    const slotTime = parseTimeToDate(slot.time);
-    const slotUTC = DateTime.fromJSDate(slotTime).toUTC();
-
-    const isToday =
-      selectedESTDate ===
-      DateTime.now().setZone("America/New_York").toFormat("yyyy-MM-dd");
-
-    const isPast = isToday && slotUTC < nowUTC;
+    const isPast = isSlotInPast(slot, freelancerTimeZone);
 
     if (isPast && !slot.is_booked && !slot.is_inherited_block) {
       return false;
@@ -457,6 +439,12 @@ export default function BookingPage({ useCustomUrl = false }) {
   //   );
   // }
 
+  console.log("Selected Date:", selectedDate);
+  console.log(
+    "Parsed Luxon Date:",
+    DateTime.fromJSDate(selectedDate).toISODate()
+  );
+
   return (
     <SafeLoader loading={loading} error={error} onRetry={handleRetry}>
       <div className="max-w-md mx-auto p-6 space-y-6">
@@ -485,11 +473,6 @@ export default function BookingPage({ useCustomUrl = false }) {
             className="btn-sm"
           />
         </div>
-        {freelancerTimeZone && (
-          <p className="text-sm text-gray-400 text-center mt-1 italic">
-            *All times shown in {getTZAbbreviation(freelancerTimeZone)}*
-          </p>
-        )}
         {freelancerDetails?.booking_instructions && (
           <div className="mb-4">
             <BookingInstructionsCard
@@ -627,19 +610,22 @@ export default function BookingPage({ useCustomUrl = false }) {
               </div>
             </div>
           )}
+
+          {freelancerTimeZone && (
+            <p className="text-sm text-gray-400 text-center mt-2 italic">
+              *All times shown in {getTimezoneFullName(freelancerTimeZone)}{" "}
+              <span className="text-gray-500">
+                ({getTimezoneAbbreviation(freelancerTimeZone)})
+              </span>
+              *
+            </p>
+          )}
         </div>
         {loading ? (
           <p className="text-center">Loading slots...</p>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-4">
-              {filteredSlots.length > 0 &&
-                DateTime.fromJSDate(selectedDate).startOf("day") <
-                  DateTime.now().setZone("America/New_York").startOf("day") && (
-                  <p className="text-sm text-yellow-400 text-center font-semibold mb-2">
-                    ⚠️ You’ve selected a past date — you can’t book this day.
-                  </p>
-                )}
               {visibleSlots.map((slot, index) => {
                 const isSelected = selectedSlotId === slot.id;
                 const isBlocked =
@@ -647,15 +633,7 @@ export default function BookingPage({ useCustomUrl = false }) {
                   slot.is_inherited_block ||
                   !selectedServiceId;
 
-                const isToday =
-                  selectedESTDate ===
-                  DateTime.now()
-                    .setZone("America/New_York")
-                    .toFormat("yyyy-MM-dd");
-                const slotTime = parseTimeToDate(slot.time);
-                const currentUtc = DateTime.utc();
-                const slotUtcTime = DateTime.fromJSDate(slotTime).toUTC();
-                const isPast = isToday && slotUtcTime < currentUtc;
+                const isPast = isSlotInPast(slot, freelancerTimeZone);
                 const isDisabled = isBlocked || isPast;
 
                 const handleSelectSlot = () => {
@@ -729,13 +707,13 @@ export default function BookingPage({ useCustomUrl = false }) {
                         }
 
                         if (isDisabled) {
-                          const nowEST = DateTime.now()
-                            .setZone("America/New_York")
+                          const nowInFreelancerTZ = DateTime.now()
+                            .setZone(freelancerTimeZone)
                             .startOf("day");
                           const selectedEST =
                             DateTime.fromJSDate(selectedDate).startOf("day");
 
-                          if (selectedEST < nowEST) {
+                          if (selectedEST < nowInFreelancerTZ) {
                             showToast(
                               "⚠️ This is a past date. Please choose another day.",
                               "warning"
@@ -753,17 +731,18 @@ export default function BookingPage({ useCustomUrl = false }) {
                       }}
                       type="button"
                     >
-                      <span className="text-xs w-full text-center">
-                        {/* {convertToUserTime(
-                      slot.time,
-                      freelancerTimeZone,
-                      userTimeZone
-                    )}{" "}
-                    <span className="text-[10px] text-gray-400">
-                      {getTZAbbreviation(userTimeZone)}
-                    </span> */}
-                        {slot.time} UTC
-                      </span>
+                      {(() => {
+                        const { formattedTime, abbreviation } =
+                          formatSlotTimeParts(slot, freelancerTimeZone);
+                        return (
+                          <span className="text-xs w-full text-center flex justify-center items-center gap-1">
+                            <span>{formattedTime}</span>
+                            <span className="text-[0.65rem] text-gray-400">
+                              {abbreviation}
+                            </span>
+                          </span>
+                        );
+                      })()}
                     </button>
                     {slot.is_booked && (
                       <div className="text-xs text-red-400 mt-1 text-center">

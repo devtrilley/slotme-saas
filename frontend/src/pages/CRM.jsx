@@ -8,6 +8,12 @@ import { showToast } from "../utils/toast";
 import RefreshButton from "../components/Buttons/RefreshButton";
 import ViewBookingModal from "../components/Modals/ViewBookingModal";
 import ConfirmModal from "../components/Modals/ConfirmModal";
+import {
+  getTimezoneAbbreviation,
+  formatSlotTimeParts,
+  formatSlotTimePartsFromUTC,
+  formatSlotTimePartsFromLocal,
+} from "../utils/timezoneHelpers";
 
 export default function CRM() {
   const { freelancer } = useFreelancer();
@@ -49,10 +55,25 @@ export default function CRM() {
     try {
       setError("");
       const res = await axios.get("/appointments");
+
+      // 🔥 DEBUG LOGGING
+      console.log("═══════════════════════════════════");
+      console.log("🔥 RAW APPOINTMENTS FROM API:");
+      console.log("Total count:", res.data.length);
+      res.data.forEach((a, i) => {
+        console.log(`\n[${i + 1}] Appointment #${a.id}:`);
+        console.log("  - Name:", a.name);
+        console.log("  - Email:", a.email);
+        console.log("  - Date:", a.slot_day);
+        console.log("  - Time:", a.slot_time, a.timezone_abbr);
+        console.log("  - Status:", a.status);
+        console.log("  - Service:", a.service);
+      });
+      console.log("═══════════════════════════════════\n");
+
       const sorted = [...res.data].sort(
         (a, b) => convertToDate(a.slot_time) - convertToDate(b.slot_time)
       );
-      console.log("📥 Raw appointments:", res.data);
       setAppointments(sorted);
     } catch (err) {
       console.error("❌ Failed to fetch appointments:", err);
@@ -110,22 +131,20 @@ export default function CRM() {
   };
 
   const filtered = appointments.filter((a) => {
-    const timezone = a.freelancer_timezone || "America/New_York";
-
-    const parsedSlotDate = parseLocalDate(a.slot_day, timezone);
-    const dateString = getESTDateString(selectedDate, timezone);
-
     const matchesSearch = `${a.name} ${a.email}`
       .toLowerCase()
       .includes(searchTerm.trim().toLowerCase());
 
     const inTimeRange = isInTimeRange(a.slot_time);
 
-    const inDate = DateTime.fromISO(a.slot_day)
-      .setZone(timezone)
-      .hasSame(DateTime.fromJSDate(selectedDate).setZone(timezone), "day");
+    // 🔥 FIX: Simple date comparison - backend already returns correct local dates
+    const slotDate = a.slot_day; // "2025-10-13"
+    const selectedDateStr =
+      DateTime.fromJSDate(selectedDate).toFormat("yyyy-MM-dd");
 
-    const isNotCancelled = a.status !== "cancelled"; // ✅ this line
+    const inDate = slotDate === selectedDateStr;
+
+    const isNotCancelled = a.status !== "cancelled";
 
     return matchesSearch && inTimeRange && inDate && isNotCancelled;
   });
@@ -182,8 +201,9 @@ export default function CRM() {
     }
   };
 
-  const formatDate = (isoDate, timezone = "America/New_York") => {
-    return DateTime.fromISO(isoDate).setZone(timezone).toFormat("MMMM d, yyyy");
+  const formatDate = (isoDate) => {
+    // ✅ slot_day is already local date, just format it
+    return DateTime.fromISO(isoDate).toFormat("MMMM d, yyyy");
   };
 
   return (
@@ -272,75 +292,80 @@ export default function CRM() {
             No matching bookings.
           </p>
         ) : (
-          filtered.map((a) => (
-            <div
-              key={a.id}
-              className="p-4 border rounded-lg bg-base-200 shadow-sm space-y-2"
-            >
-              <p className="text-xs text-gray-400">Appointment ID: {a.id}</p>
-              <p>
-                <strong>Name:</strong> {a.name || "Unknown"}
-              </p>
-              <p>
-                <strong>Email:</strong> {a.email || "N/A"}
-              </p>
-              <p>
-                <strong>Date:</strong>{" "}
-                {formatDate(a.slot_day, a.freelancer_timezone)}
-              </p>
-              <p>
-                <strong>Time:</strong> {a.slot_time || "?"}
-                <span className="ml-1 text-xs text-gray-400">
-                  {a.freelancer_timezone?.split("/")[1]?.replace("_", " ") ||
-                    "Time Zone"}
-                </span>
-              </p>
-              <p>
-                <strong>Service:</strong> {a.service || "N/A"}
-              </p>
-              <p>
-                <strong>Duration:</strong> {a.service_duration_minutes || "?"}{" "}
-                minutes
-              </p>
-              <p
-                className={`text-sm font-medium ${
-                  a.status === "confirmed"
-                    ? "text-success"
-                    : a.status === "cancelled"
-                    ? "text-error"
-                    : "text-warning"
-                }`}
+          filtered.map((a) => {
+            console.log("🕓 Appointment slot:", a.slot_day, a.slot_time);
+            console.log("🌍 Timezone used:", a.freelancer_timezone);
+            if (!a.freelancer_timezone) {
+              console.warn("❌ Missing timezone on appointment:", a);
+            }
+            return (
+              <div
+                key={a.id}
+                className="p-4 border rounded-lg bg-base-200 shadow-sm space-y-2"
               >
-                {a.status === "confirmed"
-                  ? "✔ Confirmed"
-                  : a.status === "cancelled"
-                  ? "✖ Cancelled"
-                  : "⚠ Pending"}
-              </p>
-
-              <div className="flex flex-wrap gap-2 pt-2">
-                <button
-                  className="btn btn-primary btn-sm flex-1"
-                  onClick={() => setSelectedAppointment(a)}
+                <p className="text-xs text-gray-400">Appointment ID: {a.id}</p>
+                <p>
+                  <strong>Name:</strong> {a.name || "Unknown"}
+                </p>
+                <p>
+                  <strong>Email:</strong> {a.email || "N/A"}
+                </p>
+                <p>
+                  <strong>Date:</strong> {formatDate(a.slot_day)}
+                </p>
+                <p>
+                  <strong>Time:</strong> {a.slot_time}
+                  <span className="ml-1 text-xs text-gray-400">
+                    {a.timezone_abbr}
+                  </span>
+                </p>
+                <p>
+                  <strong>Service:</strong> {a.service || "N/A"}
+                </p>
+                <p>
+                  <strong>Duration:</strong> {a.service_duration_minutes || "?"}{" "}
+                  minutes
+                </p>
+                <p
+                  className={`text-sm font-medium ${
+                    a.status === "confirmed"
+                      ? "text-success"
+                      : a.status === "cancelled"
+                      ? "text-error"
+                      : "text-warning"
+                  }`}
                 >
-                  View Details
-                </button>
+                  {a.status === "confirmed"
+                    ? "✔ Confirmed"
+                    : a.status === "cancelled"
+                    ? "✖ Cancelled"
+                    : "⚠ Pending"}
+                </p>
 
-                {a.status === "confirmed" && (
+                <div className="flex flex-wrap gap-2 pt-2">
                   <button
-                    className="btn btn-error btn-sm flex-1"
-                    onClick={(e) => {
-                      e.stopPropagation(); // prevent opening view modal
-                      setCancelTargetId(a.id);
-                      setShowConfirmModal(true);
-                    }}
+                    className="btn btn-primary btn-sm flex-1"
+                    onClick={() => setSelectedAppointment(a)}
                   >
-                    Cancel
+                    View Details
                   </button>
-                )}
+
+                  {a.status === "confirmed" && (
+                    <button
+                      className="btn btn-error btn-sm flex-1"
+                      onClick={(e) => {
+                        e.stopPropagation(); // prevent opening view modal
+                        setCancelTargetId(a.id);
+                        setShowConfirmModal(true);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 

@@ -58,7 +58,7 @@ axiosInstance.interceptors.request.use((config) => {
 
   if (token && !isPublic) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log("📤 Attaching token to request:", token);
+    // console.log("📤 Attaching token to request:", token);
   } else if (!isPublic) {
     console.log("⚠️ No token found — unauthenticated protected request");
   } else {

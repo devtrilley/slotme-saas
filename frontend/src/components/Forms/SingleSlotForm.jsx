@@ -36,15 +36,6 @@ export default function SingleSlotForm({
       return;
     }
 
-    const label = `${hour}:${minute} ${ampm}`;
-    const match = masterTimes.find((t) => t.label === label);
-
-    if (!match) {
-      showToast("Invalid time selection", "error");
-      setLoading(false);
-      return;
-    }
-
     if (!selectedDate || isNaN(selectedDate.getTime())) {
       showToast("Invalid date", "error");
       setLoading(false);
@@ -57,36 +48,45 @@ export default function SingleSlotForm({
       return;
     }
 
+    // Convert 12-hour format (hour + AM/PM) to 24-hour format
+    let hour24 = parseInt(hour);
+    if (ampm === "PM" && hour24 < 12) hour24 += 12;
+    if (ampm === "AM" && hour24 === 12) hour24 = 0;
+
+    const localDateTime = DateTime.fromObject(
+      {
+        year: selectedDate.getFullYear(),
+        month: selectedDate.getMonth() + 1,
+        day: selectedDate.getDate(),
+        hour: hour24,
+        minute: parseInt(minute),
+      },
+      { zone: timezone }
+    );
+
+    const utcDateTime = localDateTime.toUTC();
+    const utcHour = utcDateTime.toFormat("HH");
+    const utcMinute = utcDateTime.toFormat("mm");
+    const utcDateStr = utcDateTime.toFormat("yyyy-MM-dd");
+
+    const label = `${utcHour}:${utcMinute}`;
+    const match = masterTimes.find((t) => t.time_24h.startsWith(label));
+
+    if (!match) {
+      showToast("❌ Could not find matching time in UTC", "error");
+      setLoading(false);
+      return;
+    }
+
     console.log("📤 Submitting slot:", {
-      day: DateTime.fromJSDate(selectedDate)
-        .setZone("America/New_York")
-        .toFormat("yyyy-MM-dd"),
+      day: utcDateStr,
       master_time_id: match.id,
       timezone,
     });
 
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      showToast("❌ Session expired. Redirecting to login...", "error");
-
-      // Notify other tabs
-      import("../../utils/tokenChannel").then(
-        ({ tokenChannel, MESSAGE_TYPES }) => {
-          tokenChannel.postMessage({ type: MESSAGE_TYPES.SESSION_EXPIRED });
-        }
-      );
-
-      setTimeout(() => {
-        window.location.href = "/auth"; // hard redirect for safety
-      }, 2000);
-      return;
-    }
-
     axios
       .post(`${API_BASE}/slots`, {
-        day: DateTime.fromJSDate(selectedDate)
-          .setZone("America/New_York")
-          .toFormat("yyyy-MM-dd"),
+        day: utcDateStr,
         master_time_id: match.id,
         timezone,
       })
@@ -109,6 +109,23 @@ export default function SingleSlotForm({
         setError(""); // Optional: hide static error now that toast handles it
       })
       .finally(() => setLoading(false));
+
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      showToast("❌ Session expired. Redirecting to login...", "error");
+
+      // Notify other tabs
+      import("../../utils/tokenChannel").then(
+        ({ tokenChannel, MESSAGE_TYPES }) => {
+          tokenChannel.postMessage({ type: MESSAGE_TYPES.SESSION_EXPIRED });
+        }
+      );
+
+      setTimeout(() => {
+        window.location.href = "/auth"; // hard redirect for safety
+      }, 2000);
+      return;
+    }
   };
 
   return (
@@ -161,18 +178,6 @@ export default function SingleSlotForm({
           <option>PM</option>
         </select>
       </div>
-
-      <label className="label text-xs text-gray-400">Time Zone</label>
-      <select
-        className="select select-bordered w-full"
-        value={timezone}
-        onChange={(e) => setTimezone(e.target.value)}
-      >
-        <option value="America/New_York">Eastern (EST)</option>
-        <option value="America/Chicago">Central (CST)</option>
-        <option value="America/Denver">Mountain (MST)</option>
-        <option value="America/Los_Angeles">Pacific (PST)</option>
-      </select>
 
       <button className="btn btn-primary w-full" disabled={loading}>
         {loading ? "Adding..." : "Add Slot"}

@@ -24,50 +24,68 @@ import TimeSlotCard from "../components/Cards/TimeSlotCard";
 import InternalBookingModal from "../components/Modals/InternalBookingModal";
 import CustomQuestionsForm from "../components/Forms/CustomQuestionsForm";
 import ConfirmModal from "../components/Modals/ConfirmModal";
-
 import { useFreelancer } from "../context/FreelancerContext";
-
-function getDateFromTimeStr(timeStr) {
-  const [hourMinute, ampm] = timeStr.split(" ");
-  let [hour, minute] = hourMinute.split(":").map(Number);
-  if (ampm === "PM" && hour !== 12) hour += 12;
-  if (ampm === "AM" && hour === 12) hour = 0;
-  const date = new Date();
-  date.setHours(hour, minute, 0, 0);
-  return date;
-}
-
-function clearFreelancerSession() {
-  [
-    "freelancer_logged_in",
-    "access_token",
-    "freelancer_id",
-    "freelancerDetails_updated",
-    "client_id",
-  ].forEach((key) => localStorage.removeItem(key));
-}
+import {
+  isSlotInPast,
+  formatSlotTimeParts,
+  formatSlotDate,
+  formatSlotTimePartsFromLocal,
+  isSlotOnDate,
+} from "../utils/timezoneHelpers";
 
 export default function AdminPage() {
-  const { freelancer, setFreelancer } = useFreelancer();
+  const { freelancer, setFreelancer, clearFreelancer, isLoaded } =
+    useFreelancer();
+  const freelancerId = freelancer?.id;
+  // Token check for gated routes
+  const isLoggedIn = !!localStorage.getItem("access_token");
 
-  const [syncDates, setSyncDates] = useState(false);
+  // If localStorage is loaded but no freelancer data AND we have a token,
+  // that means we need to fetch fresh data
+  const needsFreelancerData = !freelancer && isLoggedIn;
+  const navigate = useNavigate();
+
+  const [syncDates, setSyncDates] = useState(() => {
+    const saved = localStorage.getItem("date_sync_enabled");
+    return saved === "true";
+  });
+
+  // Add this useEffect to persist the toggle
+  useEffect(() => {
+    localStorage.setItem("date_sync_enabled", syncDates.toString());
+  }, [syncDates]);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
-  const [selectedDate, setSelectedDate] = useState(() => new Date());
+
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const saved = localStorage.getItem("admin_selected_date");
+    return saved ? new Date(saved) : new Date();
+  });
+
+  // 🔥 ADD THIS useEffect to persist the date
+  useEffect(() => {
+    localStorage.setItem("admin_selected_date", selectedDate.toISOString());
+  }, [selectedDate]);
+
   const [servicesError, setServicesError] = useState(false);
   const [freelancerDetailsLoadError, setFreelancerDetailsLoadError] =
     useState(false);
-  const [freelancerDetails, setFreelancerDetails] = useState({
-    business_name: "",
-    first_name: "",
-    last_name: "",
-    logo_url: "",
-    tagline: "",
-    bio: "",
-    is_verified: false,
-    tier: "free",
-  });
+  const [freelancerDetails, setFreelancerDetails] = useState(
+    freelancer || {
+      business_name: "",
+      first_name: "",
+      last_name: "",
+      logo_url: "",
+      tagline: "",
+      bio: "",
+      is_verified: false,
+      tier: "free",
+    }
+  );
+
+  const freelancerTimezone = freelancerDetails.timezone || "America/New_York";
+
   const [showInternalModal, setShowInternalModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [services, setServices] = useState([]);
@@ -96,10 +114,10 @@ export default function AdminPage() {
   };
 
   const filteredSlots = slots.filter((slot) => {
-    const isSameDay = slot.day === getESTDateString(selectedDate);
+    const isSameDay = isSlotOnDate(slot, selectedDate, freelancerTimezone);
     if (!isSameDay) return false;
 
-    const isPast = new Date(`${slot.day} ${slot.time}`) < new Date();
+    const isPast = isSlotInPast(slot, freelancerTimezone, true); // stored in UTC
     const isBooked = slot.is_booked || slot.is_inherited_block;
 
     if (statusFilter === "all") return true;
@@ -110,21 +128,36 @@ export default function AdminPage() {
     return false;
   });
 
+  // Sort time slots by freelancer-local time (slot.time is not in UTC)
   const sortedFilteredSlots = [...filteredSlots].sort((a, b) => {
-    const dateA = new Date(`${a.day} ${a.time}`);
-    const dateB = new Date(`${b.day} ${b.time}`);
-    return sortDirection === "asc" ? dateA - dateB : dateB - dateA;
+    // slot.time is 24-hour format like "18:00"
+    const dateA = DateTime.fromFormat(
+      `${a.day} ${a.time_24h || a.time}`,
+      "yyyy-MM-dd HH:mm",  // 🔥 FIXED: Capital HH for 24-hour format
+      { zone: "UTC" }
+    ).setZone(freelancerTimezone);
+    
+    const dateB = DateTime.fromFormat(
+      `${b.day} ${b.time_24h || b.time}`,
+      "yyyy-MM-dd HH:mm",  // 🔥 FIXED: Capital HH for 24-hour format
+      { zone: "UTC" }
+    ).setZone(freelancerTimezone);
+    
+    // Add validation in case parsing fails
+    if (!dateA.isValid || !dateB.isValid) {
+      console.error("Failed to parse slot dates:", { a, b, dateA, dateB });
+      return 0;
+    }
+    
+    return sortDirection === "asc"
+      ? dateA.toMillis() - dateB.toMillis()
+      : dateB.toMillis() - dateA.toMillis();
   });
-  const navigate = useNavigate();
 
   // Use this to simulate a 500 error
   // useEffect(() => {
   //   throw new Error("🔥 Simulated crash in AdminPage");
   // }, []);
-
-  const freelancerId = freelancer?.id;
-
-  const isLoggedIn = !!localStorage.getItem("access_token");
 
   const fetchSlots = () => {
     if (!freelancerId) {
@@ -242,22 +275,16 @@ export default function AdminPage() {
 
   const [freelancerDetailsUpdated, setFreelancerDetailsUpdated] = useState(0);
 
-  useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (!token) return; // Prevent background calls when not logged in
+  const shareUrl =
+    freelancer?.custom_url || freelancerDetails?.custom_url
+      ? `http://localhost:5173/${
+          freelancer?.custom_url || freelancerDetails?.custom_url
+        }`
+      : `http://localhost:5173/book/${freelancer?.id || freelancerDetails?.id}`;
 
-    fetchSlots();
-    fetchFreelancerDetails();
-    fetchServices();
-  }, [freelancerDetailsUpdated]);
-
-  const shareUrl = freelancerDetails?.custom_url
-    ? `http://localhost:5173/${freelancerDetails.custom_url}`
-    : `http://localhost:5173/book/${freelancerDetails.id}`; // fallback
-
-  function getESTDateString(date) {
+  function getFreelancerDateString(date) {
     return DateTime.fromJSDate(date)
-      .setZone(freelancerDetails.timezone || "America/New_York")
+      .setZone(freelancerTimezone)
       .toFormat("yyyy-MM-dd");
   }
 
@@ -319,16 +346,6 @@ export default function AdminPage() {
     ]);
   };
 
-  function formatDate(dateString) {
-    const [year, month, day] = dateString.split("-");
-    const date = new Date(Number(year), Number(month) - 1, Number(day));
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }
-
   const tier = freelancer?.tier || "free";
 
   function handleTierBlocked() {
@@ -344,12 +361,48 @@ export default function AdminPage() {
     );
   }
 
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+
+    // No token = bounce
+    if (!token) {
+      navigate("/auth");
+      return;
+    }
+
+    // Token exists but no freelancer = fetch it
+    if (!freelancer) {
+      fetchFreelancerDetails();
+      return;
+    }
+
+    // Token and freelancer = fetch slots + services
+    if (freelancer?.id) {
+      fetchSlots();
+      fetchServices();
+    }
+  }, [freelancer?.id, freelancerDetailsUpdated]);
+
+  if (!isLoaded) {
+    return <SafeLoader loading={true} />;
+  }
+
+  if (needsFreelancerData) {
+    return <SafeLoader loading={true} />;
+  }
+
+  if (!freelancerId) {
+    return (
+      <SafeLoader
+        loading={false}
+        error="Your account session is missing."
+        onRetry={() => (window.location.href = "/auth")}
+      />
+    );
+  }
+
   return (
-    <SafeLoader
-      loading={loading}
-      error={!freelancerId ? "Your account session is missing." : null}
-      onRetry={() => (window.location.href = "/auth")}
-    >
+    <SafeLoader loading={loading}>
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <div className="flex flex-col gap-2 items-center">
           <h2 className="text-2xl font-bold text-center">
@@ -358,9 +411,16 @@ export default function AdminPage() {
 
           <button
             onClick={() => {
-              clearFreelancerSession();
-              showToast("👋 Logged out successfully", "success"); // ✅ add this
+              localStorage.removeItem("freelancer_logged_in");
+              localStorage.removeItem("access_token");
+              localStorage.removeItem("freelancer_id");
+              localStorage.removeItem("branding_updated");
+              localStorage.removeItem("client_id");
+
+              clearFreelancer(); // 👈 Reset in-memory context
               navigate("/auth");
+
+              showToast("👋 Logged out successfully", "success");
             }}
             className="btn btn-sm btn-outline"
           >
@@ -453,11 +513,12 @@ export default function AdminPage() {
         >
           <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
             <AddSlotForm
-              onAdd={fetchSlots}
+              onAdd={quietFetchSlots} // 🔥 FIXED: No more loading spinner/refresh
               syncWith={syncDates ? selectedDate : null}
               setSyncDate={syncDates ? setSelectedDate : null}
               mode={slotTab}
               setMode={updateSlotTab}
+              freelancerTimezone={freelancerTimezone}
             />
           </section>
         </AccordionSection>
@@ -569,71 +630,35 @@ export default function AdminPage() {
               </p>
             ) : (
               <>
-                {sortedFilteredSlots.map((slot) => {
-                  const isPast =
-                    new Date(`${slot.day} ${slot.time}`) < new Date();
-
-                  return (
-                    <div
-                      key={slot.id}
-                      className={`p-4 rounded-xl shadow-sm border ${
-                        slot.is_booked || slot.is_inherited_block
-                          ? "border-primary bg-[rgba(139,92,246,0.10)]" // ⬅️ slightly bolder purple background
-                          : isPast
-                          ? "border-gray-400 bg-[rgba(107,114,128,0.2)]" // ⬅️ faint silver/gray
-                          : "border-green-300 bg-[rgba(34,197,94,0.1)]" // ⬅️ faint mint green
-                      }`}
-                    >
-                      <p className="text-xs text-gray-400 mb-1">
-                        {formatDate(slot.day)}
-                      </p>
-                      <p className="text-lg font-semibold flex items-center gap-1">
-                        {slot.time}
-                        <span className="text-xs text-gray-400">UTC</span>
-                      </p>
-
-                      {slot.is_booked || slot.is_inherited_block ? (
-                        slot.appointment?.name &&
-                        slot.appointment?.email &&
-                        !slot.is_inherited_block ? (
-                          <>
-                            <p className="text-sm text-primary font-medium">
-                              Booked by:
-                            </p>
-                            <p className="text-sm text-primary">
-                              {slot.appointment.name} ({slot.appointment.email})
-                            </p>
-                          </>
-                        ) : (
-                          <p className="text-sm text-primary italic">
-                            Booked (part of earlier appointment)
-                          </p>
-                        )
-                      ) : isPast ? (
-                        <p className="text-sm text-gray-400">⏱️ Passed</p>
-                      ) : (
-                        <p className="text-sm text-green-400">Available</p>
-                      )}
-
-                      {!slot.is_booked && !slot.is_inherited_block && (
-                        <button
-                          onClick={() => {
-                            setSlotToDelete(slot.id);
-                            setShowSlotConfirm(true);
-                          }}
-                          className="btn btn-xs btn-error mt-2"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+                {sortedFilteredSlots.map((slot) => (
+                  <TimeSlotCard
+                    key={slot.id}
+                    slot={slot}
+                    freelancerTimezone={freelancerTimezone}
+                    onClick={(slot) => {
+                      // 🔥 FIX: Check if this is a delete action
+                      if (slot._deleteAction) {
+                        setSlotToDelete(slot.id);
+                        setShowSlotConfirm(true);
+                        return;
+                      }
+                    
+                      // Otherwise, it's a booking action
+                      const { formattedTime, abbreviation } =
+                        formatSlotTimeParts(slot, freelancerTimezone);
+                      setSelectedSlotId(slot.id);
+                      setSelectedSlotTime(`${formattedTime} ${abbreviation}`);
+                      setSelectedSlotDate(slot.day);
+                      setShowInternalModal(true);
+                    }}
+                  />
+                ))}
               </>
             )}
           </section>
         </AccordionSection>
-        <AccordionSection
+
+        {/* <AccordionSection
           title="Internal Booking Entry"
           subtitle="Select from available slots"
         >
@@ -700,8 +725,7 @@ export default function AdminPage() {
               {sortedFilteredSlots
                 .filter((slot) => {
                   const isBooked = slot.is_booked || slot.is_inherited_block;
-                  const isPast =
-                    new Date(`${slot.day} ${slot.time}`) < new Date();
+                  const isPast = isSlotInPast(slot, freelancerTimezone, true);
 
                   if (isBooked) return false;
 
@@ -715,6 +739,7 @@ export default function AdminPage() {
                   <TimeSlotCard
                     key={slot.id}
                     slot={slot}
+                    freelancerTimezone={freelancerTimezone}
                     onClick={(slot) => {
                       setSelectedSlotId(slot.id);
                       setSelectedSlotTime(slot.time);
@@ -725,7 +750,8 @@ export default function AdminPage() {
                 ))}
             </div>
           </section>
-        </AccordionSection>
+        </AccordionSection> */}
+
         <AccordionSection title="Add a Service" subtitle="Create offerings">
           <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
             <ServiceForm onServiceAdded={fetchServices} />
@@ -786,6 +812,7 @@ export default function AdminPage() {
           refetch={handleRefresh}
           preselectedTime={selectedSlotTime}
           slotId={selectedSlotId}
+          freelancerTimezone={freelancerTimezone} // ✅ pass here
         />
 
         {showSlotConfirm && (
@@ -807,8 +834,8 @@ export default function AdminPage() {
                     <TimeSlotCard
                       slot={slots.find((s) => s.id === slotToDelete)}
                       showButton={false}
-                      onClick={() => {}}
                       centered={true}
+                      freelancerTimezone={freelancerTimezone}
                     />
                   </div>
                 </div>

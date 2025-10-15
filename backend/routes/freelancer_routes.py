@@ -2,7 +2,7 @@ from flask import Blueprint, make_response, Response, request, jsonify, g
 from flask_cors import cross_origin
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, Freelancer, Service, Appointment, TimeSlot, MasterTimeSlot
-from services.email_service import send_branded_customer_reply
+from email_utils import send_branded_customer_reply
 import os
 import re
 from email.mime.text import MIMEText
@@ -14,6 +14,8 @@ from utils.features import is_feature_enabled
 import re
 from werkzeug.security import generate_password_hash
 import stripe
+from zoneinfo import ZoneInfo
+from utils.timezone_utils import parse_time_in_timezone
 
 
 from models import (
@@ -122,10 +124,18 @@ def get_public_time_slots(identifier):
                 service_name = service.name
                 duration_minutes = service.duration_minutes
 
+        # Log each slot as it's being added to result
+        print(
+            f"🔍 Returning slot: day={slot.day}, time={slot.master_time.time_24h}, master_time_id={slot.master_time.id}"
+        )
+        print(f"🔍 Master label: {slot.master_time.label}")
+
         result.append(
             {
                 "id": slot.id,
-                "time": slot.master_time.label,
+                "time": slot.master_time.time_24h,  # Legacy key (24h format for compatibility)
+                "time_24h": slot.master_time.time_24h,  # Canonical UTC 24h string like "18:00"
+                "time_12h": slot.master_time.label,  # UTC 12h string like "06:00 PM"
                 "day": slot.day,
                 "is_booked": is_root_booked,
                 "is_inherited_block": is_inherited,
@@ -654,154 +664,6 @@ def get_freelancer_info():
     )
 
 
-@freelancer_bp.route("/freelancer/batch-slots", methods=["POST"])
-@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
-@jwt_required()
-def create_batch_slots():
-    data = request.get_json()
-    freelancer_id = get_jwt_identity()
-    start_day = data.get("start_day")
-    end_day = data.get("end_day") or start_day  # default to same day if no crossing
-    start_time = data.get("start_time")  # e.g., "12:00 PM"
-    end_time = data.get("end_time")  # e.g., "7:00 PM"
-    interval = int(data.get("interval", 15))
-    if interval < 15 or interval % 15 != 0:
-        return jsonify({"error": "Interval must be a multiple of 15 minutes"}), 400
-
-    master_times = MasterTimeSlot.query.order_by(MasterTimeSlot.time_24h).all()
-    time_labels = [t.label for t in master_times]
-
-    # Load appointment time blocks
-    appointments = (
-        Appointment.query.join(TimeSlot, Appointment.slot_id == TimeSlot.id)
-        .filter(TimeSlot.day.in_([start_day, end_day]))
-        .filter(Appointment.freelancer_id == freelancer_id)
-        .filter(Appointment.status != "cancelled")
-        .all()
-    )
-    booked_labels = set()
-    for appt in appointments:
-        slot = TimeSlot.query.get(appt.slot_id)
-        service = Service.query.get(appt.service_id)
-        if not slot or not service:
-            continue
-        try:
-            start_label = MasterTimeSlot.query.get(slot.master_time_id).label
-            start_index = time_labels.index(start_label)
-            blocks = service.duration_minutes // 15
-            for lbl in time_labels[start_index : start_index + blocks]:
-                booked_labels.add(lbl)
-        except:
-            continue
-
-    # Build time block list from start to end, supports wrap-around past midnight
-    times_to_create = []
-    label_count = len(time_labels)
-    start_index = time_labels.index(start_time)
-    end_index = time_labels.index(end_time)
-
-    # Build time block list from start to end, supports wrap-around past midnight
-    times_to_create = []
-    label_to_time = {
-        label: datetime.strptime(label, "%I:%M %p") for label in time_labels
-    }
-
-    start_dt = datetime.strptime(start_time, "%I:%M %p")
-    end_dt = datetime.strptime(end_time, "%I:%M %p")
-
-    # 🔄 Support next-day ranges (e.g. 11 PM to 4 AM)
-    if end_dt <= start_dt:
-        end_dt += timedelta(days=1)
-
-    current_time = start_dt
-    while current_time < end_dt:
-        label = current_time.strftime("%I:%M %p")
-        if label not in time_labels:
-            print(f"⚠️ Skipped: {label} not in master time slots")
-        else:
-            times_to_create.append(label)
-        current_time += timedelta(minutes=interval)
-
-    created = []
-    label_to_master_id = {m.label: m.id for m in master_times}
-
-    existing_ids = {
-        (s.day, s.master_time_id)
-        for s in TimeSlot.query.filter_by(freelancer_id=freelancer_id)
-        .filter(TimeSlot.day.in_([start_day, end_day]))
-        .all()
-    }
-
-    created = []
-    start_time_obj = datetime.strptime(start_time, "%I:%M %p")
-    id_to_label = {
-        m.id: m.label for m in master_times
-    }  # ✅ build this ONCE outside the loop
-
-    for label in times_to_create:
-        master_id = label_to_master_id.get(label)
-        if not master_id:
-            continue
-
-        # Construct full datetime for start
-        start_day_dt = datetime.strptime(start_day, "%Y-%m-%d")
-        start_dt_full = datetime.combine(
-            start_day_dt, datetime.strptime(start_time, "%I:%M %p").time()
-        )
-
-        # Construct full datetime for current label
-        label_time = datetime.strptime(label, "%I:%M %p").time()
-        label_dt_full = datetime.combine(start_day_dt, label_time)
-
-        # If it wrapped past midnight
-        if label_dt_full < start_dt_full and end_day != start_day:
-            label_dt_full += timedelta(days=1)
-
-        # Set slot_day based on final date
-        slot_day = label_dt_full.date().isoformat()
-
-        if (slot_day, master_id) in existing_ids:
-            continue
-
-        is_booked = False
-        is_inherited_block = False
-
-        for appt in appointments:
-            start_label = id_to_label.get(appt.slot.master_time_id)
-            if not start_label:
-                continue
-            blocks = appt.service.duration_minutes // 15
-            try:
-                start_index = time_labels.index(start_label)
-                appt_labels = time_labels[start_index : start_index + blocks]
-
-                if label in appt_labels and appt.slot.day == slot_day:
-                    is_booked = True
-                    if label != appt_labels[0]:
-                        is_inherited_block = True
-                    break
-            except:
-                continue
-
-        new_slot = TimeSlot(
-            freelancer_id=freelancer_id,
-            day=slot_day,
-            master_time_id=master_id,
-            is_booked=is_booked,
-            is_inherited_block=is_inherited_block,
-        )
-        db.session.add(new_slot)
-        created.append(f"{label} ({slot_day})")
-
-    db.session.commit()
-
-    print("Labels to create:", times_to_create)
-    print("Existing slot IDs:", existing_ids)
-    print("Final created slots:", created)
-
-    return jsonify({"message": f"{len(created)} slots created", "slots": created}), 201
-
-
 @freelancer_bp.route("/<string:custom_url>", methods=["GET"])
 def public_profile_by_url(custom_url):
     if custom_url in RESERVED_ROUTES:
@@ -999,7 +861,7 @@ def get_freelancer_profile():
 
 
 @freelancer_bp.route("/freelancer/questions/<identifier>", methods=["GET"])
-@cross_origin(origins=ALLOWED_ORIGINS)
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def get_custom_questions(identifier):
     freelancer = None
     if identifier.isdigit():
@@ -1056,3 +918,174 @@ def get_own_custom_questions():
             "enabled": g.freelancer.custom_questions_enabled,
         }
     )
+
+
+@freelancer_bp.route("/freelancer/batch-slots-v2", methods=["POST"])
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
+@jwt_required()
+def create_batch_slots_v2():
+    """
+    FIXED: Batch slot creation with proper timezone-aware UTC storage
+    """
+    from models import MasterTimeSlot, TimeSlot
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    data = request.get_json()
+    freelancer_id = get_jwt_identity()
+    freelancer = Freelancer.query.get(freelancer_id)
+
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
+
+    start_day = data.get("start_day")  # LOCAL date
+    end_day = data.get("end_day")  # LOCAL date
+    start_time = data.get("start_time")  # LOCAL time like "09:00 AM"
+    end_time = data.get("end_time")  # LOCAL time like "05:00 PM"
+    interval = int(data.get("interval", 15))
+
+    if not all([start_day, start_time, end_time]):
+        return jsonify({"error": "Missing required fields"}), 400
+    if interval < 15 or interval % 15 != 0:
+        return jsonify({"error": "Interval must be a multiple of 15 minutes"}), 400
+
+    master_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    label_to_master = {mt.label: mt for mt in master_times}
+
+    try:
+        # 🔥 FIX: Parse as LOCAL datetime in freelancer's timezone
+        tz = ZoneInfo(freelancer.timezone)
+
+        # Parse start and end as naive datetimes, then localize
+        start_naive = datetime.strptime(
+            f"{start_day} {start_time}", "%Y-%m-%d %I:%M %p"
+        )
+        end_naive = datetime.strptime(f"{end_day} {end_time}", "%Y-%m-%d %I:%M %p")
+
+        # Make them timezone-aware in freelancer's timezone
+        start_local = start_naive.replace(tzinfo=tz)
+        end_local = end_naive.replace(tzinfo=tz)
+
+        # Convert to UTC for iteration
+        start_utc = start_local.astimezone(ZoneInfo("UTC"))
+        end_utc = end_local.astimezone(ZoneInfo("UTC"))
+
+        created_slots = []
+        current_utc = start_utc
+
+        print(
+            f"🌍 Creating slots from {start_local} ({freelancer.timezone}) to {end_local}"
+        )
+        print(f"   → UTC range: {start_utc} to {end_utc}")
+
+        # Iterate through UTC times
+        while current_utc < end_utc:
+            utc_time_label = current_utc.strftime("%I:%M %p")
+            utc_day = current_utc.strftime("%Y-%m-%d")
+
+            master_time = label_to_master.get(utc_time_label)
+            if not master_time:
+                current_utc += timedelta(minutes=interval)
+                continue
+
+            # Check if slot already exists
+            existing_slot = TimeSlot.query.filter_by(
+                freelancer_id=freelancer_id,
+                day=utc_day,  # 🔥 STORE UTC DATE
+                master_time_id=master_time.id,
+            ).first()
+
+            if not existing_slot:
+                new_slot = TimeSlot(
+                    freelancer_id=freelancer_id,
+                    day=utc_day,  # 🔥 STORE UTC DATE
+                    master_time_id=master_time.id,
+                    is_booked=False,
+                    is_inherited_block=False,
+                )
+                db.session.add(new_slot)
+
+                # Convert back to local for logging
+                local_display = current_utc.astimezone(tz)
+                created_slots.append(
+                    {
+                        "utc_day": utc_day,
+                        "utc_time": utc_time_label,
+                        "local_day": local_display.strftime("%Y-%m-%d"),
+                        "local_time": local_display.strftime("%I:%M %p"),
+                        "master_time_id": master_time.id,
+                    }
+                )
+                print(
+                    f"✅ CREATED: {utc_day} {utc_time_label} UTC (local: {local_display.strftime('%Y-%m-%d %I:%M %p %Z')})"
+                )
+            else:
+                print(f"⏭️  EXISTS: {utc_day} {utc_time_label} UTC")
+
+            current_utc += timedelta(minutes=interval)
+
+        db.session.commit()
+        print(f"🎉 Created {len(created_slots)} new slots")
+
+        return (
+            jsonify(
+                {
+                    "message": f"Created {len(created_slots)} slots",
+                    "slots_created": [
+                        {
+                            **slot,
+                            "id": TimeSlot.query.filter_by(
+                                freelancer_id=freelancer_id,
+                                day=slot["utc_day"],
+                                master_time_id=slot["master_time_id"],
+                            )
+                            .first()
+                            .id,
+                        }
+                        for slot in created_slots
+                    ],
+                }
+            ),
+            201,
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+
+        print("❌ ERROR in batch slot creation:")
+        traceback.print_exc()
+        return jsonify({"error": f"Slot creation failed: {str(e)}"}), 500
+
+
+@freelancer_bp.route("/debug/time-matching", methods=["POST"])
+@jwt_required()
+def debug_time_matching():
+    data = request.get_json()
+    test_time = data.get("test_time", "9:00 AM")
+
+    master_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    label_to_master = {mt.label: mt for mt in master_times}
+
+    test_dt = datetime.strptime(test_time, "%I:%M %p")
+    formats = [
+        test_dt.strftime("%I:%M %p"),
+        test_dt.strftime("%-I:%M %p"),
+    ]
+
+    results = {
+        "input": test_time,
+        "formats_tested": formats,
+        "master_labels_sample": list(label_to_master.keys())[:10],
+        "matches": [],
+    }
+
+    for fmt in formats:
+        if fmt in label_to_master:
+            results["matches"].append(
+                {"format": fmt, "master_id": label_to_master[fmt].id, "found": True}
+            )
+        else:
+            results["matches"].append({"format": fmt, "found": False})
+
+    return jsonify(results)

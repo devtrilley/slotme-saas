@@ -12,6 +12,7 @@ export default function InternalBookingModal({
   refetch,
   preselectedTime = "",
   slotId = null,
+  freelancerTimezone,
 }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -31,7 +32,7 @@ export default function InternalBookingModal({
   if (!visible) return null;
 
   const handleCreate = async () => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("access_token");
 
     if (
       !firstName ||
@@ -60,6 +61,7 @@ export default function InternalBookingModal({
           email,
           service_id: serviceId,
           slot_id: slotId,
+          freelancer_timezone: freelancerTimezone, // ✅ add this
         },
         {
           headers: {
@@ -71,8 +73,8 @@ export default function InternalBookingModal({
       showToast(
         `✅ Manually booked${preselectedTime ? ` for ${preselectedTime}` : ""}`
       );
-      onClose();
       refetch?.();
+      onClose();
     } catch (err) {
       console.error("❌ Internal booking failed:", err);
       const msg =

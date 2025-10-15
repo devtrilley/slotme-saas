@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from models import db, Freelancer, Appointment, TimeSlot, MasterTimeSlot, Service, User
 from utils.time_utils import utc_today
 from utils.jwt_utils import serializer
-from services.email_service import send_feedback_submission
+from email_utils import send_feedback_submission
 from config import ALLOWED_ORIGINS, FRONTEND_ORIGIN
 from config import name_pool, ip_attempts
 from dev.seed_helpers import seed_freelancer, add_appointment
@@ -331,6 +331,7 @@ def seed_everything():
         booking_instructions="Please bring recent practice scores and show up on Zoom 5 mins early with a quiet space.",
         preferred_payment_methods="Stripe (card), PayPal",
         location="Raleigh, NC",
+        timezone="America/New_York",
         services=[
             {
                 "name": "SAT Diagnostic Session",
@@ -402,7 +403,8 @@ def seed_everything():
         ],
         booking_instructions="Come with clean, product-free hair. No guests in the chair. Show up early, not late.",
         preferred_payment_methods="Cash, Zelle, Apple Pay",
-        location="Atlanta, GA",
+        location="Chicago, IL",
+        timezone="America/Chicago",
         tier="pro",
         early_access=True,
         is_verified=True,
@@ -481,7 +483,8 @@ def seed_everything():
         ],
         booking_instructions="Please come with a clean face. No guests allowed in the studio. Late = forfeit appointment.",
         preferred_payment_methods="Card on file, Venmo (business), Cash App",
-        location="Houston, TX",
+        location="Los Angeles, CA",
+        timezone="America/Los_Angeles",
         tier="elite",
         early_access=True,
         is_verified=True,

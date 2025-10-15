@@ -4,8 +4,11 @@ import { showToast } from "../../utils/toast";
 import { useLocation } from "react-router-dom";
 import slotmeLogo from "../../assets/slotme-logo.svg";
 
+import { useFreelancer } from "../../context/FreelancerContext"; // 👈 Add this line
+
 export default function Navbar() {
   const navigate = useNavigate();
+  const { clearFreelancer } = useFreelancer(); // 👈 Access the context reset method
   const isDevLoggedIn = localStorage.getItem("dev_logged_in");
   const isFreelancerLoggedIn = localStorage.getItem("freelancer_logged_in");
 
@@ -22,6 +25,8 @@ export default function Navbar() {
       localStorage.removeItem("freelancer_id");
       localStorage.removeItem("branding_updated");
       localStorage.removeItem("client_id");
+
+      clearFreelancer(); // 👈 Reset in-memory context
       navigate("/auth");
     }
 

@@ -19,8 +19,8 @@ export default function ProfilePhoto({
           shadow: "shadow-[0_0_12px_4px_rgba(99,102,241,0.7)]",
         };
 
-  console.log("ProfilePhoto tier:", tier);
-  console.log("safeTier:", safeTier);
+  // console.log("ProfilePhoto tier:", tier);
+  // console.log("safeTier:", safeTier);
   return (
     <div className={`relative inline-block ${size}`}>
       <div

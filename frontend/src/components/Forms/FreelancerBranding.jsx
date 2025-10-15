@@ -51,7 +51,7 @@ export default function FreelancerBranding({ onUpdate }) {
       .get(`${API_BASE}/freelancer-info`)
       .then((res) => {
         const data = res.data;
-        console.log("🔍 Loaded branding data:", data); // debug log
+        // console.log("🔍 Loaded branding data:", data); // debug log
 
         setForm({
           business_name: data.business_name || "",
@@ -159,7 +159,7 @@ export default function FreelancerBranding({ onUpdate }) {
       });
   };
 
-  console.log("🧪 Final form state before render:", form);
+  // console.log("🧪 Final form state before render:", form);
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-4">

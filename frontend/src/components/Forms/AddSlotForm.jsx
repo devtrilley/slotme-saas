@@ -4,6 +4,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import BatchSlotForm from "./BatchSlotForm";
 import SingleSlotForm from "./SingleSlotForm";
 import { API_BASE } from "../../utils/constants";
+import { useFreelancer } from "../../context/FreelancerContext";
 
 export default function AddSlotForm({
   onAdd,
@@ -39,9 +40,9 @@ export default function AddSlotForm({
   const [ampm, setAmpm] = useState(
     () => localStorage.getItem("slot_ampm") || "AM"
   );
-  const [timezone, setTimezone] = useState(
-    Intl.DateTimeFormat().resolvedOptions().timeZone
-  );
+
+  const { freelancer } = useFreelancer();
+  const timezone = freelancer?.timezone || "America/New_York";
   const [masterTimes, setMasterTimes] = useState([]);
   const [timesLoading, setTimesLoading] = useState(true);
   const [userChangedDate, setUserChangedDate] = useState(false);
@@ -123,7 +124,6 @@ export default function AddSlotForm({
             localStorage.setItem("slot_ampm", a);
           }}
           timezone={timezone}
-          setTimezone={setTimezone}
           masterTimes={masterTimes}
           userChangedDate={userChangedDate}
           setUserChangedDate={setUserChangedDate}
@@ -138,6 +138,7 @@ export default function AddSlotForm({
             setSelectedDate(newDate);
             if (setSyncDate) setSyncDate(newDate);
           }}
+          freelancerTimezone={timezone} // ✅ pass down the freelancer's timezone
         />
       )}
     </div>

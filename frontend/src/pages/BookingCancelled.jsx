@@ -23,7 +23,8 @@ export default function BookingCancelled() {
   const handleCancel = async () => {
     setStatus("loading");
     try {
-      await axios.get(`${API_BASE}/cancel-booking/${cancelToken}`);
+      // 🔥 FIX: Use POST to actually execute cancellation
+      await axios.post(`${API_BASE}/cancel-booking/${cancelToken}`);
       setStatus("success");
       setTimeout(() => navigate("/"), 3500);
     } catch (err) {
@@ -66,12 +67,15 @@ export default function BookingCancelled() {
     );
   }
 
-  const formattedDate = new Date(appointment.day).toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const formattedDate = new Date(appointment.slot_day).toLocaleDateString(
+    "en-US",
+    {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }
+  );
 
   return (
     <div className="max-w-md mx-auto p-6 text-white space-y-6">
@@ -115,7 +119,7 @@ export default function BookingCancelled() {
               <p>{appointment.service_name}</p>
               <p>📅 {formattedDate}</p>
               <p>
-                🕒 {appointment.time} ({appointment.timezone})
+                🕒 {appointment.slot_time} ({appointment.timezone_abbr})
               </p>
             </div>
 

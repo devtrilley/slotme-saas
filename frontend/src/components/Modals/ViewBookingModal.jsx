@@ -2,6 +2,10 @@ import { useContext, useState, useRef } from "react";
 import { useFreelancer } from "../../context/FreelancerContext";
 import { showToast } from "../../utils/toast";
 import BaseModal from "./BaseModal";
+import {
+  formatSlotTimePartsFromUTC,
+  formatSlotTimePartsFromLocal,
+} from "../../utils/timezoneHelpers";
 
 export default function ViewBookingModal({ appointment, onClose, onCancel }) {
   if (!appointment) return null;
@@ -48,9 +52,23 @@ export default function ViewBookingModal({ appointment, onClose, onCancel }) {
         <p>
           <strong>Date:</strong> {slot_day}
         </p>
-        <p>
-          <strong>Time:</strong> {slot_time} ({freelancer_timezone})
-        </p>
+        {(() => {
+          const timezone =
+            freelancerDetails?.timezone ||
+            appointment.freelancer_timezone ||
+            "America/New_York";
+          const { formattedTime, abbreviation } = formatSlotTimePartsFromLocal(
+            { day: slot_day, time: slot_time },
+            timezone
+          );
+
+          return (
+            <p>
+              <strong>Time:</strong> {formattedTime}
+              <span className="ml-1 text-xs text-gray-400">{abbreviation}</span>
+            </p>
+          );
+        })()}
         <p>
           <strong>Service:</strong> {service || "N/A"}
         </p>

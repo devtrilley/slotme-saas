@@ -1,12 +1,18 @@
 import React from "react";
+import {
+  isSlotInPast,
+  formatSlotTimeParts,
+  formatSlotDate,
+} from "../../utils/timezoneHelpers";
 
 export default function TimeSlotCard({
   slot,
   onClick,
   showButton = true,
   centered = false,
+  freelancerTimezone,
 }) {
-  const isPast = new Date(`${slot.day} ${slot.time}`) < new Date();
+  const isPast = isSlotInPast(slot, freelancerTimezone);
 
   const bgColor =
     slot.is_booked || slot.is_inherited_block
@@ -15,16 +21,6 @@ export default function TimeSlotCard({
       ? "border-gray-400 bg-[rgba(107,114,128,0.2)]"
       : "border-green-300 bg-[rgba(34,197,94,0.1)]";
 
-  const formatDate = (dateStr) => {
-    const [year, month, day] = dateStr.split("-");
-    const date = new Date(Number(year), Number(month) - 1, Number(day));
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
   return (
     <div
       className={`p-4 rounded-xl shadow-sm border transition hover:shadow-md ${bgColor} ${
@@ -32,15 +28,25 @@ export default function TimeSlotCard({
       }`}
     >
       <p className={`${centered ? "text-sm" : "text-xs"} text-gray-400 mb-1`}>
-        {formatDate(slot.day)}
+        {formatSlotDate(slot, freelancerTimezone)}
       </p>
       <p
         className={`${
           centered ? "text-xl justify-center" : "text-lg"
         } font-semibold flex items-center gap-1`}
       >
-        {slot.time}
-        <span className="text-xs text-gray-400">UTC</span>
+        {(() => {
+          const { formattedTime, abbreviation } = formatSlotTimeParts(
+            slot,
+            freelancerTimezone
+          );
+          return (
+            <>
+              <span>{formattedTime}</span>
+              <span className="text-xs text-gray-400">{abbreviation}</span>
+            </>
+          );
+        })()}
       </p>
 
       {slot.is_booked || slot.is_inherited_block ? (
@@ -69,15 +75,40 @@ export default function TimeSlotCard({
         </p>
       )}
 
-      {showButton && !slot.is_booked && !slot.is_inherited_block && (
+      {/* 🔥 NEW: Show both Book and Delete buttons for available slots */}
+      {showButton && !slot.is_booked && !slot.is_inherited_block && !isPast && (
+        <div className="mt-2 flex gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick(slot);
+            }}
+            className="btn btn-primary btn-sm"
+          >
+            Manually Book
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick({ ...slot, _deleteAction: true });
+            }}
+            className="btn btn-error btn-sm"
+          >
+            Delete
+          </button>
+        </div>
+      )}
+
+      {/* 🔥 NEW: Show delete button for passed/booked slots */}
+      {showButton && (slot.is_booked || slot.is_inherited_block || isPast) && (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onClick(slot); // pass full slot object to handler
+            onClick({ ...slot, _deleteAction: true });
           }}
-          className="btn btn-sm btn-primary mt-2"
+          className="btn btn-sm btn-error mt-2"
         >
-          Manually Book
+          🗑️ Delete Slot
         </button>
       )}
     </div>

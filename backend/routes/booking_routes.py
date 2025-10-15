@@ -3,7 +3,10 @@
 import os
 from flask import Blueprint, request, jsonify, Response, g
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime
+
+# Import zoneinfo and datetime at the top of the file
+from zoneinfo import ZoneInfo
+from datetime import datetime, time as dt_time
 from sqlalchemy import and_
 from config import name_pool, ip_attempts
 
@@ -80,6 +83,7 @@ def book_slot():
         "service_id",
         "website",  # explicitly allowed
         "custom_responses",
+        "customer_timezone",
     }
 
     # Dynamic trap — Any extra unexpected field triggers block if filled
@@ -113,28 +117,28 @@ def book_slot():
             429,
         )
 
-    # 🛡️ Honeypot Silent Bot Trap (Dynamic Field + Extra Key Detection)
-    HUMAN_FIELDS = {
-        "first_name",
-        "last_name",
-        "email",
-        "phone",
-        "slot_id",
-        "service_id",
-        "custom_responses",
-    }
+    # # 🛡️ Honeypot Silent Bot Trap (Dynamic Field + Extra Key Detection)
+    # HUMAN_FIELDS = {
+    #     "first_name",
+    #     "last_name",
+    #     "email",
+    #     "phone",
+    #     "slot_id",
+    #     "service_id",
+    #     "custom_responses",
+    # }
 
-    # Separate unexpected keys
-    unexpected = [key for key in data.keys() if key not in HUMAN_FIELDS]
+    # # Separate unexpected keys
+    # unexpected = [key for key in data.keys() if key not in HUMAN_FIELDS]
 
-    # Classic fixed trap for legacy bots
-    if data.get("website"):
-        return jsonify({"error": "Spam detected"}), 400
+    # # Classic fixed trap for legacy bots
+    # if data.get("website"):
+    #     return jsonify({"error": "Spam detected"}), 400
 
-    # Dynamic trap — ANY extra field with value = bot
-    for key in unexpected:
-        if data.get(key):
-            return jsonify({"error": "Spam detected"}), 400
+    # # Dynamic trap — ANY extra field with value = bot
+    # for key in unexpected:
+    #     if data.get(key):
+    #         return jsonify({"error": "Spam detected"}), 400
 
     first_name = data.get("first_name")
     last_name = data.get("last_name")
@@ -264,16 +268,19 @@ def book_slot():
         except ValueError:
             continue
 
+    freelancer = Freelancer.query.get(slot.freelancer_id)
+
     appointment = Appointment(
         slot_id=slot_id,
         freelancer_id=slot.freelancer_id,
         user_id=user.id,
         service_id=service_id,
         status="pending",
-        email=email,  # <- NEW
+        email=email,
         phone=phone,
         timestamp=datetime.now(timezone.utc),
         custom_responses=custom_responses,
+        freelancer_timezone=freelancer.timezone,
     )
     db.session.add(appointment)
 
@@ -438,34 +445,17 @@ def confirm_booking_email(token):
             f"&text={title}&dates={start_str}/{end_str}&details={details}&location={location}"
         )
 
-        subject = "📅 Your Appointment is Confirmed – SlotMe"
-        body = f"""Hi {user.first_name},
-
-        Thanks for confirming your booking!
-
-        ✅ Appointment Details:
-        • Freelancer: {freelancer.business_name or "your freelancer"}
-        • Service: {service.name}
-        • Date: {formatted_date}
-        • Time: {formatted_time} (UTC)
-        """
-
-        if freelancer.business_address:
-            body += f"• Location: {freelancer.business_address}\n"
-
-        body += f"\n📅 Add to your calendar: {calendar_url}\n"
-
-        # ✅ ADD THIS
-        cancel_token = appointment.cancel_token
-        cancel_link = f"{FRONTEND_ORIGIN}/cancel/{cancel_token}"
-        body += f"\n❌ Need to cancel?\nClick here: {cancel_link}\n"
-
-        body += "\nIf you need to reschedule or have questions, please contact the freelancer directly.\n– The SlotMe Team"
-
+        # ✅ Send timezone-aware HTML confirmation email
         try:
-            send_branded_customer_reply(subject, body, user.email)
+            from services.email_service import send_booking_confirmation_email
+
+            # Pass the freelancer's timezone so the email shows correct time
+            send_booking_confirmation_email(
+                appointment, customer_timezone=freelancer.timezone
+            )
         except Exception as e:
-            print("❌ Failed to send booking receipt:", e)
+            print(f"⚠️ Failed to send booking confirmation email: {e}")
+            # Don't fail the confirmation if email fails
 
         return redirect(
             f"{FRONTEND_ORIGIN}/booking-confirmed?appointment_id={appointment.id}"
@@ -486,29 +476,35 @@ def download_ics(appointment_id):
     service = appt.service
     slot = appt.slot
 
-    # Parse naive time assuming it's in Eastern Time (local UI-facing label)
+    # ✅ Parse UTC time correctly
     naive_start = datetime.strptime(
         f"{slot.day} {slot.master_time.time_24h}", "%Y-%m-%d %H:%M"
     )
     utc_start = naive_start.replace(tzinfo=timezone.utc)
     utc_end = utc_start + timedelta(minutes=service.duration_minutes)
 
-    # Format for ICS (UTC Zulu time format)
+    # ✅ Format for ICS with proper UTC timezone
     start_utc_str = utc_start.strftime("%Y%m%dT%H%M%SZ")
     end_utc_str = utc_end.strftime("%Y%m%dT%H%M%SZ")
 
     title = f"{service.name} with {freelancer.business_name or 'your freelancer'}"
-    description = "Booked via SlotMe"
+    description = f"Service: {service.name}\\nBooked via SlotMe"
     location = freelancer.business_address or "Online"
 
+    # ✅ Include timezone info for better calendar compatibility
     ics = f"""BEGIN:VCALENDAR
 VERSION:2.0
+PRODID:-//SlotMe//Booking System//EN
+METHOD:PUBLISH
 BEGIN:VEVENT
-SUMMARY:{title}
+UID:{appt.id}@slotme.xyz
+DTSTAMP:{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}
 DTSTART:{start_utc_str}
 DTEND:{end_utc_str}
-LOCATION:{location}
+SUMMARY:{title}
 DESCRIPTION:{description}
+LOCATION:{location}
+STATUS:CONFIRMED
 END:VEVENT
 END:VCALENDAR"""
 
@@ -534,6 +530,31 @@ def get_appointments():
 
     for a in appointments:
         user = a.user
+
+        # ✅ Convert UTC slot time to freelancer's local timezone for display
+        try:
+            freelancer_tz = ZoneInfo(a.freelancer.timezone or "America/New_York")
+
+            # Parse the UTC time stored in the DB
+            slot_date = datetime.strptime(a.slot.day, "%Y-%m-%d").date()
+            utc_time = dt_time.fromisoformat(a.slot.master_time.time_24h)
+
+            utc_dt = datetime.combine(slot_date, utc_time).replace(
+                tzinfo=ZoneInfo("UTC")
+            )
+            local_dt = utc_dt.astimezone(freelancer_tz)
+
+            local_time_display = local_dt.strftime("%I:%M %p").lstrip("0")
+            timezone_abbr = local_dt.tzname()
+
+            # 🔥 FIX: Use the LOCAL DATE, not the UTC date
+            local_date_str = local_dt.strftime("%Y-%m-%d")
+        except Exception as e:
+            print(f"❌ Error converting time for appointment {a.id}: {e}")
+            local_time_display = a.slot.master_time.label
+            timezone_abbr = "UTC"
+            local_date_str = a.slot.day  # fallback to UTC date
+
         result.append(
             {
                 "id": a.id,
@@ -542,15 +563,18 @@ def get_appointments():
                 "name": f"{user.first_name} {user.last_name}",
                 "email": user.email,
                 "phone": user.phone,
-                "slot_day": a.slot.day,
-                "slot_time": a.slot.master_time.label,
+                "slot_day": local_date_str,  # 🔥 FIXED: Use local date
+                "slot_time": local_time_display,
+                "freelancer_timezone": (
+                    a.freelancer.timezone if a.freelancer else "America/New_York"
+                ),
+                "timezone_abbr": timezone_abbr,
                 "status": a.status,
-                "freelancer_timezone": "UTC",
                 "service": a.service.name if a.service else None,
                 "service_duration_minutes": (
                     a.service.duration_minutes if a.service else None
                 ),
-                "custom_responses": a.custom_responses or {},  # ✅ ADD THIS
+                "custom_responses": a.custom_responses or {},
             }
         )
 
@@ -834,12 +858,22 @@ def get_public_appointment(appointment_id):
     if not appt or appt.status == "cancelled":
         return jsonify({"error": "Not found"}), 404
 
-    start_dt = datetime.strptime(
-        f"{appt.slot.day} {appt.slot.master_time.time_24h}", "%Y-%m-%d %H:%M"
-    )
-    end_dt = start_dt + timedelta(minutes=appt.service.duration_minutes)
-    start_str = start_dt.strftime("%Y%m%dT%H%M%S")
-    end_str = end_dt.strftime("%Y%m%dT%H%M%S")
+    # ✅ Convert UTC time to freelancer's timezone
+    freelancer_tz = ZoneInfo(appt.freelancer.timezone or "America/New_York")
+
+    slot_date = datetime.strptime(appt.slot.day, "%Y-%m-%d").date()
+    utc_time = dt_time.fromisoformat(appt.slot.master_time.time_24h)
+    utc_dt = datetime.combine(slot_date, utc_time).replace(tzinfo=ZoneInfo("UTC"))
+
+    # Convert to freelancer's local time
+    local_dt = utc_dt.astimezone(freelancer_tz)
+    local_time_display = local_dt.strftime("%I:%M %p").lstrip("0")
+    timezone_abbr = local_dt.tzname()
+
+    # Calendar URLs use UTC with 'Z' suffix
+    start_str = utc_dt.strftime("%Y%m%dT%H%M%SZ")
+    end_dt = utc_dt + timedelta(minutes=appt.service.duration_minutes)
+    end_str = end_dt.strftime("%Y%m%dT%H%M%SZ")
 
     calendar_url = (
         "https://calendar.google.com/calendar/render?action=TEMPLATE"
@@ -852,11 +886,10 @@ def get_public_appointment(appointment_id):
     return jsonify(
         {
             "first_name": appt.user.first_name,
-            # Removed last name for privacy
             "freelancer_name": appt.freelancer.business_name or "your freelancer",
             "day": appt.slot.day,
-            "time": appt.slot.master_time.label,
-            "timezone": "UTC",
+            "time": local_time_display,  # ✅ LOCAL TIME
+            "timezone": timezone_abbr,  # ✅ EDT/PST/etc
             "service_name": appt.service.name,
             "business_address": appt.freelancer.business_address or None,
             "calendar_url": calendar_url,
@@ -866,21 +899,39 @@ def get_public_appointment(appointment_id):
 
 @booking_bp.route("/cancel-booking/<cancel_token>", methods=["GET"])
 @cross_origin(origins=ALLOWED_ORIGINS)
-def cancel_booking(cancel_token):
-    print("🔔 Cancel route hit with token:", cancel_token)
-    appointment = Appointment.query.filter_by(cancel_token=cancel_token).first()
+def cancel_booking_redirect(cancel_token):
+    """Email link - redirects user to frontend confirmation page"""
+    print("🔐 Cancel GET route hit with token:", cancel_token)
+    return redirect(f"{FRONTEND_ORIGIN}/cancel/{cancel_token}")
 
+
+@booking_bp.route("/cancel-booking/<cancel_token>", methods=["POST"])
+@cross_origin(origins=ALLOWED_ORIGINS)
+def cancel_booking_execute(cancel_token):
+    """API endpoint - actually performs the cancellation after user confirms"""
+    print("🔐 Cancel POST route hit with token:", cancel_token)
+
+    appointment = Appointment.query.filter_by(cancel_token=cancel_token).first()
     if not appointment:
         print("❌ Invalid cancel token")
-        return jsonify({"error": "Invalid token"}), 404
+        return jsonify({"error": "Invalid or expired cancellation link"}), 404
 
     if appointment.status != "confirmed":
-        print(f"🚫 Not cancellable. Status: {appointment.status}")
-        return jsonify({"error": "Not cancellable"}), 400
+        print(f"🚫 Not cancellable. Current status: {appointment.status}")
+        return (
+            jsonify(
+                {
+                    "error": "This appointment has already been cancelled or is not confirmed"
+                }
+            ),
+            400,
+        )
 
+    # Perform cancellation
     appointment.status = "cancelled"
     appointment.slot.is_booked = False
 
+    # Clear inherited blocks
     clear_inherited_blocks(
         freelancer_id=appointment.freelancer_id,
         day=appointment.slot.day,
@@ -889,17 +940,10 @@ def cancel_booking(cancel_token):
     )
 
     db.session.commit()
-    print("✅ Appointment cancelled.")
+    print("✅ Appointment cancelled successfully.")
 
     return (
-        jsonify(
-            {
-                "success": True,
-                "message": "Appointment cancelled.",
-                "appointment_id": appointment.id,
-                "freelancer_id": appointment.freelancer_id,
-            }
-        ),
+        jsonify({"success": True, "message": "Appointment cancelled successfully"}),
         200,
     )
 
@@ -1023,9 +1067,17 @@ def get_appointment_by_id(appointment_id):
     )
 
 
-@booking_bp.route("/appointments/internal", methods=["POST"])
+@booking_bp.route("/appointments/internal", methods=["POST", "OPTIONS"])
+@cross_origin(
+    origins=ALLOWED_ORIGINS,
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+)
 @require_auth
 def create_internal_appointment():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+
     freelancer_id = g.freelancer.id
     data = request.get_json()
 
@@ -1052,6 +1104,43 @@ def create_internal_appointment():
     service = Service.query.get(service_id)
     if not service or service.freelancer_id != freelancer_id:
         return jsonify({"error": "Invalid service"}), 400
+
+    # ✅ CHECK FOR CONFLICTS across all required time blocks
+    all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    time_labels = [t.label for t in all_times]
+
+    duration_blocks = service.duration_minutes // 15
+    start_label = slot.master_time.label
+
+    try:
+        start_index = time_labels.index(start_label)
+    except ValueError:
+        return jsonify({"error": "Invalid slot time"}), 400
+
+    required_labels = time_labels[start_index : start_index + duration_blocks]
+
+    # Check if any required slots are already booked
+    confirmed_conflict = (
+        Appointment.query.join(TimeSlot)
+        .join(MasterTimeSlot)
+        .filter(
+            Appointment.freelancer_id == freelancer_id,
+            Appointment.status == "confirmed",
+            TimeSlot.day == slot.day,
+            MasterTimeSlot.label.in_(required_labels),
+        )
+        .first()
+    )
+
+    if confirmed_conflict:
+        return (
+            jsonify(
+                {
+                    "error": "Not enough consecutive free time for this service. Choose a different time or shorter service."
+                }
+            ),
+            400,
+        )
 
     # Create or update user
     user = User.query.filter_by(email=email).first()
@@ -1081,14 +1170,17 @@ def create_internal_appointment():
         )
 
     # Create appointment - DIRECTLY as confirmed (bypassing email confirmation)
+    freelancer_timezone = data.get("freelancer_timezone") or g.freelancer.timezone
+
     appointment = Appointment(
         slot_id=slot_id,
         freelancer_id=freelancer_id,
         user_id=user.id,
         service_id=service_id,
-        status="confirmed",  # Direct confirmation for internal bookings
+        status="confirmed",
         email=email,
         phone=phone,
+        freelancer_timezone=freelancer_timezone,  # ✅ critical fix
         timestamp=datetime.now(timezone.utc),
     )
     db.session.add(appointment)
@@ -1170,19 +1262,52 @@ def check_duplicates(freelancer_id):
 @booking_bp.route("/preview-cancel/<cancel_token>", methods=["GET"])
 @cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def preview_cancel(cancel_token):
-    print("✅ HIT preview_cancel route")
-    print("🪪 Cancel token received:", cancel_token)
-
     appointment = Appointment.query.filter_by(cancel_token=cancel_token).first()
     if not appointment:
-        print("❌ No appointment found for token")
         return jsonify({"error": "Invalid token"}), 404
     if appointment.status != "confirmed":
-        print("🚫 Appointment is not confirmed (status:", appointment.status, ")")
         return jsonify({"error": "Not cancellable"}), 400
 
-    print("✅ Appointment found and valid. Returning data.")
-    return jsonify(appointment.to_dict()), 200
+    # 🔥 FIX: Treat slot.day as LOCAL date, not UTC date
+    from zoneinfo import ZoneInfo
+    from datetime import datetime, time as dt_time
+
+    freelancer_tz = ZoneInfo(appointment.freelancer.timezone or "America/New_York")
+
+    # ✅ Step 1: Rebuild the slot datetime in UTC
+    slot_day = appointment.slot.day  # '2025-10-15'
+    slot_time = appointment.slot.master_time.time_24h  # '03:00'
+    utc_dt = datetime.strptime(f"{slot_day} {slot_time}", "%Y-%m-%d %H:%M").replace(
+        tzinfo=timezone.utc
+    )
+
+    # ✅ Step 2: Convert to freelancer's local timezone
+    freelancer_tz = ZoneInfo(appointment.freelancer.timezone or "America/New_York")
+    local_dt = utc_dt.astimezone(freelancer_tz)
+
+    # Convert to UTC to verify
+    utc_dt = local_dt.astimezone(ZoneInfo("UTC"))
+
+    # Convert back to local for display
+    display_local_dt = utc_dt.astimezone(freelancer_tz)
+
+    local_time_display = display_local_dt.strftime("%I:%M %p").lstrip("0")
+    timezone_abbr = display_local_dt.tzname()
+    return (
+        jsonify(
+            {
+                "id": appointment.id,
+                "freelancer_name": appointment.freelancer.business_name
+                or "your freelancer",
+                "service_name": appointment.service.name if appointment.service else "",
+                "slot_day": appointment.slot.day,  # ✅ Use raw UTC date from DB
+                "slot_time": local_time_display,
+                "timezone_abbr": timezone_abbr,
+                "status": appointment.status,
+            }
+        ),
+        200,
+    )
 
 
 @booking_bp.route("/debug-cancel-token/<token>", methods=["GET"])

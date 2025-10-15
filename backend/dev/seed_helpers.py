@@ -5,25 +5,54 @@ from models import db, Appointment, TimeSlot, MasterTimeSlot, Freelancer, Servic
 from werkzeug.security import generate_password_hash
 from flask_jwt_extended import create_access_token
 from utils.time_utils import utc_today  # or adjust path as needed
+from zoneinfo import ZoneInfo
+from utils.time_utils import utc_today
+from utils.timezone_utils import utc_label_to_datetime
 
 
-def add_appointment(freelancer, user, service, start_label, day):
-    """Creates a full appointment (booked slot + inherited blocks + appointment record)."""
+def add_appointment(freelancer, user, service, start_label_local, day):
+    """
+    Creates a full appointment (booked slot + inherited blocks + appointment record).
+    Args:
+        freelancer: Freelancer object with timezone info
+        user: User object
+        service: Service object with duration
+        start_label_local: Time label in freelancer's local timezone (e.g., "02:00 PM")
+        day: LOCAL date string in ISO format (YYYY-MM-DD) in freelancer's timezone
+    """
+    # Convert local time label to UTC, including proper date handling
+    utc_start_label, utc_day = convert_local_label_to_utc_label(
+        start_label_local, freelancer.timezone, day
+    )
+
+    if utc_day is None:
+        print(f"❌ Failed to convert local time '{start_label_local}' on '{day}'")
+        return None
+
     all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
     time_labels = [t.label for t in all_times]
-    start_index = time_labels.index(start_label)
+
+    try:
+        start_index = time_labels.index(utc_start_label)
+    except ValueError:
+        print(
+            f"❌ Invalid UTC time label: {utc_start_label} (converted from local '{start_label_local}')"
+        )
+        return None
+
     required_labels = time_labels[
         start_index : start_index + (service.duration_minutes // 15)
     ]
 
-    # Book starting slot
-    mt_start = next((mt for mt in all_times if mt.label == start_label), None)
+    mt_start = next((mt for mt in all_times if mt.label == utc_start_label), None)
     if not mt_start:
+        print(f"❌ No MasterTimeSlot found for UTC label: {utc_start_label}")
         return None
 
-    # Try to reuse existing open slot, otherwise create one
     existing_start = TimeSlot.query.filter_by(
-        day=day, freelancer_id=freelancer.id, master_time_id=mt_start.id
+        day=utc_day,  # 🔥 USE UTC DATE
+        freelancer_id=freelancer.id,
+        master_time_id=mt_start.id,
     ).first()
 
     if existing_start:
@@ -32,11 +61,13 @@ def add_appointment(freelancer, user, service, start_label, day):
             db.session.commit()
             start_slot = existing_start
         else:
-            print(f"⏭️ Slot already booked at {start_label} for {freelancer.first_name}")
+            print(
+                f"⭐️ Slot already booked at {utc_start_label} UTC (local: {start_label_local}) for {freelancer.first_name}"
+            )
             return None
     else:
         start_slot = TimeSlot(
-            day=day,
+            day=utc_day,  # 🔥 USE UTC DATE
             master_time_id=mt_start.id,
             freelancer_id=freelancer.id,
             is_booked=True,
@@ -49,12 +80,14 @@ def add_appointment(freelancer, user, service, start_label, day):
         mt = next((t for t in all_times if t.label == label), None)
         if mt:
             existing = TimeSlot.query.filter_by(
-                day=day, freelancer_id=freelancer.id, master_time_id=mt.id
+                day=utc_day,  # 🔥 USE UTC DATE
+                freelancer_id=freelancer.id,
+                master_time_id=mt.id,
             ).first()
             if not existing:
                 db.session.add(
                     TimeSlot(
-                        day=day,
+                        day=utc_day,  # 🔥 USE UTC DATE
                         freelancer_id=freelancer.id,
                         master_time_id=mt.id,
                         is_booked=True,
@@ -63,7 +96,6 @@ def add_appointment(freelancer, user, service, start_label, day):
 
     db.session.commit()
 
-    # Create appointment
     appt = Appointment(
         slot_id=start_slot.id,
         freelancer_id=freelancer.id,
@@ -71,12 +103,13 @@ def add_appointment(freelancer, user, service, start_label, day):
         service_id=service.id,
         status="confirmed",
         timestamp=datetime.now(timezone.utc),
+        freelancer_timezone=freelancer.timezone,
     )
     db.session.add(appt)
     db.session.commit()
 
     print(
-        f"✅ Created booking for {user.first_name} {user.last_name} at {start_label} with {freelancer.first_name}"
+        f"✅ Created booking for {user.first_name} {user.last_name} at {start_label_local} ({freelancer.timezone}) -> {utc_start_label} UTC with {freelancer.first_name}"
     )
 
     return appt
@@ -101,6 +134,7 @@ def seed_freelancer(
     booking_instructions,
     preferred_payment_methods,
     location,
+    timezone="America/New_York",  # ✅ Add this line
     tier=None,
     early_access=False,
     is_verified=True,
@@ -116,6 +150,7 @@ def seed_freelancer(
 
     # Update or overwrite all fields
     freelancer.email = email  # ✅ <-- ADD THIS LINE BACK IN
+    freelancer.timezone = timezone  # ✅ Set freelancer's timezone
     freelancer.first_name = first_name
     freelancer.last_name = last_name
     freelancer.business_name = business_name
@@ -150,19 +185,43 @@ def seed_freelancer(
         db.session.add(Service(freelancer_id=freelancer.id, **svc))
     db.session.commit()
 
-    # Add open slots
-    today = utc_today()
+    # Add open slots using UTC-converted labels and dates
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    # Get today in the freelancer's LOCAL timezone
+    tz = ZoneInfo(freelancer.timezone)
+    local_today = datetime.now(tz).date()
+
     all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
+    time_label_map = {t.label: t for t in all_times}
+
     for label in open_slot_labels:
-        mt = next((t for t in all_times if t.label == label), None)
+        # Convert local time to UTC, getting BOTH the UTC label and UTC date
+        utc_label, utc_date = convert_local_label_to_utc_label(
+            label, freelancer.timezone, local_today
+        )
+
+        if utc_date is None:
+            print(f"⚠️ Failed to convert local label '{label}'")
+            continue
+
+        mt = time_label_map.get(utc_label)
         if mt:
             db.session.add(
                 TimeSlot(
-                    day=today.isoformat(),
+                    day=utc_date,  # 🔥 NOW STORES CORRECT UTC DATE
                     freelancer_id=freelancer.id,
                     master_time_id=mt.id,
                     is_booked=False,
                 )
+            )
+            print(
+                f"✅ Created slot: {label} ({freelancer.timezone}) → {utc_label} UTC on {utc_date}"
+            )
+        else:
+            print(
+                f"⚠️ No MasterTimeSlot found for UTC label '{utc_label}' (converted from local '{label}')"
             )
     db.session.commit()
 
@@ -202,8 +261,12 @@ def seed_freelancer(
 
             # Skip duplicate check if force_bookings=True
             if not force_bookings:
+                # Convert to UTC label first
+                converted_label = convert_local_label_to_utc_label(
+                    start_label, freelancer.timezone
+                )
                 mt_start = next(
-                    (mt for mt in all_times if mt.label == start_label), None
+                    (mt for mt in all_times if mt.label == converted_label), None
                 )
                 if not mt_start:
                     print(f"❌ Invalid time label: {start_label}")
@@ -223,17 +286,24 @@ def seed_freelancer(
                 )
 
                 if existing_appt:
-                    print(
-                        f"⏭️  Skipping duplicate booking for {user.first_name} {user.last_name}"
+                    # ✅ Use timezone-safe local comparison
+                    existing_label_utc = existing_appt.slot.master_time.label
+                    existing_label_local = convert_utc_label_to_local_label(
+                        existing_label_utc, freelancer.timezone
                     )
-                    continue
+
+                    if existing_label_local == start_label:
+                        print(
+                            f"⭐️ Skipping duplicate booking at {start_label} for {user.first_name}"
+                        )
+                        continue
 
             # Create appointment
             result = add_appointment(
                 freelancer=freelancer,
                 user=user,
                 service=service,
-                start_label=start_label,
+                start_label_local=start_label,  # pass local label directly
                 day=today.isoformat(),
             )
 
@@ -247,3 +317,65 @@ def seed_freelancer(
                 )
 
     return freelancer, create_access_token(identity=str(freelancer.id))
+
+
+def convert_local_label_to_utc_label(label_12h, freelancer_timezone, local_date=None):
+    """
+    Converts a time label in freelancer's timezone to UTC label.
+    NOW CORRECTLY HANDLES DAY SHIFTS for western timezones.
+
+    Args:
+        label_12h: Local time like "07:30 PM"
+        freelancer_timezone: IANA timezone like "America/Los_Angeles"
+        local_date: The LOCAL date this time refers to (defaults to today in freelancer TZ)
+
+    Returns:
+        tuple: (utc_label_12h, utc_date) - e.g. ("02:30 AM", "2025-10-15")
+    """
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    try:
+        # Get the local date in freelancer's timezone if not provided
+        if local_date is None:
+            tz = ZoneInfo(freelancer_timezone)
+            local_date = datetime.now(tz).date()
+        elif isinstance(local_date, str):
+            local_date = datetime.strptime(local_date, "%Y-%m-%d").date()
+
+        # Parse the time
+        parsed_time = datetime.strptime(label_12h.strip(), "%I:%M %p").time()
+
+        # Create timezone-aware datetime in freelancer's LOCAL timezone
+        local_dt = datetime.combine(local_date, parsed_time)
+        local_dt = local_dt.replace(tzinfo=ZoneInfo(freelancer_timezone))
+
+        # Convert to UTC
+        utc_dt = local_dt.astimezone(ZoneInfo("UTC"))
+
+        # Return both UTC label and UTC date
+        return utc_dt.strftime("%I:%M %p"), utc_dt.strftime("%Y-%m-%d")
+    except Exception as e:
+        print(
+            f"❌ Error converting '{label_12h}' from {freelancer_timezone} to UTC: {e}"
+        )
+        return label_12h, None
+
+
+def convert_utc_label_to_local_label(utc_label_12h, freelancer_timezone):
+    """
+    Converts a UTC time label back to freelancer's local timezone.
+    """
+    try:
+        parsed_time = datetime.strptime(utc_label_12h.strip(), "%I:%M %p")
+        today = utc_today()
+        utc_dt = datetime.combine(today, parsed_time.time()).replace(
+            tzinfo=ZoneInfo("UTC")
+        )
+        local_dt = utc_dt.astimezone(ZoneInfo(freelancer_timezone))
+        return local_dt.strftime("%I:%M %p")
+    except Exception as e:
+        print(
+            f"❌ Error converting UTC '{utc_label_12h}' to {freelancer_timezone}: {e}"
+        )
+        return utc_label_12h

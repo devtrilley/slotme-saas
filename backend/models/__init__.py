@@ -130,6 +130,7 @@ class Appointment(db.Model):
     confirmation_token = db.Column(db.String(64), unique=True, nullable=True)
     cancel_token = db.Column(db.String(64), unique=True, nullable=True)
     service_id = db.Column(db.Integer, db.ForeignKey("services.id"), nullable=True)
+    freelancer_timezone = db.Column(db.String(50), nullable=False)
 
     slot = db.relationship("TimeSlot", back_populates="appointment")
 
@@ -141,22 +142,25 @@ class Appointment(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
-            "first_name": self.user.first_name if self.user else "",
-            "freelancer_name": (
-                self.slot.freelancer.first_name
-                if self.slot and self.slot.freelancer
-                else ""
+            "name": (
+                f"{self.user.first_name} {self.user.last_name}"
+                if self.user
+                else "Unknown"
             ),
-            "service_name": self.service.name if self.service else "",
-            "day": self.slot.day if self.slot else None,
-            "time": (
+            "email": self.email or (self.user.email if self.user else ""),
+            "slot_day": self.slot.day if self.slot else None,
+            "slot_time": (
                 self.slot.master_time.label
                 if self.slot and self.slot.master_time
                 else ""
             ),
-            "timezone": (
-                self.freelancer.timezone if self.freelancer else "America/New_York"
+            "freelancer_timezone": self.freelancer_timezone
+            or (self.freelancer.timezone if self.freelancer else "America/New_York"),
+            "service": self.service.name if self.service else "",
+            "service_duration_minutes": (
+                self.service.duration_minutes if self.service else None
             ),
+            "status": self.status,
         }
 
 

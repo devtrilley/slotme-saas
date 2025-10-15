@@ -33,13 +33,16 @@ def load_freelancer():
         # "/appointment",
         "/freelancer/public-info",
         "/freelancer/slots",
+        "/freelancer/questions/",
         "/confirm-booking",
+        "/cancel-booking",
         "/check-booking-status",
         "/resend-confirmation",
         "/check-session-status",
         "/stripe/check-session-status",
         "/download-ics",
         "/preview-cancel",
+        "/public-appointment",
     )
 
     open_paths = [
