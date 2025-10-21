@@ -466,14 +466,12 @@ export default function FreelancerBranding({ onUpdate }) {
         currentLogo={form.logo_url} // ✅ NEW
         onUploadComplete={async (url) => {
           setForm((prev) => ({ ...prev, logo_url: url }));
-          showToast("✅ Logo uploaded!", "success");
-
           try {
             await axios.patch(`${API_BASE}/freelancer/branding`, {
               logo_url: url,
             });
             setFreelancer((prev) => ({ ...(prev || {}), logo_url: url }));
-            showToast("✅ Logo saved!", "success");
+            showToast("Logo uploaded and saved successfully!", "success");
           } catch (err) {
             console.error("❌ Failed to auto-save logo", err);
             showToast("❌ Failed to auto-save logo", "error");

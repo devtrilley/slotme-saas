@@ -71,7 +71,8 @@ export default function AdminPage() {
   const [servicesError, setServicesError] = useState(false);
   const [freelancerDetailsLoadError, setFreelancerDetailsLoadError] =
     useState(false);
-    const [freelancerDetails, setFreelancerDetails] = useState(freelancer || {
+  const [freelancerDetails, setFreelancerDetails] = useState(
+    freelancer || {
       business_name: "",
       first_name: "",
       last_name: "",
@@ -80,18 +81,18 @@ export default function AdminPage() {
       bio: "",
       is_verified: false,
       tier: "free",
-    });
-    
-    // 🔥 AUTO-SYNC freelancerDetails when context freelancer updates
-    useEffect(() => {
-      if (freelancer) {
-        setFreelancerDetails((prev) => ({
-          ...prev,
-          ...freelancer,
-        }));
-      }
-    }, [freelancer]);
-    
+    }
+  );
+
+  // 🔥 AUTO-SYNC freelancerDetails when context freelancer updates
+  useEffect(() => {
+    if (freelancer) {
+      setFreelancerDetails((prev) => ({
+        ...prev,
+        ...freelancer,
+      }));
+    }
+  }, [freelancer]);
 
   const freelancerTimezone = freelancerDetails.timezone || "America/New_York";
 
@@ -715,100 +716,6 @@ export default function AdminPage() {
             )}
           </section>
         </AccordionSection>
-
-        {/* <AccordionSection
-          title="Internal Booking Entry"
-          subtitle="Select from available slots"
-        >
-          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-2">
-              <p className="text-sm text-center sm:text-left">
-                Click a time slot to add a manual appointment.
-              </p>
-              <div className="flex flex-wrap justify-center gap-2">
-                <RefreshButton
-                  onRefresh={handleRefresh}
-                  toastMessage="🔄 Refreshing time slots..."
-                />
-              </div>
-            </div>
-
-            <div className="relative w-full">
-              <IconDatePicker
-                selected={selectedDate}
-                onChange={(date) => setSelectedDate(date)}
-                className="input input-bordered w-full pl-10"
-                wrapperClassName="w-full"
-                dateFormat="MMMM d, yyyy"
-                placeholderText="Choose a date"
-              />
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-                📅
-              </span>
-            </div>
-
-            <div className="flex flex-col items-center gap-2">
-              <button
-                className="text-sm text-blue-400 hover:underline transition underline"
-                onClick={() => setShowFilters((prev) => !prev)}
-              >
-                {showFilters ? "Hide Sort & Filter" : "Show Sort & Filter"}
-              </button>
-
-              {showFilters && (
-                <div className="flex flex-col items-center gap-2 mt-2 w-full">
-                  <div className="flex flex-col items-center w-full gap-1">
-                    <span className="text-sm text-gray-400">Sort:</span>
-                    <SortButton
-                      direction={sortDirection}
-                      onToggle={() =>
-                        setSortDirection((prev) =>
-                          prev === "asc" ? "desc" : "asc"
-                        )
-                      }
-                    />
-                  </div>
-
-                  <FilterButton
-                    label="Filter Status:"
-                    options={["all", "available", "passed"]}
-                    value={statusFilter}
-                    onChange={setStatusFilter}
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-              {sortedFilteredSlots
-                .filter((slot) => {
-                  const isBooked = slot.is_booked || slot.is_inherited_block;
-                  const isPast = isSlotInPast(slot, freelancerTimezone, true);
-
-                  if (isBooked) return false;
-
-                  if (statusFilter === "all") return true;
-                  if (statusFilter === "available" && !isPast) return true;
-                  if (statusFilter === "passed" && isPast) return true;
-
-                  return false;
-                })
-                .map((slot) => (
-                  <TimeSlotCard
-                    key={slot.id}
-                    slot={slot}
-                    freelancerTimezone={freelancerTimezone}
-                    onClick={(slot) => {
-                      setSelectedSlotId(slot.id);
-                      setSelectedSlotTime(slot.time);
-                      setSelectedSlotDate(slot.day);
-                      setShowInternalModal(true);
-                    }}
-                  />
-                ))}
-            </div>
-          </section>
-        </AccordionSection> */}
 
         <AccordionSection title="Add a Service" subtitle="Create offerings">
           <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">

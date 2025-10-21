@@ -7,15 +7,19 @@ s3_bp = Blueprint("s3", __name__)
 @s3_bp.route("/s3/upload-url", methods=["POST"])
 def get_upload_url():
     data = request.get_json()
-    filename = data.get("filename")
+    freelancer_id = data.get("freelancer_id")
+    file_extension = data.get("file_extension", "jpg")
     content_type = data.get("content_type", "image/jpeg")
 
-    if not filename:
-        return jsonify({"error": "Missing filename"}), 400
+    if not freelancer_id:
+        return jsonify({"error": "Missing freelancer_id"}), 400
 
-    url = generate_presigned_url(filename, content_type)
+    # Construct clean S3 key
+    s3_key = f"freelancers/{freelancer_id}/logo.{file_extension}"
+
+    url = generate_presigned_url(s3_key, content_type)
     if not url:
         return jsonify({"error": "Failed to generate upload URL"}), 500
 
-    public_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{filename}"
+    public_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
     return jsonify({"upload_url": url, "public_url": public_url})

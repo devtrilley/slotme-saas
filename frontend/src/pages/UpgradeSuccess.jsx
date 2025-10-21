@@ -34,9 +34,19 @@ export default function UpgradeSuccess() {
         const data = res.data;
 
         if (data.tier === "pro" || data.tier === "elite") {
-          // 🔄 Refetch full freelancer info and update localStorage
+          // ✅ CRITICAL FIX: Update BOTH tokens from payment verification
+          // This prevents "session expired" errors for users who took >15min at Stripe
+          if (data.access_token && data.refresh_token) {
+            localStorage.setItem("access_token", data.access_token);
+            localStorage.setItem("refresh_token", data.refresh_token);  // ✅ NEW
+            console.log("🔑 Updated both tokens after payment verification");
+          } else if (data.access_token) {
+            // Fallback for old backend (shouldn't happen after deploy)
+            localStorage.setItem("access_token", data.access_token);
+            console.log("⚠️ Only access token received (refresh missing)");
+          }
 
-          // Inside your try block:
+          // 🔄 Refetch full freelancer info and update localStorage
           const infoRes = await axios.get("/freelancer-info");
           const infoData = infoRes.data;
 

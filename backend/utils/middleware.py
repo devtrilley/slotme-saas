@@ -1,6 +1,7 @@
 from flask import request, jsonify, g
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
-from flask_jwt_extended.exceptions import NoAuthorizationError
+from flask_jwt_extended.exceptions import NoAuthorizationError, JWTDecodeError
+from jwt.exceptions import ExpiredSignatureError, DecodeError, InvalidTokenError
 from models import Freelancer
 from utils.features import normalize_tier
 from utils.navigation_utils import is_valid_public_slug
@@ -108,7 +109,17 @@ def load_freelancer():
         print("❌ Exception:", str(e))
         return jsonify({"error": "auth_required"}), 401
 
+    except (ExpiredSignatureError, JWTDecodeError) as e:
+        print("⏰ Token expired or invalid — returning 401 for auto-refresh")
+        print("⏰ Exception:", str(e))
+        return jsonify({"error": "token_expired"}), 401  # ✅ Triggers axios auto-refresh
+
+    except (DecodeError, InvalidTokenError) as e:
+        print("🔐 Token decode/validation error")
+        print("🔐 Exception:", str(e))
+        return jsonify({"error": "invalid_token"}), 401
+
     except Exception as e:
         print("💥 UNEXPECTED ERROR during auth!")
         print("💥", str(e))
-        return jsonify({"error": "internal_auth_error"}), 500
+        return jsonify({"error": "internal_auth_error"}), 500  # Only for truly unexpected errors

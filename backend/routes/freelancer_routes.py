@@ -1,4 +1,6 @@
-from flask import Blueprint, make_response, Response, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, make_response
+from datetime import datetime, timedelta
+import uuid
 from flask_cors import cross_origin
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, Freelancer, Service, Appointment, TimeSlot, MasterTimeSlot
@@ -12,7 +14,7 @@ from datetime import datetime, timedelta
 from utils.decorators import require_auth, require_tier
 from utils.features import is_feature_enabled
 import re
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 import stripe
 from zoneinfo import ZoneInfo
 from utils.timezone_utils import parse_time_in_timezone
@@ -976,7 +978,6 @@ def create_batch_slots_v2():
             end_utc += timedelta(days=1)
             print("🕐 Adjusted end_utc forward by one day (UTC day rollover detected)")
 
-
         created_slots = []
         current_utc = start_utc
 
@@ -1099,3 +1100,176 @@ def debug_time_matching():
             results["matches"].append({"format": fmt, "found": False})
 
     return jsonify(results)
+
+
+@freelancer_bp.route("/freelancer/delete-initiate", methods=["POST"])
+@jwt_required()
+def delete_initiate():
+    """Step 1: Verify credentials and send confirmation email"""
+    freelancer_id = int(get_jwt_identity())
+    data = request.get_json() or {}
+    email = data.get("email")
+    password = data.get("password")
+
+    if not email or not password:
+        return jsonify({"error": "Email and password required"}), 400
+
+    freelancer = Freelancer.query.get(freelancer_id)
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
+
+    # Verify email matches
+    if freelancer.email.lower() != email.lower():
+        return jsonify({"error": "Email does not match account"}), 403
+
+    # Verify password
+    if not check_password_hash(freelancer.password, password):
+        return jsonify({"error": "Incorrect password"}), 403
+
+    # Generate deletion token (expires in 15 minutes)
+    delete_token = str(uuid.uuid4())
+    freelancer.delete_token = delete_token
+    freelancer.delete_token_expiry = datetime.utcnow() + timedelta(minutes=15)
+    db.session.commit()
+
+    # Send confirmation email
+    from email_utils import send_branded_customer_reply
+    from config import FRONTEND_ORIGIN
+    
+    delete_url = f"{FRONTEND_ORIGIN}/delete-confirm/{delete_token}"
+    subject = "⚠️ Confirm SlotMe Account Deletion"
+    body = (
+        f"Hi {freelancer.first_name},\n\n"
+        "You requested to permanently delete your SlotMe account.\n\n"
+        f"To confirm this action, click the link below within 15 minutes:\n\n"
+        f"{delete_url}\n\n"
+        "⚠️ THIS CANNOT BE UNDONE. All your data will be permanently deleted:\n"
+        "• All time slots and availability\n"
+        "• All appointments and booking history\n"
+        "• All services and settings\n"
+        "• Your profile and business info\n"
+        "• Any active Stripe subscriptions\n\n"
+        "If you did not request this, you can safely ignore this email.\n\n"
+        "- SlotMe Team"
+    )
+    
+    send_branded_customer_reply(subject, body, freelancer.email)
+
+    print(f"🗑️ Delete token generated for freelancer {freelancer_id}")
+    return (
+        jsonify({"message": "Confirmation email sent. Link expires in 15 minutes."}),
+        200,
+    )
+
+
+@freelancer_bp.route("/freelancer/delete-confirm/<token>", methods=["GET", "OPTIONS"])
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
+def delete_confirm(token):
+    """Step 2: Validate token from email link"""
+    freelancer = Freelancer.query.filter_by(delete_token=token).first()
+
+    if not freelancer:
+        return jsonify({"error": "Invalid or already used token"}), 404
+
+    # Check expiration
+    if datetime.utcnow() > freelancer.delete_token_expiry:
+        return jsonify({"error": "Token expired"}), 400
+
+    print(f"✅ Delete token validated for freelancer {freelancer.id}")
+    return (
+        jsonify(
+            {
+                "message": "Token valid",
+                "freelancer": {
+                    "first_name": freelancer.first_name,
+                    "email": freelancer.email,
+                },
+            }
+        ),
+        200,
+    )
+
+
+@freelancer_bp.route("/freelancer/delete-finalize/<token>", methods=["POST", "OPTIONS"])
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
+def delete_finalize(token):
+    """Step 3: Actually delete the account"""
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+
+    freelancer = Freelancer.query.filter_by(delete_token=token).first()
+
+    if not freelancer:
+        return jsonify({"error": "Invalid or already used token"}), 404
+
+    # Check expiration
+    if datetime.utcnow() > freelancer.delete_token_expiry:
+        return jsonify({"error": "Token expired"}), 400
+
+    freelancer_id = freelancer.id
+    tier = freelancer.tier
+    email = freelancer.email
+
+    # 🔥 Cancel Stripe subscription BEFORE deleting account
+    if tier in ["pro", "elite"]:
+        subscription_id = freelancer.stripe_subscription_id
+        customer_id = freelancer.stripe_customer_id
+
+        # Try to cancel using subscription_id (preferred)
+        if subscription_id:
+            try:
+                from utils.stripe_utils import cancel_subscription
+                
+                cancel_subscription(subscription_id)
+                print(f"✅ Stripe subscription {subscription_id} cancelled for freelancer {freelancer_id}")
+                
+                # Downgrade tier before deletion for consistency
+                freelancer.tier = "free"
+                freelancer.stripe_subscription_id = None
+                db.session.commit()
+                
+            except Exception as e:
+                print(f"❌ Failed to cancel Stripe subscription: {e}")
+                # FAIL CLOSED: Don't delete if we can't cancel subscription
+                return jsonify({
+                    "error": "Failed to cancel Stripe subscription. Please contact support.",
+                    "details": str(e)
+                }), 500
+        
+        # Fallback: try to find and cancel by customer_id (for legacy accounts)
+        elif customer_id:
+            try:
+                from utils.stripe_utils import get_active_subscription_for_customer, cancel_subscription
+                
+                found_sub_id = get_active_subscription_for_customer(customer_id)
+                if found_sub_id:
+                    cancel_subscription(found_sub_id)
+                    print(f"✅ Found and cancelled subscription {found_sub_id} via customer lookup")
+                    
+                    freelancer.tier = "free"
+                    db.session.commit()
+                else:
+                    print(f"⚠️  No active subscription found for customer {customer_id}")
+                    # Continue to deletion since no active sub exists
+                    
+            except Exception as e:
+                print(f"❌ Failed to cancel subscription via customer lookup: {e}")
+                return jsonify({
+                    "error": "Failed to cancel Stripe subscription. Please contact support.",
+                    "details": str(e)
+                }), 500
+
+    # Delete all related records (cascade handles most of this)
+    try:
+        db.session.delete(freelancer)
+        db.session.commit()
+
+        print(
+            f"🗑️ Account successfully deleted for Freelancer ID {freelancer_id} ({email})"
+        )
+        return jsonify({"message": "Account successfully deleted"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Failed to delete account: {e}")
+        return jsonify({"error": "Failed to delete account"}), 500

@@ -122,8 +122,9 @@ CORS(
     allow_headers=["Content-Type", "Authorization", "X-Dev-Auth"],
 )
 
+# 🔐 JWT Token Configuration
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=15)
-# app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(seconds=20)
+app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30) # Long-lived for UX
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
     "DATABASE_URL", "sqlite:///scheduler.db"
 )

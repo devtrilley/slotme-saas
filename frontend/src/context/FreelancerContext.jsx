@@ -19,6 +19,7 @@ export function FreelancerProvider({ children }) {
     [
       "freelancer",
       "access_token",
+      "refresh_token", // ✅ NEW: Clear refresh token on logout
       "freelancer_logged_in",
       "freelancer_id",
       "freelancerDetails_updated",

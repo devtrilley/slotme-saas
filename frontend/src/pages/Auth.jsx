@@ -43,7 +43,9 @@ export default function Auth({ clearSession }) {
           password,
         });
 
+        // 🔐 Store BOTH tokens after successful login
         localStorage.setItem("access_token", res.data.access_token);
+        localStorage.setItem("refresh_token", res.data.refresh_token);  // ✅ NEW
         localStorage.setItem("freelancer_id", res.data.freelancer_id);
         localStorage.setItem("freelancer_logged_in", "true");
 

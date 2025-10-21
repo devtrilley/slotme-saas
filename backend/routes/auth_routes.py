@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, g
 from flask_cors import cross_origin
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, create_refresh_token
 from werkzeug.security import check_password_hash, generate_password_hash
 from models import db, Freelancer
 from utils.jwt_utils import serializer
@@ -35,8 +35,15 @@ def freelancer_login():
     if not getattr(freelancer, "email_confirmed", False):
         return jsonify({"error": "Email not verified"}), 403
 
+    # 🔐 Issue BOTH access and refresh tokens
     access_token = create_access_token(identity=str(freelancer.id))
-    return jsonify({"access_token": access_token, "freelancer_id": freelancer.id}), 200
+    refresh_token = create_refresh_token(identity=str(freelancer.id))
+    
+    return jsonify({
+        "access_token": access_token,
+        "refresh_token": refresh_token,  # ✅ NEW: Long-lived token for auto-refresh
+        "freelancer_id": freelancer.id
+    }), 200
 
 
 @auth_bp.route("/signup", methods=["POST"])
@@ -127,3 +134,32 @@ def get_my_features():
             "required_tiers": FEATURES,
         }
     )
+
+@auth_bp.route("/refresh", methods=["POST"])
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
+def refresh_access_token():
+    """
+    🔄 Refresh endpoint: Takes refresh token, returns new access token
+    This allows seamless token renewal without re-login
+    """
+    from flask_jwt_extended import jwt_required, get_jwt_identity
+    
+    # Verify the refresh token in the Authorization header
+    try:
+        # This decorator will validate the refresh token
+        from flask_jwt_extended import verify_jwt_in_request
+        verify_jwt_in_request(refresh=True)  # ✅ Explicitly check for refresh token
+        
+        # Get the freelancer ID from the refresh token
+        freelancer_id = get_jwt_identity()
+        
+        # Issue a fresh access token (keeps them logged in)
+        new_access_token = create_access_token(identity=freelancer_id)
+        
+        return jsonify({
+            "access_token": new_access_token
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Refresh token error: {e}")
+        return jsonify({"error": "Invalid or expired refresh token"}), 401

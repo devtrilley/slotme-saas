@@ -27,6 +27,7 @@ import BookingConfirmed from "./pages/BookingConfirmed";
 import BookingCancelled from "./pages/BookingCancelled";
 // import
 import EmailConfirmed from "./pages/EmailConfirmed";
+import DeleteConfirmation from "./pages/DeleteConfirmation";
 
 import UpgradeSuccess from "./pages/UpgradeSuccess"; // or wherever the file lives
 import UpgradeCancelled from "./pages/UpgradeCancelled";
@@ -40,17 +41,10 @@ import Navbar from "./components/Layout/Navbar";
 import RequireDevAuth from "./components/Auth/RequireDevAuth";
 import RequireFreelancerAuth from "./components/Auth/RequireFreelancerAuth";
 import RequireTier from "./components/Auth/RequireTier";
-import CustomUrlRouter from "./components/CustomUrlRouter";
 import { Toaster } from "react-hot-toast"; // 🔼 Put this at the top
-
-// Context Import
-import { FreelancerProvider } from "./context/FreelancerContext";
 
 import { useEffect, useState } from "react";
 import { useFreelancer } from "./context/FreelancerContext";
-import { API_BASE } from "./utils/constants";
-
-import { isTokenExpired } from "./utils/jwt";
 
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -59,8 +53,6 @@ import { showToast } from "./utils/toast";
 import { tokenChannel, MESSAGE_TYPES } from "./utils/tokenChannel";
 
 import { setNavigator } from "./utils/navigation";
-
-import axios from "./utils/axiosInstance"; // If not already at top
 
 export default function App() {
   const { setFreelancer = () => {} } = useFreelancer() || {};
@@ -103,35 +95,7 @@ export default function App() {
   }, [navigate, location.pathname]);
 
   useEffect(() => {
-    const checkTokenAndRefresh = () => {
-      const token = localStorage.getItem("access_token");
-
-      if (!token || location.pathname === "/auth") return;
-
-      const protectedRoutes = [
-        "/freelancer-admin",
-        "/freelancer-bookings",
-        "/freelancer-analytics",
-        "/priority-support",
-        "/qr-code",
-        "/upgrade",
-      ];
-
-      const isProtected = protectedRoutes.some((path) =>
-        location.pathname.startsWith(path)
-      );
-
-      if (!isProtected) return;
-
-      if (isTokenExpired(token)) {
-        console.warn("⏳ Token expired — redirecting to login");
-        handleSessionExpired();
-      }
-    };
-
-    checkTokenAndRefresh();
-    const interval = setInterval(checkTokenAndRefresh, 14 * 60 * 1000); // 14 min
-
+    // 🔄 Cross-tab communication handler (for logout sync across tabs)
     const handleMessage = (e) => {
       const { type, payload } = e.data;
 
@@ -148,7 +112,6 @@ export default function App() {
     tokenChannel.addEventListener("message", handleMessage);
 
     return () => {
-      clearInterval(interval);
       tokenChannel.removeEventListener("message", handleMessage);
     };
   }, [navigate, setFreelancer, location.pathname]);
@@ -295,6 +258,11 @@ export default function App() {
           />
 
           <Route path="/cancel/:cancelToken" element={<BookingCancelled />} />
+
+          <Route
+            path="/delete-confirm/:token"
+            element={<DeleteConfirmation />}
+          />
         </Routes>
       </div>
     </div>

@@ -6,12 +6,15 @@ import axiosBase from "axios";
 import { showToast } from "../../utils/toast";
 import getCroppedImg from "../../utils/cropCanvas";
 
+import { useFreelancer } from "../../context/FreelancerContext";
+
 export default function LogoUploadModal({
   show,
   onClose,
   onUploadComplete,
   currentLogo,
 }) {
+  const { freelancer } = useFreelancer();
   const [selectedFile, setSelectedFile] = useState(null);
   const [zoom, setZoom] = useState(1.2);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -38,13 +41,13 @@ export default function LogoUploadModal({
       console.log("🧪 Blob Type:", croppedBlob?.type);
       console.log("🧪 Blob Size:", croppedBlob?.size);
 
-      const contentType = croppedBlob.type || "image/jpeg"; // default fallback
+      const contentType = croppedBlob.type || "image/jpeg";
       const fileExt = contentType === "image/png" ? "png" : "jpg";
-      const fileName = `logo_${Date.now()}.${fileExt}`;
 
-      // 1. Get presigned URL
+      // 1. Get presigned URL with freelancer_id
       const { data } = await axios.post("/s3/upload-url", {
-        filename: fileName,
+        freelancer_id: freelancer.id,
+        file_extension: fileExt,
         content_type: contentType,
       });
 
@@ -55,7 +58,6 @@ export default function LogoUploadModal({
         headers: { "Content-Type": contentType },
       });
 
-      showToast("Logo uploaded!");
       onUploadComplete(data.public_url);
       handleClose();
     } catch (err) {
@@ -103,7 +105,9 @@ export default function LogoUploadModal({
                   className="w-20 h-20 rounded-full object-cover mx-auto border shadow-md"
                 />
               </div>
-              <p className="text-sm text-zinc-400 text-center italic">Current Logo</p>
+              <p className="text-sm text-zinc-400 text-center italic">
+                Current Logo
+              </p>
             </div>
           )}
 

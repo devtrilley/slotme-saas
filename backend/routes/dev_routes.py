@@ -529,14 +529,119 @@ def seed_everything():
             ),
         ],
     )
+    # 5. Seed Monty Fitness (Elite Tier)
+    monty, token4 = seed_freelancer(
+        email="tamsirrilley@gmail.com",
+        first_name="Tom",
+        last_name="Rilley",
+        business_name="Monty Fitness",
+        password="tom123",
+        tagline="Transform Your Body, Elevate Your Mind",
+        force_bookings=True,
+        bio="Tech Bro Meets Fitness 🏋️💪 Calisthenics & Home Workouts 🏠 HIT Training 🔥 Get Fit, No Excuses 🚫 Free App coming soon 📲",
+        logo_url="https://slotme-profile-photos.s3.us-east-2.amazonaws.com/freelancers/4/logo.jpg",
+        phone="704-555-0199",
+        contact_email="tamsirrilley@gmail.com",
+        instagram_url="https://www.instagram.com/montyfitapp/",
+        twitter_url="",
+        no_show_policy="If you miss a session without 24-hour notice, the session will be forfeited. Emergencies are understood — just communicate as soon as possible.",
+        faq_items=[
+            {
+                "question": "What's your training philosophy?",
+                "answer": "I believe in functional fitness that fits your lifestyle. Whether it's calisthenics, HIIT, or combat conditioning, I focus on sustainable results without gimmicks.",
+            },
+            {
+                "question": "Do you offer online coaching?",
+                "answer": "Yes! I provide personalized online coaching with custom workout plans, nutrition guidance, and weekly check-ins via video calls.",
+            },
+            {
+                "question": "What equipment do I need for home workouts?",
+                "answer": "Minimal equipment needed! Most of my programs use bodyweight exercises. Optional: resistance bands, dumbbells, and a pull-up bar.",
+            },
+            {
+                "question": "Can you help with combat sports training?",
+                "answer": "Absolutely. I specialize in conditioning for MMA, boxing, and general combat sports — focusing on explosive power, endurance, and agility.",
+            },
+            {
+                "question": "What's the Monty Fitness app?",
+                "answer": "I'm building a free fitness tracking app to help you log workouts, track progress, and stay consistent. Coming soon! 📲",
+            },
+        ],
+        booking_instructions="📍 TRAINING LOCATION: Charlotte, NC (in-person sessions at agreed location)\n💻 ONLINE COACHING: Sessions conducted via Zoom/Google Meet\n🥊 COMBAT CONDITIONING: Outdoor or gym-based training available\n\n⏰ Please arrive 5 minutes early for in-person sessions.\n🧘 Bring water, towel, and athletic wear.\n📱 For online sessions, ensure you have a stable internet connection.\n💪 Cancellations must be made 24 hours in advance.",
+        preferred_payment_methods="Venmo, CashApp, Zelle, Card (Stripe)",
+        location="Charlotte, NC",
+        timezone="America/New_York",
+        tier="free",
+        # tier="elite",
+        early_access=True,
+        is_verified=True,
+        services=[
+            {
+                "name": "1-on-1 Personal Training",
+                "description": "Personalized in-person or virtual training sessions tailored to your fitness goals. Includes workout programming, form correction, and accountability.",
+                "duration_minutes": 60,
+                "price_usd": 75.00,
+            },
+            {
+                "name": "Online Coaching (Monthly)",
+                "description": "Custom workout plans, nutrition guidance, weekly check-ins, and 24/7 chat support. Perfect for remote clients serious about transformation.",
+                "duration_minutes": 30,
+                "price_usd": 200.00,
+            },
+            {
+                "name": "Combat Conditioning",
+                "description": "High-intensity conditioning for combat sports athletes. Includes explosive power drills, endurance work, and fight-specific training.",
+                "duration_minutes": 90,
+                "price_usd": 100.00,
+            },
+        ],
+        open_slot_labels=[
+            "09:00 AM",
+            "09:15 AM",
+            "09:30 AM",
+            "09:45 AM",
+            "10:00 AM",
+            "10:15 AM",
+            "10:30 AM",
+            "10:45 AM",
+            "11:00 AM",
+            "11:15 AM",
+            "11:30 AM",
+            "11:45 AM",
+        ],
+        demo_bookings=[
+            (
+                "Marcus",
+                "Thompson",
+                "marcus.t@example.com",
+                "09:00 AM",
+                "1-on-1 Personal Training",
+            ),
+            (
+                "Sarah",
+                "Kim",
+                "sarah.kim@example.com",
+                "10:00 AM",
+                "Online Coaching (Monthly)",
+            ),
+            (
+                "Jordan",
+                "Brooks",
+                "jordan.brooks@example.com",
+                "11:30 AM",
+                "Combat Conditioning",
+            ),
+        ],
+    )
 
     return (
         jsonify(
             {
-                "message": "✅ Seeded: Emily (Free), Malik (Pro), Jade (Elite)",
+                "message": "✅ Seeded: Emily (Free), Malik (Pro), Jade (Elite), Monty (Elite)",
                 "emily_token": token,
                 "malik_token": token2,
                 "jade_token": token3,
+                "monty_token": token4,
             }
         ),
         200,
