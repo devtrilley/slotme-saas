@@ -31,10 +31,7 @@ export default function Navbar() {
     }
 
     closeTokenChannel();
-    showToast(
-      `👋 Logged out as ${type === "dev" ? "Dev" : "Freelancer"}`,
-      "success"
-    );
+    showToast("Logged out successfully.", "success");
   };
 
   const renderLinks = () => (

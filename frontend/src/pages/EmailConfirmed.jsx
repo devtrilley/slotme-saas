@@ -25,7 +25,7 @@ export default function EmailConfirmed() {
         await axios.get(`/auth/verify-email`, { params: { token } });
         setStatus("success");
         setMessage("Email confirmed! You can now log in.");
-        showToast("✅ Email confirmed — you can log in now.", "success");
+        showToast("Email confirmed. You can log in now.", "success");
         // optional auto-redirect after 2s:
         setTimeout(() => navigate("/auth"), 2000);
       } catch (err) {
@@ -34,7 +34,7 @@ export default function EmailConfirmed() {
           "Verification failed. Try the link again.";
         setStatus("error");
         setMessage(msg);
-        showToast(msg, "error");
+        showToast(msg || "Verification failed. Try again.", "error");
       }
     })();
   }, [location.search, navigate]);

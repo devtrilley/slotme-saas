@@ -56,8 +56,9 @@ export default function DeleteConfirmation() {
       }, 2000);
     } catch (err) {
       console.error(err);
-      const errorMsg = err?.response?.data?.error || "Failed to delete account";
-      showToast(`❌ ${errorMsg}`, "error");
+      const errorMsg =
+        err?.response?.data?.error || "Deletion failed. Try again.";
+      showToast(errorMsg, "error");
       setDeleting(false);
       setShowConfirmModal(false);
     }

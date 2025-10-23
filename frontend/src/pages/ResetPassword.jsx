@@ -18,16 +18,16 @@ export default function ResetPassword() {
     if (submitting) return;
     setSubmitting(true);
     if (password !== confirm) {
-      showToast("❌ Passwords do not match.", "error");
+      showToast("Passwords don't match.", "warning");
       setSubmitting(false);
       return;
     }
     try {
       await axios.post("/auth/reset-password", { token, new_password: password });
-      showToast("✅ Password reset successful. You can now log in.", "success");
+      showToast("Password reset. You can log in now.", "success");
       setTimeout(() => navigate("/auth"), 2000);
     } catch (err) {
-      showToast("❌ Invalid or expired link.", "error");
+      showToast("Link invalid or expired.", "error");
     } finally {
       setSubmitting(false);
     }

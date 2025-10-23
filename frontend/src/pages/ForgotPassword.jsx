@@ -12,9 +12,9 @@ export default function ForgotPassword() {
     setSending(true);
     try {
       await axios.post("/auth/forgot-password", { email });
-      showToast("📩 If that email exists, a reset link was sent.", "info");
+      showToast("If that email exists, a reset link was sent.", "info");
     } catch (err) {
-      showToast("❌ Error sending reset link.", "error");
+      showToast("Couldn't send reset link. Try again.", "error");
     } finally {
       setSending(false);
     }

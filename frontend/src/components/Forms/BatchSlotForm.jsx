@@ -168,7 +168,7 @@ export default function BatchSlotForm({
     try {
       const token = localStorage.getItem("access_token");
       if (!token) {
-        showToast("⚠ Session expired. Redirecting to login...", "error");
+        showToast("Session expired. Logging out...", "warning");
         import("../../utils/tokenChannel").then(
           ({ tokenChannel, MESSAGE_TYPES }) => {
             tokenChannel.postMessage({ type: MESSAGE_TYPES.SESSION_EXPIRED });
@@ -222,8 +222,8 @@ export default function BatchSlotForm({
 
       // Regular error handling
       const msg =
-        err.response?.data?.error || "⚠ Could not generate time slots.";
-      showToast(msg, "error");
+  err.response?.data?.error || "Couldn't create slots. Try again.";
+showToast(msg, "error");
       setError("");
     } finally {
       setLoading(false);
@@ -248,7 +248,7 @@ export default function BatchSlotForm({
       if (onBatchAdd) onBatchAdd(); // Refresh the list
     } catch (err) {
       console.error("Failed to undo:", err);
-      showToast("Failed to undo slots", "error");
+      showToast("Couldn't undo. Slots may be booked.", "error");
     }
   };
 

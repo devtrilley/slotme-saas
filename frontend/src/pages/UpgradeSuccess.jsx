@@ -62,7 +62,7 @@ export default function UpgradeSuccess() {
           setFreelancer(infoData);
 
           // ✅ Show toast after update
-          showToast(`Plan upgraded to ${data.tier.toUpperCase()}!`);
+          showToast(`Upgraded to ${data.tier.toUpperCase()}!`, "success");
         } else {
           navigate("/upgrade-cancelled");
         }

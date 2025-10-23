@@ -113,7 +113,7 @@ axiosInstance.interceptors.response.use(
 
       if (!hasShownSessionExpired) {
         hasShownSessionExpired = true;
-        showToast("🔒 Dev session expired — please log in again.", "error");
+        showToast("Dev session expired. Logging out...", "warning");
 
         localStorage.removeItem("dev_access_token");
         localStorage.removeItem("dev_logged_in");
@@ -183,8 +183,8 @@ axiosInstance.interceptors.response.use(
         if (!hasShownSessionExpired) {
           hasShownSessionExpired = true;
           showToast(
-            "🔒 Freelancer session expired — redirecting you to log in.",
-            "error"
+            "Session expired. Logging out...",
+            "warning"
           );
 
           localStorage.removeItem("access_token");

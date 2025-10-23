@@ -77,11 +77,11 @@ export default function App() {
         "✅ Session expired but staying on public page:",
         location.pathname
       );
-      showToast("🔒 Session expired. You can continue browsing.", "info");
+      showToast("🔒 Session expired. You can keep browsing.", "info");
       return;
     }
     console.warn("🚪 Session expired — redirecting to login");
-    showToast("🔒 Session expired. Redirecting to login...", "error");
+    showToast("🔒 Session expired. Logging out...", "warning");
     localStorage.removeItem("access_token");
     localStorage.removeItem("freelancer_id");
     localStorage.removeItem("freelancer_logged_in");

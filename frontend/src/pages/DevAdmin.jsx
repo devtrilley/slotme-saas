@@ -70,7 +70,7 @@ export default function DevAdmin() {
     // Check if dev token exists
     const devToken = localStorage.getItem("dev_access_token");
     if (!devToken) {
-      showToast("Please log in as dev admin", "error");
+      showToast("Dev login required.", "warning");
       navigate("/dev-login");
       return;
     }
@@ -104,7 +104,7 @@ export default function DevAdmin() {
     axios
       .patch(`${API_BASE}/dev/freelancers/${showEditModal.id}`, updatedData)
       .then(() => {
-        showToast("✅ Freelancer updated!", "success");
+        showToast("Freelancer updated.", "success");
         return axios.get(`${API_BASE}/dev/freelancers`);
       })
       .then((res) => {
@@ -113,7 +113,7 @@ export default function DevAdmin() {
       })
       .catch((err) => {
         console.error("❌ Failed to update freelancer", err);
-        showToast("Failed to update freelancer", "error");
+        showToast("Update failed. Try again.", "error");
       });
   };
 
@@ -121,7 +121,7 @@ export default function DevAdmin() {
     axios
       .delete(`${API_BASE}/dev/freelancers/${freelancerId}`)
       .then(() => {
-        showToast("✅ Freelancer deleted", "success");
+        showToast("Freelancer deleted.", "success");
         return axios.get(`${API_BASE}/dev/freelancers`);
       })
       .then((res) => {
@@ -130,7 +130,7 @@ export default function DevAdmin() {
       })
       .catch((err) => {
         console.error("❌ Failed to delete freelancer", err);
-        showToast("Failed to delete freelancer. Try again.", "error");
+        showToast("Delete failed. Try again.", "error");
         setShowDeleteModal(null);
       });
   };

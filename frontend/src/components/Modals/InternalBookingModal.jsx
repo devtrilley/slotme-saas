@@ -42,7 +42,7 @@ export default function InternalBookingModal({
       !serviceId ||
       !preselectedTime
     ) {
-      showToast("❌ Fill out all fields before booking.", "error");
+      showToast("Fill out all fields to book.", "warning");
       return;
     }
 
@@ -71,17 +71,18 @@ export default function InternalBookingModal({
       );
 
       showToast(
-        `✅ Manually booked${preselectedTime ? ` for ${preselectedTime}` : ""}`
+        `Booking added${preselectedTime ? ` for ${preselectedTime}` : ""}`,
+        "success"
       );
       refetch?.();
       onClose();
     } catch (err) {
       console.error("❌ Internal booking failed:", err);
       const msg =
-        err.response?.data?.error ||
-        err.response?.data?.message ||
-        "Failed to create booking";
-      showToast(msg, "error");
+  err.response?.data?.error ||
+  err.response?.data?.message ||
+  "Booking failed. Check fields and try again.";
+showToast(msg, "error");
     } finally {
       setLoading(false);
     }

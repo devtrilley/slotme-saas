@@ -17,13 +17,13 @@ export default function ConfirmEmailChange() {
     (async () => {
       try {
         const res = await axios.post("/auth/change-email/confirm", { token });
-        showToast("✅ Email updated. Please log in with your new email.", "success", 7000);
+        showToast("Email updated. Log in with new email.", "success", 7000);
         setStatus("ok");
         // Hard-logout local state
         localStorage.clear();
       } catch (err) {
         showToast(
-          err?.response?.data?.error || "Invalid or expired link.",
+          err?.response?.data?.error || "Link invalid or expired.",
           "error",
           7000
         );

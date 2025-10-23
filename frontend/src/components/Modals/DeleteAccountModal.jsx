@@ -14,12 +14,12 @@ export default function DeleteAccountModal({ open, onClose }) {
 
   const handleInitiate = async () => {
     if (!emailInput || !passwordInput) {
-      showToast("⚠️ Enter both email and password to confirm.", "warning");
+      showToast("Enter email and password to confirm.", "warning");
       return;
     }
 
     if (emailInput.trim().toLowerCase() !== freelancer?.email?.toLowerCase()) {
-      showToast("❌ Email does not match your account.", "error");
+      showToast("Email doesn't match. Try again.", "error");
       return;
     }
 
@@ -31,11 +31,12 @@ export default function DeleteAccountModal({ open, onClose }) {
       });
 
       setEmailSent(true);
-      showToast("📧 Confirmation email sent! Check your inbox.", "success");
+      showToast("Confirmation email sent. Check inbox.", "success");
     } catch (err) {
       console.error(err);
-      const errorMsg = err?.response?.data?.error || "Failed to initiate deletion";
-      showToast(`❌ ${errorMsg}`, "error");
+      const errorMsg =
+        err?.response?.data?.error || "Couldn't send email. Try again.";
+      showToast(errorMsg, "error");
     } finally {
       setSubmitting(false);
     }
@@ -103,12 +104,15 @@ export default function DeleteAccountModal({ open, onClose }) {
               📧 Email Sent!
             </h2>
             <p className="text-sm font-medium">
-              We sent a confirmation link to <strong>{freelancer?.email}</strong>.
+              We sent a confirmation link to{" "}
+              <strong>{freelancer?.email}</strong>.
               <br />
               <br />
               Click the link in your email to complete account deletion.
               <br />
-              <span className="text-yellow-400">⏰ The link expires in 15 minutes.</span>
+              <span className="text-yellow-400">
+                ⏰ The link expires in 15 minutes.
+              </span>
             </p>
 
             <button

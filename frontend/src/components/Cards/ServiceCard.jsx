@@ -44,12 +44,12 @@ export default function ServiceCard({
     axios
       .patch(`${API_BASE}/freelancer/services/${id}`, payload)
       .then(() => {
-        showToast("Service updated!");
+        showToast("Service updated!", "success");
         setEditing(false);
       })
       .catch((err) => {
         console.error("❌ Failed to update service", err);
-        showToast("Update failed", "error");
+        showToast("Update failed. Check connection.", "error");
       })
       .finally(() => setLoading(false));
   };
@@ -70,7 +70,7 @@ export default function ServiceCard({
       })
       .catch((err) => {
         console.error("❌ Failed to toggle service", err);
-        showToast("Toggle failed", "error");
+        showToast("Couldn't toggle service. Try again.", "error");
       });
   };
 

@@ -16,7 +16,7 @@ export default function ServiceForm({ onServiceAdded }) {
     e.preventDefault();
     const token = localStorage.getItem("access_token");
     if (!token) {
-      showToast("Please log in to add a service.", "error");
+      showToast("Log in to add services.", "warning");
       return;
     }
 
@@ -32,7 +32,7 @@ export default function ServiceForm({ onServiceAdded }) {
       isNaN(minutes) ||
       isNaN(priceVal)
     ) {
-      showToast("Please enter valid values for all fields.", "error");
+      showToast("Fill in all fields correctly.", "warning");
       setLoading(false);
       return;
     }
@@ -45,7 +45,7 @@ export default function ServiceForm({ onServiceAdded }) {
         price_usd: priceVal,
       })
       .then(() => {
-        showToast("Service added!");
+        showToast("Service added!", "success");
         setName("");
         setDescription("");
         setDuration("");
@@ -55,7 +55,7 @@ export default function ServiceForm({ onServiceAdded }) {
       .catch((err) => {
         console.warn("🔥 Full error response:", err.response?.data);
         console.error("❌ Failed to add service", err);
-        showToast("Failed to add service", "error");
+        showToast("Couldn't add service. Try again.", "error");
       })
       .finally(() => setLoading(false));
   };

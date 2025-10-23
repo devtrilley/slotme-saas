@@ -207,23 +207,19 @@ export default function BookingPage({ useCustomUrl = false }) {
     axios
       .post(`${API_BASE}/resend-confirmation/${appointmentId}`)
       .then(() => {
-        showToast("✅ Confirmation email sent.", "success");
+        showToast("Confirmation email sent.", "success");
       })
       .catch((err) => {
         const msg = err.response?.data?.error || "Resend failed.";
 
         if (msg.includes("already cancelled")) {
           showToast(
-            "This appointment was already cancelled. Please refresh and book again.",
+            "Appointment cancelled. Refresh to book again.",
             "warning",
             3000
           );
         } else if (msg.includes("already confirmed")) {
-          showToast(
-            "This appointment is already confirmed. No further action needed.",
-            "info",
-            3000
-          );
+          showToast("Already confirmed. You're all set.", "info", 3000);
         } else {
           showToast(msg, "error", 3000);
         }
@@ -237,7 +233,7 @@ export default function BookingPage({ useCustomUrl = false }) {
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("cancelled") === "true") {
-      showToast("✅ Your booking was cancelled.", "success");
+      showToast("Booking cancelled.", "success");
       fetchSlots();
       setBookingStatus("none");
     }
@@ -292,10 +288,7 @@ export default function BookingPage({ useCustomUrl = false }) {
 
     const latestSlot = sorted.find((s) => s.id === selectedSlotId);
     if (!latestSlot || latestSlot.is_booked || latestSlot.is_inherited_block) {
-      showToast(
-        "❌ That slot is no longer available. Please refresh.",
-        "error"
-      );
+      showToast("Slot no longer available. Refresh page.", "error");
       setSelectedSlotId(null);
       setSubmitting(false);
       return;
@@ -306,14 +299,14 @@ export default function BookingPage({ useCustomUrl = false }) {
 
     // Testing, switch between 20 seconds and 120 seconds (2 min)
     if (lastBookingTime && now - lastBookingTime < 20 * 1000) {
-      showToast("⏳ Please wait before booking again.", "error");
+      showToast("Wait before booking again.", "warning");
       setSubmitting(false);
       return;
     }
 
     const emailRegex = /^[A-Za-z0-9]+[\w.-]*@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
     if (!emailRegex.test(email)) {
-      showToast("❌ Please enter a valid email address.", "error");
+      showToast("Enter a valid email address.", "warning");
       setSubmitting(false);
       return;
     }
@@ -343,7 +336,7 @@ export default function BookingPage({ useCustomUrl = false }) {
           }
           localStorage.setItem("last_booking_time", Date.now());
           setCooldownRemaining(90);
-          showToast("📨 Booking successful, updating slots...", "info", 1500);
+          showToast("Booking successful. Redirecting...", "success", 1500);
           fetchSlots();
           setSelectedSlotId(null);
           setSubmitting(false);
@@ -719,7 +712,7 @@ export default function BookingPage({ useCustomUrl = false }) {
                       startSlot.is_inherited_block
                     ) {
                       showToast(
-                        "❌ That time overlaps with an existing booking. Try a different time slot.",
+                        "Time overlaps with booking. Pick another slot.",
                         "error"
                       );
                       return;
@@ -727,7 +720,7 @@ export default function BookingPage({ useCustomUrl = false }) {
 
                     if (!visibleFree) {
                       showToast(
-                        "❌ That time overlaps with an existing booking. Try a different time slot.",
+                        "Time overlaps with booking. Pick another slot.",
                         "error"
                       );
                       return;
@@ -769,8 +762,8 @@ export default function BookingPage({ useCustomUrl = false }) {
 
                             if (!selectedServiceId) {
                               showToast(
-                                "❌ Please select a service first.",
-                                "error"
+                                "Select a service first.",
+                                "warning"
                               );
                               return;
                             }
@@ -786,12 +779,12 @@ export default function BookingPage({ useCustomUrl = false }) {
 
                               if (selectedEST < nowInFreelancerTZ) {
                                 showToast(
-                                  "⚠️ This is a past date. Please choose another day.",
+                                  "Past date. Choose another day.",
                                   "warning"
                                 );
                               } else {
                                 showToast(
-                                  "⏳ This time has already passed.",
+                                  "Time already passed. Pick another.",
                                   "warning"
                                 );
                               }

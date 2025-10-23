@@ -120,10 +120,10 @@ export default function CRM() {
       await axios.patch(`/appointments/${cancelTargetId}`, {
         status: "cancelled",
       });
-      showToast("✅ Appointment canceled.", "success");
+      showToast("Appointment cancelled.", "success");
       fetchAppointments(); // Refresh CRM list
     } catch (err) {
-      showToast("❌ Failed to cancel appointment.", "error");
+      showToast("Couldn't cancel. Try again.", "error");
       console.error("Cancel error:", err);
     } finally {
       setCancelTargetId(null);
@@ -161,12 +161,12 @@ export default function CRM() {
 
     const token = localStorage.getItem("access_token");
     if (!token) {
-      showToast("You must be logged in to export.", "error");
+      showToast("Log in to export.", "warning");
       return;
     }
 
     try {
-      showToast("⏳ Preparing your CSV export...", "info");
+      showToast("Preparing CSV export...", "info");
 
       const response = await axios.get(
         `${API_BASE}/appointments/export-csv?range=${exportRange}&selected_date=${getESTDateString(
@@ -188,16 +188,13 @@ export default function CRM() {
       link.click();
       link.remove();
 
-      showToast("✅ Export ready! Download started.", "success");
+      showToast("Export ready. Download started.", "success");
     } catch (err) {
       if (err.response?.status === 403) {
-        showToast(
-          "🔒 CSV export is gated by your tier. Please upgrade.",
-          "error"
-        );
+        showToast("CSV export requires PRO or ELITE.", "warning");
       } else {
         console.error("❌ CSV Export failed:", err);
-        showToast("❌ Failed to export CSV. Please try again.", "error");
+        showToast("Export failed. Try again.", "error");
       }
     }
   };
@@ -406,7 +403,7 @@ export default function CRM() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  showToast("CSV export is locked on Free.", "error");
+                  showToast("CSV export requires PRO or ELITE.", "warning");
                 }
               }}
             />

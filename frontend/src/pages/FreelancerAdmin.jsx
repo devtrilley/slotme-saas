@@ -258,7 +258,7 @@ export default function AdminPage() {
     axios
       .delete(`${API_BASE}/slots/${slotToDelete}`)
       .then(() => {
-        showToast("Slot deleted");
+        showToast("Slot deleted.", "success");
         quietFetchSlots();
       })
       .catch((err) => {
@@ -275,11 +275,11 @@ export default function AdminPage() {
   const handleDeleteService = async (serviceId) => {
     try {
       await axios.delete(`${API_BASE}/freelancer/services/${serviceId}`);
-      showToast("Service deleted");
+      showToast("Service deleted.", "success");
       await quietFetchServices(); // ✅ re-fetch full services list
     } catch (err) {
       console.error("❌ Failed to delete service", err);
-      showToast("Could not delete service", "error");
+      showToast("Couldn't delete service. Try again.", "error");
     }
   };
 
@@ -289,12 +289,12 @@ export default function AdminPage() {
         price_usd: newPrice,
       })
       .then(() => {
-        showToast("Price updated");
+        showToast("Price updated.", "success");
         fetchServices();
       })
       .catch((err) => {
         console.error("❌ Failed to update price", err);
-        showToast("Could not update price", "error");
+        showToast("Couldn't update price. Try again.", "error");
       });
   };
 
@@ -515,7 +515,7 @@ export default function AdminPage() {
                   className="btn btn-xs btn-outline"
                   onClick={() => {
                     navigator.clipboard.writeText(shareUrl);
-                    showToast("Link copied to clipboard!");
+                    showToast("Link copied to clipboard!", "success");
                   }}
                 >
                   Copy Link

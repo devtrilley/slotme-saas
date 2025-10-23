@@ -36,7 +36,7 @@ export default function Auth({ clearSession }) {
       if (mode === "signup") {
         const { valid } = validatePassword(password);
         if (!valid) {
-          showToast("❌ Weak password. Please meet all requirements.", "error");
+          showToast("Password doesn't meet requirements.", "error");
           setError("Please meet all password requirements before continuing.");
           setSubmitting(false);
           return;
@@ -49,7 +49,7 @@ export default function Auth({ clearSession }) {
           password,
         });
 
-        showToast("Check your inbox to verify your email.", "success");
+        showToast("Verification email sent. Check inbox.", "success");
         navigate("/signup-success");
       } else {
         const res = await axios.post(`/auth`, {
@@ -82,7 +82,7 @@ export default function Auth({ clearSession }) {
 
       if (status === 403) {
         setShowResendButton(true);
-        showToast("Email not verified — check your inbox.", "error");
+        showToast("Email not verified. Check inbox or resend.", "warning");
       } else {
         showToast(msg, "error");
       }
@@ -99,10 +99,10 @@ export default function Auth({ clearSession }) {
       await axios.post(`/auth/resend-verification`, {
         email: email.trim().toLowerCase(),
       });
-      showToast("✅ Verification email sent! Check your inbox.", "success");
+      showToast("Verification email sent. Check inbox.", "success");
       setShowResendButton(false);
     } catch (err) {
-      showToast("Failed to resend email. Try again.", "error");
+      showToast("Couldn't resend. Try again in a moment.", "error");
     } finally {
       setResending(false);
     }

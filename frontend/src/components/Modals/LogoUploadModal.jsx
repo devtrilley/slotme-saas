@@ -62,7 +62,7 @@ export default function LogoUploadModal({
       handleClose();
     } catch (err) {
       console.error(err);
-      showToast("Upload failed", "error");
+      showToast("Upload failed. Try again or use smaller file.", "error");
     } finally {
       setIsUploading(false);
     }
@@ -120,7 +120,7 @@ export default function LogoUploadModal({
 
               const maxSize = 40 * 1024 * 1024; // 40MB
               if (file.size > maxSize) {
-                showToast("❌ Max upload size is 40MB.", "error");
+                showToast("File too large. Max 40MB.", "error");
                 return;
               }
 

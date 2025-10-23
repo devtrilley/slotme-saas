@@ -19,7 +19,7 @@ export default function CustomQuestionsForm() {
           setEnabled(data.enabled ?? true); // ← load from backend
         }
       })
-      .catch(() => showToast("Failed to load questions", "error"))
+      .catch(() => showToast("Couldn't load questions. Refresh.", "error"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -44,8 +44,8 @@ export default function CustomQuestionsForm() {
         custom_questions: questions,
         custom_questions_enabled: enabled, // ← send to backend
       })
-      .then(() => showToast("Questions saved ✅"))
-      .catch(() => showToast("Failed to save questions", "error"));
+      .then(() => showToast("Questions saved!", "success"))
+      .catch(() => showToast("Couldn't save. Try again.", "error"));
   };
 
   if (loading) return <p className="text-sm text-gray-400">Loading...</p>;

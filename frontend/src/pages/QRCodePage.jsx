@@ -32,7 +32,7 @@ export default function QRCodePage() {
 
         setQrUrl(link);
       } catch (err) {
-        showToast("❌ Failed to fetch public link.", "error");
+        showToast("Couldn't load QR link. Refresh page.", "error");
       } finally {
         setLoading(false);
       }
@@ -44,9 +44,9 @@ export default function QRCodePage() {
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(qrUrl);
-      showToast("🔗 Link copied to clipboard!", "success");
+      showToast("Link copied to clipboard!", "success");
     } catch {
-      showToast("❌ Failed to copy link.", "error");
+      showToast("Couldn't copy link. Try again.", "error");
     }
   };
 

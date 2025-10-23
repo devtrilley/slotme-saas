@@ -128,7 +128,7 @@ export default function Settings() {
           onClick={async () => {
             const token = localStorage.getItem("access_token");
             if (!token || isTokenExpired(token)) {
-              showToast("⛔ Session expired. Please log in again.", "error");
+              showToast("Session expired. Logging out...", "warning");
               localStorage.clear();
               setTimeout(() => {
                 navigate("/auth", { state: { sessionExpired: true } });
@@ -144,7 +144,7 @@ export default function Settings() {
               });
 
               if (Object.keys(updatedData).length === 0) {
-                showToast("⚠️ No changes to update.", "warning");
+                showToast("No changes to save.", "info");
                 return;
               }
 
@@ -153,7 +153,7 @@ export default function Settings() {
                 updatedData.email &&
                 !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updatedData.email)
               ) {
-                showToast("❌ Please enter a valid email address.", "error");
+                showToast("Enter a valid email address.", "warning");
                 return;
               }
 
@@ -161,13 +161,13 @@ export default function Settings() {
                 updatedData.phone &&
                 !/^\+?[0-9\s\-()]{7,20}$/.test(updatedData.phone)
               ) {
-                showToast("❌ Please enter a valid phone number.", "error");
+                showToast("Enter a valid phone number.", "warning");
                 return;
               }
 
               await axios.patch("/freelancer/account", updatedData);
 
-              showToast("✅ Profile updated.", "success");
+              showToast("Profile updated.", "success");
 
               try {
                 const res = await axios.get("/freelancer/me");
@@ -191,7 +191,7 @@ export default function Settings() {
               }));
             } catch (err) {
               console.error(err);
-              showToast("❌ Error updating profile.", "error");
+              showToast("Couldn't update profile. Try again.", "error");
             }
           }}
           className="btn btn-primary block mx-auto"
@@ -244,15 +244,15 @@ export default function Settings() {
             const ne = newEmail.trim().toLowerCase();
             const ce = confirmNewEmail.trim().toLowerCase();
             if (!ne || !ce || ne !== ce) {
-              showToast("Emails must match.", "error");
+              showToast("Emails must match.", "warning");
               return;
             }
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ne)) {
-              showToast("Please enter a valid email.", "error");
+              showToast("Enter a valid email.", "warning");
               return;
             }
             if (!currentPwForEmail) {
-              showToast("Enter your current password.", "error");
+              showToast("Enter your current password.", "warning");
               return;
             }
 
@@ -263,7 +263,7 @@ export default function Settings() {
                 current_password: currentPwForEmail,
               });
               showToast(
-                `📧 Verification link sent to ${ne}`,
+                `Verification link sent to ${ne}`,
                 "info",
                 7000
               );
@@ -361,7 +361,7 @@ export default function Settings() {
 
               const { valid, errors } = validatePassword(formData.new_password);
               if (!valid) {
-                showToast(`Weak password: ${errors.join(", ")}`, "error");
+                showToast("Password doesn't meet requirements.", "warning");
                 return;
               }
 
@@ -369,7 +369,7 @@ export default function Settings() {
                 password: formData.password,
                 new_password: formData.new_password,
               });
-              showToast("✅ Password updated.", "success");
+              showToast("Password updated.", "success");
               setFormData((prev) => ({
                 ...prev,
                 password: "",
@@ -377,7 +377,7 @@ export default function Settings() {
               }));
             } catch (err) {
               console.error(err);
-              showToast("❌ Error updating password.", "error");
+              showToast("Couldn't update password. Try again.", "error");
             }
           }}
           className="btn btn-primary block mx-auto"

@@ -31,19 +31,19 @@ export default function SingleSlotForm({
     setLoading(true);
 
     if (!masterTimes || masterTimes.length === 0) {
-      showToast("❌ Unable to generate time slot.", "error");
+      showToast("Can't create slot. Refresh page.", "error");
       setLoading(false);
       return;
     }
 
     if (!selectedDate || isNaN(selectedDate.getTime())) {
-      showToast("Invalid date", "error");
+      showToast("Pick a valid date.", "warning");
       setLoading(false);
       return;
     }
 
     if (!timezone) {
-      showToast("Missing timezone", "error");
+      showToast("Timezone missing. Refresh page.", "error");
       setLoading(false);
       return;
     }
@@ -73,7 +73,7 @@ export default function SingleSlotForm({
     const match = masterTimes.find((t) => t.time_24h.startsWith(label));
 
     if (!match) {
-      showToast("❌ Could not find matching time in UTC", "error");
+      showToast("Time conversion failed. Try another time.", "error");
       setLoading(false);
       return;
     }
@@ -102,7 +102,7 @@ export default function SingleSlotForm({
         );
         const msg =
           err.response?.data?.error ||
-          "❌ Could not add time slot. Please try again.";
+          "Slot creation failed. May conflict with existing slot.";
         showToast(msg, "error");
         setError(""); // Optional: hide static error now that toast handles it
       })

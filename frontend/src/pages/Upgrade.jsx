@@ -117,16 +117,16 @@ export default function Upgrade() {
 
       const data = res.data;
       if (data.url) {
-        showToast("Redirecting you to Stripe...", "success", 4000); // ✅ Toast here
+        showToast("Redirecting to Stripe...", "info", 4000); // ✅ Toast here
         setTimeout(() => {
           window.location.href = data.url; // ✅ Delayed redirect
         }, 600); // give toast ~0.6s to render
       } else {
-        showToast("Failed to create checkout session.", "error");
+        showToast("Couldn't start checkout. Try again.", "error");
       }
     } catch (err) {
       console.error("❌ Stripe error:", err);
-      showToast("Something went wrong. Try again.", "error");
+      showToast("Payment setup failed. Try again.", "error");
     }
   }
 
