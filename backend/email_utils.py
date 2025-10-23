@@ -9,6 +9,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ✅ FRONTEND_ORIGIN (used for all app links)
+try:
+    from config import FRONTEND_ORIGIN  # standard Flask config import
+except Exception:
+    FRONTEND_ORIGIN = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
 SMTP_SERVER = os.getenv("BREVO_SMTP_SERVER")
 SMTP_PORT = int(os.getenv("BREVO_SMTP_PORT", 587))
 SMTP_LOGIN = os.getenv("BREVO_SMTP_LOGIN")
@@ -108,4 +114,47 @@ def send_verification_email(to_email: str, token: str):
     )
 
     # Reuse the SMTP helper
+    send_branded_customer_reply(subject=subject, body=body, customer_email=to_email)
+
+
+assert FRONTEND_ORIGIN, "FRONTEND_ORIGIN not set — check config or .env"
+
+
+def send_password_reset_email(to_email, token):
+    reset_link = f"{FRONTEND_ORIGIN}/reset-password?token={token}"
+    subject = "Reset your SlotMe password"
+    html = f"""
+        <h2>Password Reset Request</h2>
+        <p>Click the link below to reset your SlotMe password:</p>
+        <a href="{reset_link}">{reset_link}</a>
+        <p>This link will expire in 1 hour.</p>
+        <p>If you didn’t request a password reset, you can ignore this email.</p>
+    """
+    send_branded_customer_reply(subject=subject, body=html, customer_email=to_email)
+
+
+
+def _frontend_origin_fallback():
+    try:
+        from config import FRONTEND_ORIGIN
+        return FRONTEND_ORIGIN
+    except Exception:
+        return os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+
+def send_email_change_confirmation(to_email: str, token: str):
+    """
+    Sends an email to the *new* email address with a confirm link.
+    """
+    FRONTEND_ORIGIN = _frontend_origin_fallback()
+    confirm_url = f"{FRONTEND_ORIGIN}/confirm-email-change?token={token}"
+
+    subject = "Confirm your SlotMe email change"
+    body = (
+        "You requested to change your SlotMe login email.\n\n"
+        f"Confirm this change: {confirm_url}\n\n"
+        "If you didn’t request this, ignore this email."
+    )
+
+    # Reuse branded sender (same as verification + password emails)
     send_branded_customer_reply(subject=subject, body=body, customer_email=to_email)

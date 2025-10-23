@@ -58,3 +58,7 @@ RESERVED_ROUTES = {
     "freelancers",
     "dev",
 }
+
+# JWT Configuration
+JWT_ACCESS_TOKEN_EXPIRES = 900  # 15 minutes (900 seconds)
+JWT_REFRESH_TOKEN_EXPIRES = 604800  # 7 days

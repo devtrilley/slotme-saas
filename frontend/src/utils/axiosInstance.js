@@ -15,10 +15,12 @@ const publicEndpoints = [
   "/appointment/",
   "/download-ics",
   "/feedback",
-  "/auth",
-  "/auth/signup",
+  "/auth/signup",  // ✅ Keep only specific public auth routes
   "/auth/verify-email",
-  "/auth/refresh",  // ✅ NEW: Refresh endpoint is public (uses refresh token)
+  "/auth/refresh",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+  "/auth/resend-verification",
   "/upgrade-success",
   "/upgrade-cancelled",
   "/test-email",
@@ -27,8 +29,8 @@ const publicEndpoints = [
 ];
 
 let hasShownSessionExpired = false;
-let isRefreshing = false;  // ✅ Prevent multiple simultaneous refresh attempts
-let refreshSubscribers = [];  // ✅ Queue requests waiting for token refresh
+let isRefreshing = false; // ✅ Prevent multiple simultaneous refresh attempts
+let refreshSubscribers = []; // ✅ Queue requests waiting for token refresh
 
 export function resetSessionFlag() {
   hasShownSessionExpired = false;
@@ -53,13 +55,22 @@ const axiosInstance = axios.create({
 // 📤 REQUEST INTERCEPTOR: Attach access token
 axiosInstance.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
+  const devToken = localStorage.getItem("dev_access_token");
   const urlPath = new URL(config.url, API_BASE).pathname;
 
-  const isPublic =
-    publicEndpoints.some((endpoint) => urlPath.startsWith(endpoint)) ||
-    urlPath === "/appointment";
+  const isPublic = publicEndpoints.some((endpoint) =>
+    urlPath.startsWith(endpoint)
+  );
 
-  // Attach access token to protected routes
+  // If dev route, use dev token
+  if (urlPath.startsWith("/dev")) {
+    if (devToken) {
+      config.headers.Authorization = `Bearer ${devToken}`;
+    }
+    return config; // Early return for dev routes
+  }
+
+  // Attach freelancer token to protected routes
   if (token && !isPublic) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -67,7 +78,7 @@ axiosInstance.interceptors.request.use((config) => {
   return config;
 });
 
-// 📥 RESPONSE INTERCEPTOR: Handle 401s with auto-refresh
+// 🔥 RESPONSE INTERCEPTOR: Handle 401s with auto-refresh
 axiosInstance.interceptors.response.use(
   (res) => res,
   async (err) => {
@@ -93,10 +104,30 @@ axiosInstance.interceptors.response.use(
     const attemptedUrl = originalRequest?.url?.replace(API_BASE, "") || "";
     const isPublic = publicEndpoints.some((p) => attemptedUrl.startsWith(p));
     const isAuthPage = window.location.pathname.startsWith("/auth");
+    const isDevRoute = attemptedUrl.startsWith("/dev");
+    const isDevPage = window.location.pathname.startsWith("/dev");
+
+    // 🔴 DEV TOKEN EXPIRED: Redirect to dev login, no refresh attempt
+    if (isTokenError && (isDevRoute || isDevPage) && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      if (!hasShownSessionExpired) {
+        hasShownSessionExpired = true;
+        showToast("🔒 Dev session expired — please log in again.", "error");
+
+        localStorage.removeItem("dev_access_token");
+        localStorage.removeItem("dev_logged_in");
+
+        // Redirect to dev login
+        window.location.href = "/dev-login";
+      }
+
+      return Promise.reject(err);
+    }
 
     // 🔄 AUTO-REFRESH LOGIC: Try to refresh access token if 401 on protected route
     if (isTokenError && !isPublic && !isAuthPage && !originalRequest._retry) {
-      originalRequest._retry = true;  // ✅ Prevent infinite retry loop
+      originalRequest._retry = true; // ✅ Prevent infinite retry loop
 
       // If already refreshing, queue this request
       if (isRefreshing) {
@@ -112,7 +143,7 @@ axiosInstance.interceptors.response.use(
 
       try {
         const refreshToken = localStorage.getItem("refresh_token");
-        
+
         if (!refreshToken) {
           throw new Error("No refresh token available");
         }
@@ -143,7 +174,6 @@ axiosInstance.interceptors.response.use(
 
         // Retry the original request
         return axiosInstance(originalRequest);
-
       } catch (refreshError) {
         console.error("❌ Token refresh failed:", refreshError);
         isRefreshing = false;
@@ -152,7 +182,10 @@ axiosInstance.interceptors.response.use(
         // Refresh token expired or invalid - log user out
         if (!hasShownSessionExpired) {
           hasShownSessionExpired = true;
-          showToast("🔒 Session expired — redirecting you to log in.", "error");
+          showToast(
+            "🔒 Freelancer session expired — redirecting you to log in.",
+            "error"
+          );
 
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");

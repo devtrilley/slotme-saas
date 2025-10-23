@@ -8,6 +8,7 @@ import RefreshButton from "../components/Buttons/RefreshButton";
 import { showToast } from "../utils/toast";
 import SortButton from "../components/Buttons/SortButton";
 import FilterButton from "../components/Buttons/FilterButton";
+import EditFreelancerModal from "../components/Modals/EditFreelancerModal";
 
 export default function DevAdmin() {
   const [freelancers, setFreelancer] = useState([]);
@@ -15,19 +16,18 @@ export default function DevAdmin() {
   const [error, setError] = useState("");
   const [modalFreelancer, setModalFreelancer] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(null);
   const [sortOption, setSortOption] = useState("tier");
   const [sortDirection, setSortDirection] = useState("asc");
   const [tierFilter, setTierFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
 
   const fetchFreelancers = async () => {
-    showToast("Refreshing developers...", "refresh");
     try {
       setError("");
       setLoading(true);
-      const res = await axios.get(`${API_BASE}/dev/freelancers`, {
-        headers: { "X-Dev-Auth": "secret123" },
-      });
+      const res = await axios.get(`${API_BASE}/dev/freelancers`);
       setFreelancer(sortFreelancers(res.data));
     } catch (err) {
       console.error("❌ Failed to load freelancers", err);
@@ -45,18 +45,21 @@ export default function DevAdmin() {
         const cmp = `${a.first_name} ${a.last_name}`.localeCompare(
           `${b.first_name} ${b.last_name}`
         );
-        return sortDirection === "asc" ? cmp : -cmp;
+        if (cmp !== 0) return sortDirection === "asc" ? cmp : -cmp;
+        return a.id - b.id; // Stable tiebreaker
       });
     } else if (sortOption === "tier") {
       const tiers = { elite: 3, pro: 2, free: 1 };
       sorted.sort((a, b) => {
         const cmp = (tiers[b.tier] || 0) - (tiers[a.tier] || 0);
-        return sortDirection === "asc" ? -cmp : cmp;
+        if (cmp !== 0) return sortDirection === "asc" ? -cmp : cmp;
+        return a.id - b.id; // Stable tiebreaker
       });
     } else if (sortOption === "slots") {
       sorted.sort((a, b) => {
         const cmp = (b.slot_count || 0) - (a.slot_count || 0);
-        return sortDirection === "asc" ? -cmp : cmp;
+        if (cmp !== 0) return sortDirection === "asc" ? -cmp : cmp;
+        return a.id - b.id; // Stable tiebreaker
       });
     }
 
@@ -64,6 +67,13 @@ export default function DevAdmin() {
   };
 
   useEffect(() => {
+    // Check if dev token exists
+    const devToken = localStorage.getItem("dev_access_token");
+    if (!devToken) {
+      showToast("Please log in as dev admin", "error");
+      navigate("/dev-login");
+      return;
+    }
     fetchFreelancers();
   }, []);
 
@@ -90,26 +100,32 @@ export default function DevAdmin() {
     });
   };
 
-  const confirmDelete = (freelancerId) => {
+  const handleEditSubmit = (updatedData) => {
     axios
-      .delete(`${API_BASE}/dev/freelancers/${freelancerId}`, {
-        headers: {
-          "X-Dev-Auth": "secret123",
-        },
-      })
+      .patch(`${API_BASE}/dev/freelancers/${showEditModal.id}`, updatedData)
       .then(() => {
-        return axios.get(`${API_BASE}/dev/freelancers`, {
-          headers: { "X-Dev-Auth": "secret123" },
-        });
+        showToast("✅ Freelancer updated!", "success");
+        return axios.get(`${API_BASE}/dev/freelancers`);
       })
       .then((res) => {
-        setFreelancer(
-          res.data.sort((a, b) =>
-            `${a.first_name} ${a.last_name}`.localeCompare(
-              `${b.first_name} ${b.last_name}`
-            )
-          )
-        );
+        setFreelancer(sortFreelancers(res.data));
+        setShowEditModal(null);
+      })
+      .catch((err) => {
+        console.error("❌ Failed to update freelancer", err);
+        showToast("Failed to update freelancer", "error");
+      });
+  };
+
+  const confirmDelete = (freelancerId) => {
+    axios
+      .delete(`${API_BASE}/dev/freelancers/${freelancerId}`)
+      .then(() => {
+        showToast("✅ Freelancer deleted", "success");
+        return axios.get(`${API_BASE}/dev/freelancers`);
+      })
+      .then((res) => {
+        setFreelancer(sortFreelancers(res.data));
         setShowDeleteModal(null);
       })
       .catch((err) => {
@@ -120,8 +136,10 @@ export default function DevAdmin() {
   };
 
   useEffect(() => {
-    fetchFreelancers();
-  }, [sortOption, sortDirection]); // <-- this line!
+    if (freelancers.length > 0) {
+      setFreelancer(sortFreelancers(freelancers));
+    }
+  }, [sortOption, sortDirection]);
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-4">
@@ -151,6 +169,14 @@ export default function DevAdmin() {
 
       <div className="space-y-6">
         <div className="flex flex-col items-center gap-2 mt-2">
+          <input
+            type="text"
+            placeholder="🔍 Search by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input input-bordered input-sm w-full max-w-xs"
+          />
+
           <span className="text-sm text-gray-400">Sort Direction:</span>
           <SortButton
             direction={sortDirection}
@@ -169,41 +195,78 @@ export default function DevAdmin() {
 
         {freelancers
           .filter((f) => {
-            if (tierFilter === "all") return true;
-            if (tierFilter === "paid")
-              return f.tier === "pro" || f.tier === "elite";
-            return f.tier === tierFilter;
+            // Tier filter
+            if (tierFilter !== "all") {
+              if (tierFilter === "paid") {
+                if (f.tier !== "pro" && f.tier !== "elite") return false;
+              } else if (f.tier !== tierFilter) {
+                return false;
+              }
+            }
+
+            // Search filter
+            if (searchQuery) {
+              const query = searchQuery.toLowerCase();
+              const fullName = `${f.first_name} ${f.last_name}`.toLowerCase();
+              const email = f.email.toLowerCase();
+              const business = (f.business_name || "").toLowerCase();
+
+              return (
+                fullName.includes(query) ||
+                email.includes(query) ||
+                business.includes(query)
+              );
+            }
+
+            return true;
           })
           .map((freelancer) => (
-            <div key={freelancer.id}>
+            <div
+              key={freelancer.id}
+              className={`border-l-4 pl-2 ${
+                freelancer.tier === "elite"
+                  ? "border-amber-500"
+                  : freelancer.tier === "pro"
+                  ? "border-purple-500"
+                  : "border-gray-500"
+              }`}
+            >
               <FreelancerCard
                 first_name={freelancer.first_name}
                 last_name={freelancer.last_name}
                 business_name={freelancer.business_name}
+                email={freelancer.email}
                 logoUrl={freelancer.logo_url}
                 tagline={freelancer.tagline}
                 bio={freelancer.bio}
                 isVerified={freelancer.is_verified}
                 onClick={() => setModalFreelancer(freelancer)}
                 tier={freelancer.tier}
+                showEmail={true}
               />
               <div className="flex flex-wrap gap-2 mt-2">
                 <button
                   className="btn btn-xs btn-outline grow"
                   onClick={() => handleViewSlots(freelancer)}
                 >
-                  View Slots
+                  📅 Slots
                 </button>
                 <button
                   className="btn btn-xs btn-outline grow"
                   onClick={() => handleViewBookings(freelancer)}
                 >
-                  View Bookings
+                  📋 Bookings
                 </button>
               </div>
-              <div className="mt-2">
+              <div className="flex gap-2 mt-2">
                 <button
-                  className="btn btn-xs btn-error w-full"
+                  className="btn btn-xs btn-info flex-1"
+                  onClick={() => setShowEditModal(freelancer)}
+                >
+                  ✏️ Edit
+                </button>
+                <button
+                  className="btn btn-xs btn-error flex-1"
                   onClick={() => setShowDeleteModal(freelancer)}
                 >
                   🗑️ Delete
@@ -224,6 +287,15 @@ export default function DevAdmin() {
         <FreelancerModal
           freelancer={modalFreelancer}
           onClose={() => setModalFreelancer(null)}
+          showEmail={true}
+        />
+      )}
+
+      {showEditModal && (
+        <EditFreelancerModal
+          freelancer={showEditModal}
+          onClose={() => setShowEditModal(null)}
+          onSubmit={handleEditSubmit}
         />
       )}
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "../utils/axiosInstance";
 
 export default function DevLogin() {
   const [secret, setSecret] = useState("");
@@ -10,14 +11,16 @@ export default function DevLogin() {
     e.preventDefault();
     setError("");
 
-    const devSecret = "secret123"; // 🔐 Use whatever you want here
-
-    if (secret === devSecret) {
-      localStorage.setItem("dev_logged_in", "true");
-      navigate("/dev-admin");
-    } else {
-      setError("Invalid secret.");
-    }
+    axios
+      .post("/dev/login", { password: secret })
+      .then((res) => {
+        localStorage.setItem("dev_access_token", res.data.access_token);
+        localStorage.setItem("dev_logged_in", "true");
+        navigate("/dev-admin");
+      })
+      .catch(() => {
+        setError("Invalid dev password.");
+      });
   };
 
   return (

@@ -8,6 +8,7 @@ import { showToast } from "../utils/toast";
 import RefreshButton from "../components/Buttons/RefreshButton";
 import ViewBookingModal from "../components/Modals/ViewBookingModal";
 import ConfirmModal from "../components/Modals/ConfirmModal";
+import ReturnToTodayButton from "../components/Buttons/ReturnToTodayButton";
 import {
   getTimezoneAbbreviation,
   formatSlotTimeParts,
@@ -255,13 +256,8 @@ export default function CRM() {
         </div>
 
         {/* ✅ Make sure this button uses w-full and consistent size */}
-        <div className="w-full">
-          <button
-            onClick={() => setSelectedDate(new Date())}
-            className="btn btn-outline w-full"
-          >
-            ⏮️ Return to Today
-          </button>
+        <div className="flex justify-center w-full">
+          <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
         </div>
       </div>
 

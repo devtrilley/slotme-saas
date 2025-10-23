@@ -5,8 +5,8 @@ export default function RequireDevAuth({ children }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem("dev_logged_in");
-    if (!isLoggedIn) {
+    const devToken = localStorage.getItem("dev_access_token");
+    if (!devToken) {
       navigate("/dev-login");
     }
   }, [navigate]);

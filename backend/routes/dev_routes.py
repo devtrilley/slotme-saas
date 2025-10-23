@@ -10,16 +10,40 @@ from email_utils import send_feedback_submission
 from config import ALLOWED_ORIGINS, FRONTEND_ORIGIN
 from config import name_pool, ip_attempts
 from dev.seed_helpers import seed_freelancer, add_appointment
+from functools import wraps
+import os
 
 
 dev_bp = Blueprint("dev", __name__, url_prefix="/dev")
 
 
+def require_dev_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+
+        # ✅ Skip auth for OPTIONS preflight requests
+        if request.method == "OPTIONS":
+            return f(*args, **kwargs)
+
+        try:
+            verify_jwt_in_request()
+            identity = get_jwt_identity()
+
+            if identity != "dev_admin":
+                return jsonify({"error": "Not authorized as dev"}), 403
+
+        except Exception as e:
+            return jsonify({"error": "Invalid or expired dev token"}), 401
+
+        return f(*args, **kwargs)
+
+    return decorated
+
+
 @dev_bp.route("/freelancers", methods=["GET"])
+@require_dev_auth
 def get_all_freelancers():
-    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
-    if auth != "secret123":
-        return jsonify({"error": "Forbidden"}), 403
 
     freelancers = Freelancer.query.all()
     result = []
@@ -41,16 +65,14 @@ def get_all_freelancers():
 
 
 @dev_bp.route("/slots/<int:freelancer_id>", methods=["GET", "OPTIONS"])
+@require_dev_auth
 def get_freelancer_slots(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200
 
-    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
-    if auth != "secret123":
-        return jsonify({"error": "Forbidden"}), 403
-
     from sqlalchemy.orm import joinedload
-
+    
+    freelancer = Freelancer.query.get_or_404(freelancer_id)
     # Fetch master times in order to get consistent time label order
     master_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
     time_label_to_id = {mt.label: mt.id for mt in master_times}
@@ -123,8 +145,10 @@ def get_freelancer_slots(freelancer_id):
         result.append(
             {
                 "id": slot.id,
-                "time": slot.master_time.label,
                 "day": slot.day,
+                "time": slot.master_time.label,
+                "time_24h": slot.master_time.time_24h,
+                "timezone": slot.timezone or freelancer.timezone,
                 "is_booked": is_booked,
                 "is_inherited_block": is_inherited,
                 "appointment": user_info,
@@ -137,13 +161,10 @@ def get_freelancer_slots(freelancer_id):
 
 
 @dev_bp.route("/freelancers/<int:freelancer_id>", methods=["GET", "OPTIONS"])
+@require_dev_auth
 def get_single_freelancer(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200
-
-    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
-    if auth != "secret123":
-        return jsonify({"error": "Forbidden"}), 403
 
     freelancer = Freelancer.query.get(freelancer_id)
     if not freelancer:
@@ -186,13 +207,10 @@ def get_single_freelancer(freelancer_id):
 
 
 @dev_bp.route("/appointments/<int:freelancer_id>", methods=["GET", "OPTIONS"])
+@require_dev_auth
 def get_dev_appointments_for_freelancer(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200  # ✅ Allow CORS preflight
-
-    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
-    if auth != "secret123":
-        return jsonify({"error": "Forbidden"}), 403
 
     appointments = Appointment.query.filter_by(freelancer_id=freelancer_id).all()
     result = []
@@ -213,43 +231,114 @@ def get_dev_appointments_for_freelancer(freelancer_id):
 
 
 @dev_bp.route("/freelancers", methods=["POST"])
+@require_dev_auth
 def create_freelancer():
-    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
-    if auth != "secret123":
-        return jsonify({"error": "Forbidden"}), 403
 
     data = request.get_json()
-    first_name = data.get("first_name")
-    last_name = data.get("last_name")
-    email = data.get("email")
-    password = data.get("password")
+
+    # Required fields
+    first_name = data.get("first_name", "").strip()
+    last_name = data.get("last_name", "").strip()
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "")
+    tier = data.get("tier", "free").lower()
 
     if not first_name or not last_name or not email or not password:
         return jsonify({"error": "Missing required fields"}), 400
 
+    if tier not in ["free", "pro", "elite"]:
+        return jsonify({"error": "Invalid tier"}), 400
+
     if Freelancer.query.filter_by(email=email).first():
         return jsonify({"error": "Email already exists"}), 400
+
+    # Optional fields with smart defaults
+    business_name = data.get("business_name", "").strip() or f"{first_name} {last_name}"
+    timezone = data.get("timezone", "America/New_York")
+    phone = data.get("phone", "").strip()
+
+    # Auto-set verification based on tier
+    is_verified = tier in ["pro", "elite"]
 
     new_freelancer = Freelancer(
         first_name=first_name,
         last_name=last_name,
         email=email,
         password=generate_password_hash(password),
+        business_name=business_name,
         contact_email=data.get("contact_email") or email,
-        email_confirmed=data.get("email_confirmed", False),
-        tier=data.get("tier", "free"),
-        timezone=data.get("timezone", "America/New_York"),
-        logo_url=data.get("logo_url"),
-        tagline=data.get("tagline"),
-        bio=data.get("bio"),
-        phone=data.get("phone"),
+        email_confirmed=True,
+        tier=tier,
+        timezone=timezone,
+        phone=phone,
+        is_verified=is_verified,
+        logo_url=data.get("logo_url", ""),
+        tagline=data.get("tagline", ""),
+        bio=data.get("bio", ""),
+        location=data.get("location", ""),
+        instagram_url=data.get("instagram_url", ""),
+        twitter_url=data.get("twitter_url", ""),
+        no_show_policy="",
+        booking_instructions="",
+        preferred_payment_methods="",
+        faq_items=[],
     )
     db.session.add(new_freelancer)
     db.session.commit()
-    return jsonify({"message": "Freelancer created!"}), 201
+    return (
+        jsonify(
+            {
+                "message": "Freelancer created successfully",
+                "id": new_freelancer.id,
+                "email": new_freelancer.email,
+            }
+        ),
+        201,
+    )
 
+@dev_bp.route("/freelancers/<int:freelancer_id>", methods=["PATCH", "OPTIONS"])
+@require_dev_auth
+def update_freelancer(freelancer_id):
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+
+    freelancer = Freelancer.query.get_or_404(freelancer_id)
+    data = request.get_json()
+
+    # Update allowed fields
+    allowed_fields = [
+        "first_name",
+        "last_name",
+        "business_name",
+        "email",
+        "tagline",
+        "bio",
+        "location",
+        "phone",
+        "timezone",
+        "tier",
+        "logo_url",
+        "contact_email",
+        "instagram_url",
+        "twitter_url",
+    ]
+
+    for field in allowed_fields:
+        if field in data:
+            setattr(freelancer, field, data[field])
+
+    # Auto-verify paid tiers
+    if data.get("tier") in ["pro", "elite"]:
+        freelancer.is_verified = True
+    elif data.get("tier") == "free":
+        freelancer.is_verified = False
+
+    db.session.commit()
+
+    return jsonify({"message": "Freelancer updated successfully"}), 200
 
 @dev_bp.route("/freelancers/<int:freelancer_id>", methods=["DELETE", "OPTIONS"])
+@require_dev_auth
 @cross_origin(
     origins=ALLOWED_ORIGINS,
     supports_credentials=True,
@@ -258,10 +347,6 @@ def create_freelancer():
 def delete_freelancer(freelancer_id):
     if request.method == "OPTIONS":
         return jsonify({}), 200  # Preflight OK
-
-    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
-    if auth != "secret123":
-        return jsonify({"error": "Forbidden"}), 403
 
     freelancer = Freelancer.query.get(freelancer_id)
     if not freelancer:
@@ -276,9 +361,6 @@ def delete_freelancer(freelancer_id):
 # SEEDME
 @dev_bp.route("/seed-all", methods=["POST"])
 def seed_everything():
-    auth = request.headers.get("X-Dev-Auth") or request.headers.get("x-dev-auth")
-    if auth != "secret123":
-        return jsonify({"error": "Forbidden"}), 403
 
     from models import MasterTimeSlot
     from werkzeug.security import generate_password_hash
@@ -652,6 +734,7 @@ def seed_everything():
 
 
 @dev_bp.route("/send-confirmation/<int:freelancer_id>", methods=["POST"])
+@require_dev_auth
 @cross_origin()
 def send_confirmation_email(freelancer_id):
     freelancer = Freelancer.query.get(freelancer_id)
@@ -675,6 +758,7 @@ def send_confirmation_email(freelancer_id):
 
 
 @dev_bp.route("/cleanup-pending", methods=["POST"])
+@require_dev_auth
 def cleanup_pending():
     ten_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=10)
     expired = Appointment.query.filter(
@@ -687,3 +771,21 @@ def cleanup_pending():
 
     db.session.commit()
     return jsonify({"message": f"Expired {len(expired)} pending appointments."})
+
+
+@dev_bp.route("/login", methods=["POST"])
+def dev_login():
+    data = request.get_json() or {}
+    password = data.get("password", "")
+
+    # Check against env variable
+    if password != os.getenv("DEV_PASSWORD"):
+        return jsonify({"error": "Invalid password"}), 401
+
+    # Issue JWT with special "dev" identity
+    access_token = create_access_token(identity="dev_admin")
+
+    return (
+        jsonify({"access_token": access_token, "message": "Dev login successful"}),
+        200,
+    )

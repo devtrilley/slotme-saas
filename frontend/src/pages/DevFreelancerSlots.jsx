@@ -4,6 +4,15 @@ import axios from "../utils/axiosInstance";
 import { API_BASE } from "../utils/constants";
 import RefreshButton from "../components/Buttons/RefreshButton";
 import { showToast } from "../utils/toast";
+import IconDatePicker from "../components/Inputs/IconDatePicker";
+import { useRef } from "react";
+import {
+  formatSlotTime,
+  formatSlotDate,
+  isSlotOnDate,
+  getFreelancerDateString,
+} from "../utils/timezoneHelpers";
+import ReturnToTodayButton from "../components/Buttons/ReturnToTodayButton";
 
 export default function DevFreelancerSlots() {
   const { freelancerId } = useParams();
@@ -19,15 +28,15 @@ export default function DevFreelancerSlots() {
   const [slots, setSlots] = useState([]);
   const [freelancerError, setFreelancerError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [freelancerTimezone, setFreelancerTimezone] =
+    useState("America/New_York");
 
   const handleRefresh = async () => {
-    showToast("Refreshing slots...", "refresh");
     try {
       setFreelancerError("");
       setLoading(true);
-      const res = await axios.get(`${API_BASE}/dev/slots/${freelancerId}`, {
-        headers: { "X-Dev-Auth": "secret123" },
-      });
+      const res = await axios.get(`${API_BASE}/dev/slots/${freelancerId}`);
       setSlots(res.data);
     } catch (err) {
       console.error("❌ Failed to fetch slots", err);
@@ -44,22 +53,43 @@ export default function DevFreelancerSlots() {
   useEffect(() => {
     if (!location.state) {
       axios
-        .get(`${API_BASE}/dev/freelancers/${freelancerId}`, {
-          headers: {
-            "X-Dev-Auth": "secret123",
-          },
-        })
+        .get(`${API_BASE}/dev/freelancers/${freelancerId}`)
         .then((res) => {
           setFreelancerInfo({
             name: `${res.data.first_name} ${res.data.last_name}`,
             email: res.data.email,
           });
+          setFreelancerTimezone(res.data.timezone || "America/New_York");
         })
         .catch((err) => {
           console.error("❌ Failed to fetch freelancer info", err);
         });
+    } else {
+      // Fetch timezone even if we have state
+      axios
+        .get(`${API_BASE}/dev/freelancers/${freelancerId}`)
+        .then((res) => {
+          setFreelancerTimezone(res.data.timezone || "America/New_York");
+        })
+        .catch((err) => {
+          console.error("❌ Failed to fetch timezone", err);
+        });
     }
   }, [freelancerId, location.state]);
+
+  // Group slots by date
+  const filteredSlots = selectedDate
+    ? slots.filter((slot) =>
+        isSlotOnDate(slot, selectedDate, freelancerTimezone)
+      )
+    : slots;
+
+  const groupedSlots = filteredSlots.reduce((acc, slot) => {
+    const dateKey = formatSlotDate(slot, freelancerTimezone);
+    if (!acc[dateKey]) acc[dateKey] = [];
+    acc[dateKey].push(slot);
+    return acc;
+  }, {});
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-4">
@@ -76,7 +106,7 @@ export default function DevFreelancerSlots() {
         onClick={() => navigate("/dev-admin")}
         className="btn btn-sm btn-outline w-full mt-4"
       >
-        ⬅ Back to Admin Panel
+        ⬅️ Back to Admin Panel
       </button>
 
       <div className="flex justify-center">
@@ -87,38 +117,66 @@ export default function DevFreelancerSlots() {
         />
       </div>
 
+      <div className="flex flex-col items-center gap-2">
+        <label className="text-sm text-gray-400">Select Date:</label>
+        <IconDatePicker selected={selectedDate} onChange={setSelectedDate} />
+        <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
+      </div>
+
       {loading && <p className="text-center">Loading slots...</p>}
       {freelancerError && (
         <p className="text-center text-red-500">{freelancerError}</p>
       )}
 
-      <div className="space-y-3">
-        {slots.map((slot) => (
-          <div
-            key={slot.id}
-            className="p-4 bg-base-200 rounded shadow-sm border"
-          >
-            <p>
-              <strong>Time:</strong> {slot.time}
-            </p>
-            <p>
-              <strong>Status:</strong>{" "}
-              {slot.is_booked ? (
-                <span className="text-red-500">Booked</span>
-              ) : (
-                <span className="text-green-500">Available</span>
-              )}
-            </p>
-            {slot.appointment && (
-              <div className="mt-2 text-sm">
-                <p>
-                  <strong>Name:</strong> {slot.appointment.name}
-                </p>
-                <p>
-                  <strong>Email:</strong> {slot.appointment.email}
-                </p>
-              </div>
-            )}
+      {!loading && filteredSlots.length === 0 && (
+        <p className="text-center text-gray-400">No slots for this date</p>
+      )}
+
+      <div className="space-y-4">
+        {Object.entries(groupedSlots).map(([dateKey, dateSlots]) => (
+          <div key={dateKey}>
+            <h3 className="text-lg font-semibold mb-2 text-primary">
+              {dateKey}
+            </h3>
+            <div className="space-y-2">
+              {dateSlots.map((slot) => (
+                <div
+                  key={slot.id}
+                  className={`p-4 rounded shadow-sm border ${
+                    slot.is_booked
+                      ? "bg-red-900/20 border-red-500"
+                      : "bg-base-200"
+                  }`}
+                >
+                  <p className="font-bold text-lg">
+                    {formatSlotTime(slot, freelancerTimezone)}
+                  </p>
+                  <p className="text-sm">
+                    <strong>Status:</strong>{" "}
+                    {slot.is_booked ? (
+                      <span className="text-red-500">Booked</span>
+                    ) : (
+                      <span className="text-green-500">Available</span>
+                    )}
+                  </p>
+                  {slot.appointment && (
+                    <div className="mt-2 text-sm space-y-1 border-t pt-2">
+                      <p>
+                        <strong>Client:</strong> {slot.appointment.name}
+                      </p>
+                      <p>
+                        <strong>Email:</strong> {slot.appointment.email}
+                      </p>
+                      {slot.appointment.service && (
+                        <p>
+                          <strong>Service:</strong> {slot.appointment.service}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -127,7 +185,7 @@ export default function DevFreelancerSlots() {
         onClick={() => navigate("/dev-admin")}
         className="btn btn-sm btn-outline w-full mt-4"
       >
-        ⬅ Back to Admin Panel
+        ⬅️ Back to Admin Panel
       </button>
     </div>
   );

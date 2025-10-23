@@ -37,7 +37,7 @@ export default function ProfilePhoto({
         />
       </div>
 
-      {isVerified && (
+      {isVerified && safeTier !== "free" && (
         <div
           className="absolute bottom-0 right-0 w-6 h-6 bg-blue-500 border-2 border-white rounded-full flex items-center justify-center"
           title="Verified Freelancer"

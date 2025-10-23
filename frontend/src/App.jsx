@@ -25,16 +25,19 @@ import SignupSuccess from "./pages/SignupSuccess";
 import BookingSuccess from "./pages/BookingSuccess";
 import BookingConfirmed from "./pages/BookingConfirmed";
 import BookingCancelled from "./pages/BookingCancelled";
-// import
 import EmailConfirmed from "./pages/EmailConfirmed";
 import DeleteConfirmation from "./pages/DeleteConfirmation";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
-import UpgradeSuccess from "./pages/UpgradeSuccess"; // or wherever the file lives
+import UpgradeSuccess from "./pages/UpgradeSuccess";
 import UpgradeCancelled from "./pages/UpgradeCancelled";
 import NavigatorInit from "./components/NavigatorInit";
 import { PUBLIC_SAFE_PATHS } from "./utils/constants";
 import AlreadyTaken from "./pages/AlreadyTaken";
 import Settings from "./pages/Settings";
+
+import ConfirmEmailChange from "./pages/ConfirmEmailChange";
 
 // Component Imports
 import Navbar from "./components/Layout/Navbar";
@@ -42,6 +45,8 @@ import RequireDevAuth from "./components/Auth/RequireDevAuth";
 import RequireFreelancerAuth from "./components/Auth/RequireFreelancerAuth";
 import RequireTier from "./components/Auth/RequireTier";
 import { Toaster } from "react-hot-toast"; // 🔼 Put this at the top
+
+
 
 import { useEffect, useState } from "react";
 import { useFreelancer } from "./context/FreelancerContext";
@@ -263,6 +268,11 @@ export default function App() {
             path="/delete-confirm/:token"
             element={<DeleteConfirmation />}
           />
+
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+
+          <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
         </Routes>
       </div>
     </div>

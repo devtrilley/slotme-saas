@@ -7,11 +7,13 @@ export default function FreelancerCard({
   business_name,
   first_name,
   last_name,
+  email,
   logoUrl,
   isVerified,
   tagline,
   onClick = () => {},
   tier = "free",
+  showEmail = false,
 }) {
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
@@ -52,7 +54,7 @@ export default function FreelancerCard({
         <div className="relative">
           <ProfilePhoto src={logoUrl} tier={tier} size="w-17 h-17" />
 
-          {isVerified && (
+          {isVerified && tier !== "free" && (
             <div
               ref={badgeRef}
               className="absolute bottom-0 right-0 z-10 translate-x-1 translate-y-0 cursor-pointer"
@@ -86,6 +88,10 @@ export default function FreelancerCard({
             fallback="Your Business Name"
             className="text-white font-bold text-lg"
           />
+
+          {showEmail && email && (
+            <p className="text-xs text-gray-400 mt-0.5">{email}</p>
+          )}
 
           <FallbackText
             value={tagline}

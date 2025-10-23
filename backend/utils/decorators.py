@@ -7,9 +7,16 @@ from utils.features import FEATURES, is_feature_enabled, normalize_tier
 def require_auth(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
+        from flask import request
+
+        # ✅ allow browser preflight requests through untouched
+        if request.method == "OPTIONS":
+            return ("", 200)
+
         # assumes middleware set g.user and g.freelancer
         if not getattr(g, "user", None) or not getattr(g, "freelancer", None):
             return jsonify({"error": "auth_required"}), 401
+
         return f(*args, **kwargs)
 
     return wrapper

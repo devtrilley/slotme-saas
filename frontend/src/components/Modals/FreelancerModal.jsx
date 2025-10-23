@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import BaseModal from "./BaseModal";
 import ProfilePhoto from "../ProfilePhoto";
 
-export default function FreelancerModal({ freelancer, open = true, onClose }) {
+export default function FreelancerModal({ freelancer, open = true, onClose, showEmail = false }) {
   if (!freelancer) return null;
 
   return (
@@ -30,9 +30,15 @@ export default function FreelancerModal({ freelancer, open = true, onClose }) {
           `${freelancer.first_name ?? ""} ${freelancer.last_name ?? ""}`.trim()}
       </h2>
 
+      {showEmail && freelancer.email && (
+        <p className="text-xs text-gray-400 text-center mt-1">
+          📧 {freelancer.email}
+        </p>
+      )}
+
       {freelancer.tagline && (
         <p className="italic text-sm text-gray-400 text-center mt-1">
-          “{freelancer.tagline}”
+          "{freelancer.tagline}"
         </p>
       )}
 

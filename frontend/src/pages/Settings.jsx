@@ -6,6 +6,7 @@ import { setStoredFreelancer } from "../utils/setStoredFreelancer";
 import { isTokenExpired } from "../utils/jwt";
 import { useNavigate } from "react-router-dom";
 import DeleteAccountModal from "../components/Modals/DeleteAccountModal";
+import PasswordChecklist from "../components/Inputs/PasswordChecklist";
 
 export default function Settings() {
   const { freelancer, setFreelancer } = useFreelancer();
@@ -17,9 +18,17 @@ export default function Settings() {
     business_name: "",
     password: "",
     new_password: "",
+    confirm_new_password: "",
   });
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPasswordChecklist, setShowPasswordChecklist] = useState(false);
+
+  // inside Settings component, add local state:
+  const [newEmail, setNewEmail] = useState("");
+  const [confirmNewEmail, setConfirmNewEmail] = useState("");
+  const [currentPwForEmail, setCurrentPwForEmail] = useState("");
+  const [sendingEmailChange, setSendingEmailChange] = useState(false);
 
   const navigate = useNavigate();
 
@@ -191,25 +200,138 @@ export default function Settings() {
         </button>
       </div>
 
+      {/* 📧 CHANGE EMAIL */}
+      <div className="bg-base-100 p-6 rounded-xl shadow-md space-y-4">
+        <h2 className="text-lg font-semibold text-center">Change Email</h2>
+
+        <input
+          type="email"
+          className="input input-bordered w-full"
+          placeholder="New email"
+          value={newEmail}
+          onChange={(e) => setNewEmail(e.target.value)}
+        />
+        <input
+          type="email"
+          className="input input-bordered w-full"
+          placeholder="Confirm new email"
+          value={confirmNewEmail}
+          onChange={(e) => setConfirmNewEmail(e.target.value)}
+        />
+        <input
+          type="password"
+          className="input input-bordered w-full"
+          placeholder="Current password"
+          value={currentPwForEmail}
+          onChange={(e) => setCurrentPwForEmail(e.target.value)}
+        />
+
+        <button
+          className="btn btn-primary w-full"
+          disabled={sendingEmailChange}
+          onClick={async () => {
+            const token = localStorage.getItem("access_token");
+            if (!token || isTokenExpired(token)) {
+              showToast("⛔ Session expired. Please log in again.", "error");
+              localStorage.clear();
+              setTimeout(() => {
+                navigate("/auth", { state: { sessionExpired: true } });
+              }, 800);
+              return;
+            }
+
+            // Basic UI validation
+            const ne = newEmail.trim().toLowerCase();
+            const ce = confirmNewEmail.trim().toLowerCase();
+            if (!ne || !ce || ne !== ce) {
+              showToast("Emails must match.", "error");
+              return;
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ne)) {
+              showToast("Please enter a valid email.", "error");
+              return;
+            }
+            if (!currentPwForEmail) {
+              showToast("Enter your current password.", "error");
+              return;
+            }
+
+            try {
+              setSendingEmailChange(true);
+              await axios.post("/auth/change-email/request", {
+                new_email: ne.trim().toLowerCase(),
+                current_password: currentPwForEmail,
+              });
+              showToast(
+                `📧 Verification link sent to ${ne}`,
+                "info",
+                7000
+              );
+              setNewEmail("");
+              setConfirmNewEmail("");
+              setCurrentPwForEmail("");
+            } catch (err) {
+              const msg =
+                err?.response?.data?.error || "Could not start email change.";
+              showToast(msg, "error");
+            } finally {
+              setSendingEmailChange(false);
+            }
+          }}
+        >
+          Send verification link
+        </button>
+
+        <p className="text-xs text-center text-gray-500">
+          We’ll email a confirmation link to your new address. The change
+          completes after you click it.
+        </p>
+      </div>
+
       {/* 🔐 PASSWORD CHANGE */}
       <div className="bg-base-100 p-6 rounded-xl shadow-md space-y-4">
         <h2 className="text-lg font-semibold text-center">Change Password</h2>
+        {/* New Password with checklist */}
+        <div className="space-y-1">
+          <input
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            className="input input-bordered mb-4"
+            placeholder="Current password"
+          />
+          <input
+            type="password"
+            name="new_password"
+            value={formData.new_password}
+            onFocus={() => setShowPasswordChecklist(true)} // 👈 show on focus
+            onChange={handleChange}
+            onBlur={() => {
+              if (formData.new_password.length === 0)
+                setShowPasswordChecklist(false); // 👈 hide if empty
+            }}
+            className="input input-bordered w-full"
+            placeholder="New password"
+          />
+
+          {/* ✅ Live checklist */}
+          {showPasswordChecklist && (
+            <PasswordChecklist
+              password={formData.new_password}
+              confirmPassword={formData.confirm_new_password}
+            />
+          )}
+        </div>
         <input
           type="password"
-          name="new_password"
-          value={formData.new_password}
+          name="confirm_new_password"
+          value={formData.confirm_new_password}
           onChange={handleChange}
           className="input input-bordered"
-          placeholder="New password"
+          placeholder="Confirm new password"
         />
-        <input
-          type="password"
-          name="password"
-          value={formData.password}
-          onChange={handleChange}
-          className="input input-bordered"
-          placeholder="Current password"
-        />
+
         <button
           onClick={async () => {
             const token = localStorage.getItem("access_token");
@@ -223,6 +345,26 @@ export default function Settings() {
             }
 
             try {
+              // ✅ Validate password strength before update
+              const validatePassword = (password) => {
+                const errors = [];
+                if (password.length < 8) errors.push("At least 8 characters");
+                if (!/[A-Z]/.test(password))
+                  errors.push("At least one uppercase letter");
+                if (!/[a-z]/.test(password))
+                  errors.push("At least one lowercase letter");
+                if (!/[0-9]/.test(password)) errors.push("At least one number");
+                if (!/[^A-Za-z0-9]/.test(password))
+                  errors.push("At least one special character");
+                return { valid: errors.length === 0, errors };
+              };
+
+              const { valid, errors } = validatePassword(formData.new_password);
+              if (!valid) {
+                showToast(`Weak password: ${errors.join(", ")}`, "error");
+                return;
+              }
+
               await axios.patch("/freelancer/account", {
                 password: formData.password,
                 new_password: formData.new_password,

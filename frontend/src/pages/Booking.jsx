@@ -139,7 +139,11 @@ export default function BookingPage({ useCustomUrl = false }) {
       }
     } catch (err) {
       console.error("❌ Failed to refresh", err);
-      setError("Booking page unavailable.");
+      if (err.response?.status === 404) {
+        setError("missing-freelancer");
+      } else {
+        setError("Booking page unavailable.");
+      }
     }
   };
 
@@ -162,7 +166,11 @@ export default function BookingPage({ useCustomUrl = false }) {
       })
       .catch((err) => {
         console.error("❌ Failed to fetch freelancer info", err);
-        setError("Booking page unavailable."); // ✅ Add this line
+        if (err.response?.status === 404) {
+          setError("missing-freelancer");
+        } else {
+          setError("Booking page unavailable.");
+        }
       });
   };
 
@@ -427,32 +435,42 @@ export default function BookingPage({ useCustomUrl = false }) {
     return true;
   });
 
-  // T E M P - REMOVAL
-  // if (error) {
-  //   return (
-  //     <div className="max-w-md mx-auto p-6 space-y-4 text-center">
-  //       <div className="text-5xl">🤷‍♀️</div>
-  //       <h2 className="text-xl font-semibold text-purple-600">
-  //         Uh-oh! We couldn't find this booking page
-  //       </h2>
-  //       <p className="text-gray-400 text-sm">
-  //         The link might be broken, expired, or the freelancer doesn't exist.
-  //       </p>
-  //       <button
-  //         onClick={() => (window.location.href = "/")}
-  //         className="btn btn-primary btn-sm mt-4"
-  //       >
-  //         🔙 Back to Home
-  //       </button>
-  //     </div>
-  //   );
-  // }
-
   console.log("Selected Date:", selectedDate);
   console.log(
     "Parsed Luxon Date:",
     DateTime.fromJSDate(selectedDate).toISODate()
   );
+
+  // 🚨 Handle missing freelancer BEFORE SafeLoader
+  if (error === "missing-freelancer") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-base-200 rounded-lg shadow-xl p-8 text-center space-y-6">
+          {/* Visual Element */}
+          <div className="text-7xl animate-pulse">🔍</div>
+
+          {/* Heading */}
+          <h1 className="text-2xl font-bold text-purple-400">
+            Hmm... we can't find this booking page
+          </h1>
+
+          {/* Explanation */}
+          <p className="text-gray-400 text-sm leading-relaxed">
+            This link doesn't belong to any freelancer. It might be broken,
+            expired, or the freelancer may have deleted their account.
+          </p>
+
+          {/* CTA Button */}
+          <button
+            onClick={() => (window.location.href = "/")}
+            className="btn btn-primary w-full mt-4"
+          >
+            🏠 Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <SafeLoader loading={loading} error={error} onRetry={handleRetry}>

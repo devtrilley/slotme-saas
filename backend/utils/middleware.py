@@ -24,11 +24,18 @@ def load_freelancer():
         return
 
     open_prefixes = (
-        "/auth",
+        "/auth/signup",
+        "/auth/verify-email",
+        "/auth/refresh",
+        "/auth/forgot-password",
+        "/auth/reset-password",
+        "/auth/resend-verification",
+        "/auth/change-email/confirm",  # ✅ Public (uses token in body)
         "/signup",
         "/seed",
         "/verify",
-        "/dev",
+        "/dev/login",
+        "/dev/seed-all",  # ✅ Add this line
         "/404",
         "/master-times",
         # "/appointment",
@@ -47,6 +54,7 @@ def load_freelancer():
     )
 
     open_paths = [
+        "/auth",  # ✅ Login endpoint is public
         "/book",
         "/feedback",
         "/confirm-booking",
@@ -86,9 +94,17 @@ def load_freelancer():
         print("🧪 Authorization Header:", auth_header)
 
         verify_jwt_in_request()
-        g.freelancer_id = get_jwt_identity()
-        print("✅ JWT Identity:", g.freelancer_id)
+        identity = get_jwt_identity()
+        print("✅ JWT Identity:", identity)
 
+        # ✅ Handle dev admin tokens (don't need freelancer lookup)
+        if identity == "dev_admin":
+            g.is_dev_admin = True
+            print("✅ Dev admin authenticated.\n")
+            return
+
+        # Handle regular freelancer tokens
+        g.freelancer_id = identity
         freelancer = Freelancer.query.get(g.freelancer_id)
         if not freelancer:
             print("❌ No freelancer found in DB for ID:", g.freelancer_id)
@@ -112,7 +128,10 @@ def load_freelancer():
     except (ExpiredSignatureError, JWTDecodeError) as e:
         print("⏰ Token expired or invalid — returning 401 for auto-refresh")
         print("⏰ Exception:", str(e))
-        return jsonify({"error": "token_expired"}), 401  # ✅ Triggers axios auto-refresh
+        return (
+            jsonify({"error": "token_expired"}),
+            401,
+        )  # ✅ Triggers axios auto-refresh
 
     except (DecodeError, InvalidTokenError) as e:
         print("🔐 Token decode/validation error")
@@ -122,4 +141,7 @@ def load_freelancer():
     except Exception as e:
         print("💥 UNEXPECTED ERROR during auth!")
         print("💥", str(e))
-        return jsonify({"error": "internal_auth_error"}), 500  # Only for truly unexpected errors
+        return (
+            jsonify({"error": "internal_auth_error"}),
+            500,
+        )  # Only for truly unexpected errors
