@@ -738,7 +738,7 @@ export default function BookingPage({ useCustomUrl = false }) {
                   };
 
                   return (
-                    <>
+                    <div key={`slot-group-${slot.id}`}>
                       {/* 🔥 Timezone group header - spans full width */}
                       {showHeader && (
                         <div className="col-span-2 mt-4 mb-2 text-center">
@@ -748,7 +748,7 @@ export default function BookingPage({ useCustomUrl = false }) {
                         </div>
                       )}
 
-                      <div key={slot.id} className="flex flex-col">
+                      <div className="flex flex-col">
                         <button
                           className={`btn w-full text-sm ${
                             isDisabled
@@ -761,10 +761,7 @@ export default function BookingPage({ useCustomUrl = false }) {
                             if (loading) return;
 
                             if (!selectedServiceId) {
-                              showToast(
-                                "Select a service first.",
-                                "warning"
-                              );
+                              showToast("Select a service first.", "warning");
                               return;
                             }
 
@@ -826,7 +823,7 @@ export default function BookingPage({ useCustomUrl = false }) {
                           </div>
                         )}
                       </div>
-                    </>
+                    </div>
                   );
                 });
               })()}

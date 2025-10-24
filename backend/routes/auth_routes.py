@@ -6,6 +6,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from models import db, Freelancer
 from utils.jwt_utils import serializer
 from config import ALLOWED_ORIGINS, FRONTEND_ORIGIN
+from utils.slug_utils import generate_unique_slug  # 🔥 ADD THIS LINE
 
 # keep imports organized + avoid circular issues
 from email_utils import (
@@ -103,8 +104,11 @@ def signup_freelancer():
         contact_email=email,
         password=hashed,
         email_confirmed=False,
-        location="",  # 👈 default so we don’t violate NOT NULL anywhere
+        location="",  # 👈 default so we don't violate NOT NULL anywhere
     )
+
+    # 🔥 Generate unique random slug for all new users
+    new_freelancer.public_slug = generate_unique_slug()
 
     db.session.add(new_freelancer)
     db.session.commit()
@@ -322,7 +326,9 @@ def request_email_change():
     if not EMAIL_RE.match(new_email):
         return jsonify({"error": "Invalid email format"}), 400
 
-    freelancer = Freelancer.query.get(int(freelancer_id))  # ✅ JWT identity is stored as string
+    freelancer = Freelancer.query.get(
+        int(freelancer_id)
+    )  # ✅ JWT identity is stored as string
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
 

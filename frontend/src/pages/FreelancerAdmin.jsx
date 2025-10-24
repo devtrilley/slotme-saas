@@ -301,11 +301,15 @@ export default function AdminPage() {
   const [freelancerDetailsUpdated, setFreelancerDetailsUpdated] = useState(0);
 
   const shareUrl =
-    freelancer?.custom_url || freelancerDetails?.custom_url
-      ? `http://localhost:5173/${
-          freelancer?.custom_url || freelancerDetails?.custom_url
-        }`
-      : `http://localhost:5173/book/${freelancer?.id || freelancerDetails?.id}`;
+  freelancer?.custom_url || freelancerDetails?.custom_url
+    ? `http://localhost:5173/${
+        freelancer?.custom_url || freelancerDetails?.custom_url
+      }`
+    : freelancer?.public_slug || freelancerDetails?.public_slug
+    ? `http://localhost:5173/${
+        freelancer?.public_slug || freelancerDetails?.public_slug
+      }`
+    : `http://localhost:5173/book/${freelancer?.id || freelancerDetails?.id}`;
 
   function getFreelancerDateString(date) {
     return DateTime.fromJSDate(date)

@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 from utils.time_utils import utc_today
 from utils.timezone_utils import utc_label_to_datetime
 
+from utils.slug_utils import generate_unique_slug
+
 
 def add_appointment(freelancer, user, service, start_label_local, day):
     """
@@ -170,6 +172,10 @@ def seed_freelancer(
     freelancer.email_confirmed = True
     freelancer.tier = tier
     freelancer.early_access = early_access
+    # ✅ Generate public_slug if not already set
+    if not freelancer.public_slug:
+        freelancer.public_slug = generate_unique_slug()
+        print(f"✅ Generated public_slug: {freelancer.public_slug} for {email}")
     freelancer.is_verified = is_verified
 
     db.session.commit()

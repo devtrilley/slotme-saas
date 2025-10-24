@@ -3,7 +3,12 @@ import { Link } from "react-router-dom";
 import BaseModal from "./BaseModal";
 import ProfilePhoto from "../ProfilePhoto";
 
-export default function FreelancerModal({ freelancer, open = true, onClose, showEmail = false }) {
+export default function FreelancerModal({
+  freelancer,
+  open = true,
+  onClose,
+  showEmail = false,
+}) {
   if (!freelancer) return null;
 
   return (
@@ -51,7 +56,13 @@ export default function FreelancerModal({ freelancer, open = true, onClose, show
 
       {/* Profile Button */}
       <Link
-        to={`/freelancers/${freelancer.id}`}
+        to={
+          freelancer.custom_url
+            ? `/freelancers/${freelancer.custom_url}`
+            : freelancer.public_slug
+            ? `/freelancers/${freelancer.public_slug}`
+            : `/freelancers/${freelancer.id}`
+        }
         className="btn btn-primary mt-6 w-full"
         onClick={onClose}
       >

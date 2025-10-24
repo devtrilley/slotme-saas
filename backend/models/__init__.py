@@ -46,6 +46,7 @@ class Freelancer(db.Model):
     delete_token_expiry = db.Column(db.DateTime, nullable=True)
 
     custom_url = db.Column(db.String(50), unique=True, nullable=True)
+    public_slug = db.Column(db.String(12), unique=True, nullable=True)  # 8-char random slug for all users
 
     # ✅ New contact fields
     contact_email = db.Column(db.String(120), unique=True, nullable=False)

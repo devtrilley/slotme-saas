@@ -104,6 +104,18 @@ export default function FreelancerProfile() {
       )}
       {/* Name and bullets */}
       <div>
+        <Link
+  to={
+    publicFreelancer.custom_url
+      ? `/${publicFreelancer.custom_url}`
+      : publicFreelancer.public_slug
+      ? `/${publicFreelancer.public_slug}`
+      : `/book/${publicFreelancer.id}`
+  }
+  className="btn btn-primary mb-4"
+>
+  Click Here to Book Me!
+</Link>
         <h1 className="text-2xl font-bold">{publicFreelancer.business_name}</h1>
         <ul className="mt-4 text-left text-sm space-y-2">
           {publicFreelancer.bio && (
@@ -235,11 +247,17 @@ export default function FreelancerProfile() {
         instructions={publicFreelancer.booking_instructions}
       />
       <Link
-        to={`/book/${publicFreelancer.id}`}
-        className="btn btn-primary mt-4"
-      >
-        Click Here to Book Me!
-      </Link>
+  to={
+    publicFreelancer.custom_url
+      ? `/${publicFreelancer.custom_url}`
+      : publicFreelancer.public_slug
+      ? `/${publicFreelancer.public_slug}`
+      : `/book/${publicFreelancer.id}`
+  }
+  className="btn btn-primary mb-4"
+>
+  Click Here to Book Me!
+</Link>
     </div>
   );
 }

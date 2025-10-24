@@ -4,11 +4,11 @@ import { showToast } from "../../utils/toast";
 import { useLocation } from "react-router-dom";
 import slotmeLogo from "../../assets/slotme-logo.svg";
 
-import { useFreelancer } from "../../context/FreelancerContext"; // 👈 Add this line
+import { useFreelancer } from "../../context/FreelancerContext"; // 👈 Already imported
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const { clearFreelancer } = useFreelancer(); // 👈 Access the context reset method
+  const { freelancer, clearFreelancer } = useFreelancer(); // 🔥 ADD freelancer here
   const isDevLoggedIn = localStorage.getItem("dev_logged_in");
   const isFreelancerLoggedIn = localStorage.getItem("freelancer_logged_in");
 
@@ -87,7 +87,13 @@ export default function Navbar() {
           <li>
             <NavLink
               className={navLinkClass}
-              to={`/freelancers/${localStorage.getItem("freelancer_id")}`}
+              to={
+                freelancer?.custom_url
+                  ? `/freelancers/${freelancer.custom_url}`
+                  : freelancer?.public_slug
+                  ? `/freelancers/${freelancer.public_slug}`
+                  : `/freelancers/${localStorage.getItem("freelancer_id")}`
+              }
             >
               My Public Profile
             </NavLink>

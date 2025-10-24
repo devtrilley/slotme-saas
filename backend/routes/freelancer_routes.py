@@ -44,12 +44,20 @@ def handle_404(_):
 def get_public_time_slots(identifier):
     from sqlalchemy.orm import joinedload
 
+    # 🔥 NEW: Priority lookup order
     if identifier.isdigit():
         freelancer_id = int(identifier)
     else:
+        # Try custom_url first (paid tiers)
         freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
+        
+        # Try public_slug second (all users)
+        if not freelancer:
+            freelancer = Freelancer.query.filter_by(public_slug=identifier.lower()).first()
+        
         if not freelancer:
             return jsonify({"error": "Freelancer not found"}), 404
+        
         freelancer_id = freelancer.id
 
     if request.method == "OPTIONS":
@@ -157,11 +165,18 @@ def get_public_freelancer_info(identifier):
     if request.method == "OPTIONS":
         return jsonify({}), 200
 
+    # 🔥 NEW: Priority lookup order
     freelancer = None
     if identifier.isdigit():
         freelancer = Freelancer.query.get(int(identifier))
     else:
+        # Try custom_url first (paid tiers)
         freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
+        
+        # Try public_slug second (all users)
+        if not freelancer:
+            freelancer = Freelancer.query.filter_by(public_slug=identifier.lower()).first()
+    
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
 
@@ -188,6 +203,7 @@ def get_public_freelancer_info(identifier):
             "last_name": freelancer.last_name,
             "business_name": freelancer.business_name,
             "custom_url": freelancer.custom_url,
+            "public_slug": freelancer.public_slug,
             "logo_url": freelancer.logo_url,
             "tagline": freelancer.tagline,
             "bio": freelancer.bio,
@@ -214,10 +230,16 @@ def get_public_freelancer_info(identifier):
 @freelancer_bp.route("/freelancers/<identifier>", methods=["GET"])
 @cross_origin(origins=ALLOWED_ORIGINS)
 def public_freelancer_profile(identifier):
+    # 🔥 NEW: Priority lookup order
     if identifier.isdigit():
         freelancer = Freelancer.query.get(int(identifier))
     else:
+        # Try custom_url first (paid tiers)
         freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
+        
+        # Try public_slug second (all users)
+        if not freelancer:
+            freelancer = Freelancer.query.filter_by(public_slug=identifier.lower()).first()
 
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
@@ -654,6 +676,7 @@ def get_freelancer_info():
                 "timezone": f.timezone,
                 "business_address": f.business_address,
                 "custom_url": f.custom_url,
+                "public_slug": f.public_slug,  # 🔥 ADD THIS LINE
                 "no_show_policy": f.no_show_policy,
                 "faq_items": f.faq_items,
                 "tier": f.tier,
@@ -758,6 +781,34 @@ def update_account():
 
     if "business_name" in data:
         freelancer.business_name = data["business_name"].strip()
+
+    # Optional password update
+    if "business_name" in data:
+        freelancer.business_name = data["business_name"].strip()
+
+    # 🔒 Custom URL gating (Pro/Elite only)
+    if "custom_url" in data:
+        custom_url = data["custom_url"].strip().lower()
+        
+        # Only Pro/Elite can set custom URLs
+        if freelancer.tier not in ["pro", "elite"]:
+            return jsonify({
+                "error": "Custom URLs are a PRO/ELITE feature. Upgrade to set a custom URL."
+            }), 403
+        
+        # Validate format (alphanumeric + hyphens only)
+        if custom_url and not re.match(r"^[a-z0-9-]+$", custom_url):
+            return jsonify({
+                "error": "Custom URL can only contain lowercase letters, numbers, and hyphens."
+            }), 400
+        
+        # Check if taken
+        if custom_url:
+            existing = Freelancer.query.filter_by(custom_url=custom_url).first()
+            if existing and existing.id != freelancer_id:
+                return jsonify({"error": "Custom URL already taken."}), 409
+        
+        freelancer.custom_url = custom_url if custom_url else None
 
     # Optional password update
     if "new_password" in data:

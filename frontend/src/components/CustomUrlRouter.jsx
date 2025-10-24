@@ -14,7 +14,7 @@ export default function CustomUrlRouter() {
       .get(`${API_BASE}/${custom_url}`)
       .then((res) => {
         const freelancerId = res.data.id;
-        navigate(`/book/${appointment?.freelancer_id || freelancerId || ""}`);
+        navigate(`/book/${freelancerId}`);
       })
       .catch((err) => {
         const status = err.response?.status;

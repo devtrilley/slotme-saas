@@ -28,6 +28,8 @@ export default function QRCodePage() {
         const base = import.meta.env.VITE_PUBLIC_URL;
         const link = data.custom_url
           ? `${base}/${data.custom_url}`
+          : data.public_slug
+          ? `${base}/${data.public_slug}`
           : `${base}/freelancers/${id}`;
 
         setQrUrl(link);
