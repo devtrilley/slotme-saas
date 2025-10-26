@@ -25,7 +25,7 @@ const mapTimeZone = (tz) => {
 export default function FreelancerProfile() {
   const { freelancerId } = useParams();
   const { freelancer } = useFreelancer();
-  const [publicFreelancer, setPublicFreelancer] = useState(null);
+  const [freelancerDetails, setFreelancerDetails] = useState(null);
   const [error, setError] = useState("");
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const badgeRef = useRef();
@@ -36,7 +36,7 @@ export default function FreelancerProfile() {
       .get(`${API_BASE}/freelancer/public-info/${freelancerId}`)
       .then((res) => {
         const data = res.data;
-        setPublicFreelancer(data);
+        setfreelancerDetails(data);
         setNoShowPolicy(data.no_show_policy || "");
       })
       .catch((err) => {
@@ -56,7 +56,7 @@ export default function FreelancerProfile() {
   }, []);
 
   if (error) return <p className="text-center text-red-500">{error}</p>;
-  if (!publicFreelancer)
+  if (!freelancerDetails)
     return (
       <div className="flex justify-center items-center py-10">
         <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin" />
@@ -68,11 +68,11 @@ export default function FreelancerProfile() {
       {/* Logo + badge */}
       <div className="relative inline-block w-32 h-32">
         <ProfilePhoto
-          src={publicFreelancer.logo_url}
-          tier={publicFreelancer.tier}
+          src={freelancerDetails.logo_url}
+          tier={freelancerDetails.tier}
           size="w-32 h-32"
         />
-        {publicFreelancer.is_verified && (
+        {freelancerDetails.is_verified && (
           <div
             ref={badgeRef}
             className="absolute bottom-0 right-0 z-10 translate-x-0 -translate-y-1"
@@ -97,31 +97,33 @@ export default function FreelancerProfile() {
         )}
       </div>
       {/* Tagline */}
-      {publicFreelancer.tagline && (
+      {freelancerDetails.tagline && (
         <p className="text-sm italic text-gray-300 -mt-3">
-          “{publicFreelancer.tagline}”
+          “{freelancerDetails.tagline}”
         </p>
       )}
       {/* Name and bullets */}
       <div>
         <Link
-  to={
-    publicFreelancer.custom_url
-      ? `/${publicFreelancer.custom_url}`
-      : publicFreelancer.public_slug
-      ? `/${publicFreelancer.public_slug}`
-      : `/book/${publicFreelancer.id}`
-  }
-  className="btn btn-primary mb-4"
->
-  Click Here to Book Me!
-</Link>
-        <h1 className="text-2xl font-bold">{publicFreelancer.business_name}</h1>
+          to={
+            freelancerDetails.custom_url
+              ? `/${freelancerDetails.custom_url}`
+              : freelancerDetails.public_slug
+              ? `/${freelancerDetails.public_slug}`
+              : `/book/${freelancerDetails.id}`
+          }
+          className="btn btn-primary mb-4"
+        >
+          Click Here to Book Me!
+        </Link>
+        <h1 className="text-2xl font-bold">
+          {freelancerDetails.business_name}
+        </h1>
         <ul className="mt-4 text-left text-sm space-y-2">
-          {publicFreelancer.bio && (
+          {freelancerDetails.bio && (
             <li className="italic text-gray-300">
               <strong className="not-italic text-white">Bio:</strong>{" "}
-              {publicFreelancer.bio}
+              {freelancerDetails.bio}
             </li>
           )}
 
@@ -130,46 +132,46 @@ export default function FreelancerProfile() {
               Contact Info
             </h2>
             <ul className="space-y-1 text-sm text-gray-300">
-              {publicFreelancer.email && (
+              {freelancerDetails.email && (
                 <li>
                   <strong className="text-white">Email:</strong>{" "}
                   <a
                     className="text-primary"
-                    href={`mailto:${publicFreelancer.email}`}
+                    href={`mailto:${freelancerDetails.email}`}
                   >
-                    {publicFreelancer.email}
+                    {freelancerDetails.email}
                   </a>
                 </li>
               )}
-              {publicFreelancer.phone && (
+              {freelancerDetails.phone && (
                 <li>
                   <strong className="text-white">Phone:</strong>{" "}
                   <a
                     className="text-primary"
-                    href={`tel:${publicFreelancer.phone}`}
+                    href={`tel:${freelancerDetails.phone}`}
                   >
-                    {publicFreelancer.phone}
+                    {freelancerDetails.phone}
                   </a>
                 </li>
               )}
-              {publicFreelancer.location && (
+              {freelancerDetails.location && (
                 <li>
                   <strong className="text-white">Location:</strong>{" "}
-                  {publicFreelancer.location}
+                  {freelancerDetails.location}
                 </li>
               )}
-              {publicFreelancer.preferred_payment_methods && (
+              {freelancerDetails.preferred_payment_methods && (
                 <li>
                   <strong className="text-white">Payment Methods:</strong>{" "}
-                  {publicFreelancer.preferred_payment_methods}
+                  {freelancerDetails.preferred_payment_methods}
                 </li>
               )}
-              {publicFreelancer.instagram_url && (
+              {freelancerDetails.instagram_url && (
                 <li>
                   <strong className="text-white">Instagram:</strong>{" "}
                   <a
                     className="text-primary"
-                    href={publicFreelancer.instagram_url}
+                    href={freelancerDetails.instagram_url}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -177,12 +179,12 @@ export default function FreelancerProfile() {
                   </a>
                 </li>
               )}
-              {publicFreelancer.twitter_url && (
+              {freelancerDetails.twitter_url && (
                 <li>
                   <strong className="text-white">Twitter/X:</strong>{" "}
                   <a
                     className="text-primary"
-                    href={publicFreelancer.twitter_url}
+                    href={freelancerDetails.twitter_url}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -193,19 +195,19 @@ export default function FreelancerProfile() {
             </ul>
           </div>
 
-          {publicFreelancer.services?.length > 0 && (
+          {freelancerDetails.services?.length > 0 && (
             <div className="mt-6">
               <h2 className="text-lg font-semibold text-white text-center mb-2">
                 Services
               </h2>
-              {publicFreelancer.timezone && (
+              {freelancerDetails.timezone && (
                 <p className="text-sm text-gray-400 text-center mb-2">
                   <strong>Current Time Zone:</strong>{" "}
-                  {mapTimeZone(publicFreelancer.timezone)}
+                  {mapTimeZone(freelancerDetails.timezone)}
                 </p>
               )}
               <ul className="space-y-2 px-4">
-                {publicFreelancer.services.map((service) => (
+                {freelancerDetails.services.map((service) => (
                   <ServiceCard
                     key={service.id}
                     service={service}
@@ -215,7 +217,7 @@ export default function FreelancerProfile() {
               </ul>
             </div>
           )}
-          {publicFreelancer.services?.length === 0 && (
+          {freelancerDetails.services?.length === 0 && (
             <div className="mt-6 border border-white/20 bg-white/5 rounded-lg p-4 text-sm text-white text-center backdrop-blur-md shadow-md">
               <strong className="block mb-1 text-white/90 tracking-wide text-xs uppercase">
                 No Services Listed
@@ -230,34 +232,34 @@ export default function FreelancerProfile() {
             <NoShowPolicy policy={noShowPolicy} />
           </li>
           <li>
-            <FAQCard faq_items={publicFreelancer.faq_items} />{" "}
+            <FAQCard faq_items={freelancerDetails.faq_items} />{" "}
           </li>
         </ul>
       </div>
-      {publicFreelancer.created_at &&
-        DateTime.fromISO(publicFreelancer.created_at).isValid && (
+      {freelancerDetails.created_at &&
+        DateTime.fromISO(freelancerDetails.created_at).isValid && (
           <p className="text-xs text-gray-400">
             Joined{" "}
-            {DateTime.fromISO(publicFreelancer.created_at).toFormat(
+            {DateTime.fromISO(freelancerDetails.created_at).toFormat(
               "MMMM d, yyyy"
             )}
           </p>
         )}
       <BookingInstructionsCard
-        instructions={publicFreelancer.booking_instructions}
+        instructions={freelancerDetails.booking_instructions}
       />
       <Link
-  to={
-    publicFreelancer.custom_url
-      ? `/${publicFreelancer.custom_url}`
-      : publicFreelancer.public_slug
-      ? `/${publicFreelancer.public_slug}`
-      : `/book/${publicFreelancer.id}`
-  }
-  className="btn btn-primary mb-4"
->
-  Click Here to Book Me!
-</Link>
+        to={
+          freelancerDetails.custom_url
+            ? `/${freelancerDetails.custom_url}`
+            : freelancerDetails.public_slug
+            ? `/${freelancerDetails.public_slug}`
+            : `/book/${freelancerDetails.id}`
+        }
+        className="btn btn-primary mb-4"
+      >
+        Click Here to Book Me!
+      </Link>
     </div>
   );
 }

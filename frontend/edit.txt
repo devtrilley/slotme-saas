@@ -1,11 +1,8 @@
-
-1. frontend/src/pages/FreelancerAdmin.jsx
-Why: Need to find the "View My Booking Page" button and change it to use public_slug instead of numeric ID
-2. frontend/src/pages/QRCodePage.jsx
-Why: You said you didn't implement anything yet, so I need to verify what's currently there and give you the fix
-3. frontend/src/components/Modals/FreelancerModal.jsx (if it exists)
-Why: Might have a "Book Now" button that generates booking URLs
-4. frontend/src/components/Cards/FreelancerCard.jsx (if it exists)
-Why: Might have click handlers that navigate to booking pages
-5. backend/routes/freelancer_routes.py
-Why: Need to find where you handle PATCH /freelancer/account (profile updates) to add tier checking for custom_url
+Booking.jsx
+FreelancerProfile.jsx
+FreelancerAdmin.jsx
+CRM.jsx
+FreelancerContext.jsx
+ViewBookingModal.jsx
+InternalBookingModal.jsx
+TimeSlotCard.jsx
