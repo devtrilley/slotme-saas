@@ -9,6 +9,8 @@ instance/
 .env
 backend/.env
 frontend/.env
+backend/.env.production
+frontend/.env.production
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
