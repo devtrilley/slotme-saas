@@ -20,7 +20,7 @@ from flask_jwt_extended import (
     get_jwt,
 )
 from flask_jwt_extended.exceptions import NoAuthorizationError
-from config import FRONTEND_ORIGIN, BACKEND_ORIGIN, ALLOWED_ORIGINS
+from config import FRONTEND_URL, BACKEND_ORIGIN, ALLOWED_ORIGINS
 
 
 from datetime import timezone
@@ -125,9 +125,24 @@ CORS(
 # 🔐 JWT Token Configuration
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=15)
 app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30) # Long-lived for UX
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-    "DATABASE_URL", "sqlite:///scheduler.db"
-)
+def get_database_url():
+    """Build DATABASE_URL from EB's RDS vars or use direct URL"""
+    db_url = os.getenv("DATABASE_URL")
+    if db_url:
+        return db_url
+    
+    # EB injects these after RDS is enabled
+    rds_host = os.getenv("RDS_HOSTNAME")
+    if rds_host:
+        rds_port = os.getenv("RDS_PORT", "5432")
+        rds_db = os.getenv("RDS_DB_NAME")
+        rds_user = os.getenv("RDS_USERNAME")
+        rds_pass = os.getenv("RDS_PASSWORD")
+        return f"postgresql://{rds_user}:{rds_pass}@{rds_host}:{rds_port}/{rds_db}"
+    
+    return "sqlite:///scheduler.db"
+
+app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
@@ -152,6 +167,16 @@ with app.app_context():
 @app.route("/")
 def index():
     return jsonify({"message": "Server is running!"})
+
+# Health Check Route
+@app.route("/health")
+def health_check():
+    """EB health check endpoint"""
+    try:
+        db.session.execute("SELECT 1")
+        return jsonify({"status": "healthy", "database": "connected"}), 200
+    except Exception as e:
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
 
 
 def purge_old_pending():

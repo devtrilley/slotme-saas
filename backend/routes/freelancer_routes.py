@@ -50,14 +50,16 @@ def get_public_time_slots(identifier):
     else:
         # Try custom_url first (paid tiers)
         freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
-        
+
         # Try public_slug second (all users)
         if not freelancer:
-            freelancer = Freelancer.query.filter_by(public_slug=identifier.lower()).first()
-        
+            freelancer = Freelancer.query.filter_by(
+                public_slug=identifier.lower()
+            ).first()
+
         if not freelancer:
             return jsonify({"error": "Freelancer not found"}), 404
-        
+
         freelancer_id = freelancer.id
 
     if request.method == "OPTIONS":
@@ -172,11 +174,13 @@ def get_public_freelancer_info(identifier):
     else:
         # Try custom_url first (paid tiers)
         freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
-        
+
         # Try public_slug second (all users)
         if not freelancer:
-            freelancer = Freelancer.query.filter_by(public_slug=identifier.lower()).first()
-    
+            freelancer = Freelancer.query.filter_by(
+                public_slug=identifier.lower()
+            ).first()
+
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
 
@@ -236,10 +240,12 @@ def public_freelancer_profile(identifier):
     else:
         # Try custom_url first (paid tiers)
         freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
-        
+
         # Try public_slug second (all users)
         if not freelancer:
-            freelancer = Freelancer.query.filter_by(public_slug=identifier.lower()).first()
+            freelancer = Freelancer.query.filter_by(
+                public_slug=identifier.lower()
+            ).first()
 
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
@@ -789,25 +795,35 @@ def update_account():
     # 🔒 Custom URL gating (Pro/Elite only)
     if "custom_url" in data:
         custom_url = data["custom_url"].strip().lower()
-        
+
         # Only Pro/Elite can set custom URLs
         if freelancer.tier not in ["pro", "elite"]:
-            return jsonify({
-                "error": "Custom URLs are a PRO/ELITE feature. Upgrade to set a custom URL."
-            }), 403
-        
+            return (
+                jsonify(
+                    {
+                        "error": "Custom URLs are a PRO/ELITE feature. Upgrade to set a custom URL."
+                    }
+                ),
+                403,
+            )
+
         # Validate format (alphanumeric + hyphens only)
         if custom_url and not re.match(r"^[a-z0-9-]+$", custom_url):
-            return jsonify({
-                "error": "Custom URL can only contain lowercase letters, numbers, and hyphens."
-            }), 400
-        
+            return (
+                jsonify(
+                    {
+                        "error": "Custom URL can only contain lowercase letters, numbers, and hyphens."
+                    }
+                ),
+                400,
+            )
+
         # Check if taken
         if custom_url:
             existing = Freelancer.query.filter_by(custom_url=custom_url).first()
             if existing and existing.id != freelancer_id:
                 return jsonify({"error": "Custom URL already taken."}), 409
-        
+
         freelancer.custom_url = custom_url if custom_url else None
 
     # Optional password update
@@ -1185,9 +1201,9 @@ def delete_initiate():
 
     # Send confirmation email
     from email_utils import send_branded_customer_reply
-    from config import FRONTEND_ORIGIN
-    
-    delete_url = f"{FRONTEND_ORIGIN}/delete-confirm/{delete_token}"
+    from config import FRONTEND_URL
+
+    delete_url = f"{FRONTEND_URL}/delete-confirm/{delete_token}"
     subject = "⚠️ Confirm SlotMe Account Deletion"
     body = (
         f"Hi {freelancer.first_name},\n\n"
@@ -1203,7 +1219,7 @@ def delete_initiate():
         "If you did not request this, you can safely ignore this email.\n\n"
         "- SlotMe Team"
     )
-    
+
     send_branded_customer_reply(subject, body, freelancer.email)
 
     print(f"🗑️ Delete token generated for freelancer {freelancer_id}")
@@ -1270,45 +1286,62 @@ def delete_finalize(token):
         if subscription_id:
             try:
                 from utils.stripe_utils import cancel_subscription
-                
+
                 cancel_subscription(subscription_id)
-                print(f"✅ Stripe subscription {subscription_id} cancelled for freelancer {freelancer_id}")
-                
+                print(
+                    f"✅ Stripe subscription {subscription_id} cancelled for freelancer {freelancer_id}"
+                )
+
                 # Downgrade tier before deletion for consistency
                 freelancer.tier = "free"
                 freelancer.stripe_subscription_id = None
                 db.session.commit()
-                
+
             except Exception as e:
                 print(f"❌ Failed to cancel Stripe subscription: {e}")
                 # FAIL CLOSED: Don't delete if we can't cancel subscription
-                return jsonify({
-                    "error": "Failed to cancel Stripe subscription. Please contact support.",
-                    "details": str(e)
-                }), 500
-        
+                return (
+                    jsonify(
+                        {
+                            "error": "Failed to cancel Stripe subscription. Please contact support.",
+                            "details": str(e),
+                        }
+                    ),
+                    500,
+                )
+
         # Fallback: try to find and cancel by customer_id (for legacy accounts)
         elif customer_id:
             try:
-                from utils.stripe_utils import get_active_subscription_for_customer, cancel_subscription
-                
+                from utils.stripe_utils import (
+                    get_active_subscription_for_customer,
+                    cancel_subscription,
+                )
+
                 found_sub_id = get_active_subscription_for_customer(customer_id)
                 if found_sub_id:
                     cancel_subscription(found_sub_id)
-                    print(f"✅ Found and cancelled subscription {found_sub_id} via customer lookup")
-                    
+                    print(
+                        f"✅ Found and cancelled subscription {found_sub_id} via customer lookup"
+                    )
+
                     freelancer.tier = "free"
                     db.session.commit()
                 else:
                     print(f"⚠️  No active subscription found for customer {customer_id}")
                     # Continue to deletion since no active sub exists
-                    
+
             except Exception as e:
                 print(f"❌ Failed to cancel subscription via customer lookup: {e}")
-                return jsonify({
-                    "error": "Failed to cancel Stripe subscription. Please contact support.",
-                    "details": str(e)
-                }), 500
+                return (
+                    jsonify(
+                        {
+                            "error": "Failed to cancel Stripe subscription. Please contact support.",
+                            "details": str(e),
+                        }
+                    ),
+                    500,
+                )
 
     # Delete all related records (cascade handles most of this)
     try:

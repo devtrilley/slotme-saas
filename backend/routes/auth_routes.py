@@ -5,7 +5,7 @@ from flask_jwt_extended import create_access_token, create_refresh_token, jwt_re
 from werkzeug.security import check_password_hash, generate_password_hash
 from models import db, Freelancer
 from utils.jwt_utils import serializer
-from config import ALLOWED_ORIGINS, FRONTEND_ORIGIN
+from config import ALLOWED_ORIGINS, FRONTEND_URL
 from utils.slug_utils import generate_unique_slug  # 🔥 ADD THIS LINE
 
 # keep imports organized + avoid circular issues

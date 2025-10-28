@@ -20,7 +20,7 @@ from flask import current_app as app
 from datetime import datetime, timezone
 
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from config import FRONTEND_ORIGIN
+from config import FRONTEND_URL
 from flask import redirect
 
 from flask import make_response
@@ -37,7 +37,7 @@ from config import (
     ip_attempts,
     BACKEND_ORIGIN,
     ALLOWED_ORIGINS,
-    FRONTEND_ORIGIN,
+    FRONTEND_URL,
 )
 import os, time, re
 from flask import (
@@ -348,9 +348,9 @@ def confirm_booking_email(token):
         data = serializer.loads(token, salt="booking-confirm", max_age=600)
         appointment_id = data["appointment_id"]
     except SignatureExpired:
-        return redirect(f"{FRONTEND_ORIGIN}/expired")
+        return redirect(f"{FRONTEND_URL}/expired")
     except BadSignature:
-        return redirect(f"{FRONTEND_ORIGIN}/invalid")
+        return redirect(f"{FRONTEND_URL}/invalid")
 
     appointment = Appointment.query.get(appointment_id)
 
@@ -367,14 +367,14 @@ def confirm_booking_email(token):
         try:
             start_index = time_labels.index(start_label)
         except ValueError:
-            return redirect(f"{FRONTEND_ORIGIN}/invalid")
+            return redirect(f"{FRONTEND_URL}/invalid")
 
         required_labels = time_labels[start_index : start_index + duration_blocks]
 
         if len(required_labels) < duration_blocks:
             remaining_labels = time_labels[start_index:]
             if len(remaining_labels) < 1:
-                return redirect(f"{FRONTEND_ORIGIN}/invalid")
+                return redirect(f"{FRONTEND_URL}/invalid")
             required_labels = remaining_labels
 
         # ✅ Check all inherited blocks for conflicts BEFORE confirming
@@ -389,7 +389,7 @@ def confirm_booking_email(token):
             ).first()
             if s and s.is_booked:
                 return redirect(
-                    f"{FRONTEND_ORIGIN}/already-taken?freelancer_id={slot.freelancer_id}"
+                    f"{FRONTEND_URL}/already-taken?freelancer_id={slot.freelancer_id}"
                 )
 
         # No conflicts, safe to confirm
@@ -459,10 +459,10 @@ def confirm_booking_email(token):
             # Don't fail the confirmation if email fails
 
         return redirect(
-            f"{FRONTEND_ORIGIN}/booking-confirmed?appointment_id={appointment.id}"
+            f"{FRONTEND_URL}/booking-confirmed?appointment_id={appointment.id}"
         )
 
-    return redirect(f"{FRONTEND_ORIGIN}/not-found")
+    return redirect(f"{FRONTEND_URL}/not-found")
 
 
 @booking_bp.route("/download-ics/<int:appointment_id>")
@@ -922,7 +922,7 @@ def get_public_appointment(appointment_id):
 def cancel_booking_redirect(cancel_token):
     """Email link - redirects user to frontend confirmation page"""
     print("🔐 Cancel GET route hit with token:", cancel_token)
-    return redirect(f"{FRONTEND_ORIGIN}/cancel/{cancel_token}")
+    return redirect(f"{FRONTEND_URL}/cancel/{cancel_token}")
 
 
 @booking_bp.route("/cancel-booking/<cancel_token>", methods=["POST"])

@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify
 from models import db, Freelancer
 from flask_jwt_extended import jwt_required, get_jwt_identity
 import stripe, os
-from config import FRONTEND_ORIGIN
+from config import FRONTEND_URL
 import json
 
 
@@ -117,24 +117,35 @@ def stripe_webhook():
             print(f"❌ Freelancer with ID {freelancer_id} not found")
 
     # ✅ Handle subscription cancellation events
-    elif event["type"] in ["customer.subscription.deleted", "customer.subscription.canceled"]:
+    elif event["type"] in [
+        "customer.subscription.deleted",
+        "customer.subscription.canceled",
+    ]:
         subscription = event["data"]["object"]
         subscription_id = subscription.get("id")
         customer_id = subscription.get("customer")
 
-        print(f"🔴 Subscription {subscription_id} cancelled/deleted for customer {customer_id}")
+        print(
+            f"🔴 Subscription {subscription_id} cancelled/deleted for customer {customer_id}"
+        )
 
         # Find freelancer by subscription_id (preferred) or customer_id (fallback)
-        freelancer = Freelancer.query.filter_by(stripe_subscription_id=subscription_id).first()
+        freelancer = Freelancer.query.filter_by(
+            stripe_subscription_id=subscription_id
+        ).first()
         if not freelancer and customer_id:
-            freelancer = Freelancer.query.filter_by(stripe_customer_id=customer_id).first()
+            freelancer = Freelancer.query.filter_by(
+                stripe_customer_id=customer_id
+            ).first()
 
         if freelancer:
             # Downgrade to free tier and clear subscription_id
             freelancer.tier = "free"
             freelancer.stripe_subscription_id = None
             db.session.commit()
-            print(f"✅ Downgraded freelancer {freelancer.id} to free tier (sub cancelled)")
+            print(
+                f"✅ Downgraded freelancer {freelancer.id} to free tier (sub cancelled)"
+            )
         else:
             print(f"⚠️  No freelancer found for subscription {subscription_id}")
 
@@ -168,10 +179,12 @@ def check_session_status(session_id):
         # ✅ CRITICAL FIX: Issue BOTH tokens after successful payment verification
         # This allows users who took >15 min at Stripe to continue their session
         from flask_jwt_extended import create_access_token, create_refresh_token
-        
+
         fresh_access_token = create_access_token(identity=str(freelancer.id))
         fresh_refresh_token = create_refresh_token(identity=str(freelancer.id))
-        print(f"🔑 Issued fresh tokens for freelancer {freelancer.id} after payment verification")
+        print(
+            f"🔑 Issued fresh tokens for freelancer {freelancer.id} after payment verification"
+        )
 
         return (
             jsonify(
@@ -179,8 +192,8 @@ def check_session_status(session_id):
                     "tier": freelancer.tier,
                     "payment_status": payment_status,
                     "session_status": session.get("status"),
-                    "access_token": fresh_access_token,      # ✅ Short-lived
-                    "refresh_token": fresh_refresh_token,    # ✅ Long-lived (NEW)
+                    "access_token": fresh_access_token,  # ✅ Short-lived
+                    "refresh_token": fresh_refresh_token,  # ✅ Long-lived (NEW)
                 }
             ),
             200,

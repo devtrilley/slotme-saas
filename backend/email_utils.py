@@ -9,11 +9,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ✅ FRONTEND_ORIGIN (used for all app links)
+# ✅ FRONTEND_URL (used for all app links)
 try:
-    from config import FRONTEND_ORIGIN  # standard Flask config import
+    from config import FRONTEND_URL  # standard Flask config import
 except Exception:
-    FRONTEND_ORIGIN = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 SMTP_SERVER = os.getenv("BREVO_SMTP_SERVER")
 SMTP_PORT = int(os.getenv("BREVO_SMTP_PORT", 587))
@@ -98,12 +98,12 @@ def send_verification_email(to_email: str, token: str):
     Frontend route expected to read ?token= and call /auth/verify-email (GET).
     """
     try:
-        from config import FRONTEND_ORIGIN  # e.g., http://localhost:5173
+        from config import FRONTEND_URL  # e.g., http://localhost:5173
     except Exception:
-        FRONTEND_ORIGIN = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
     # 👇 Route name aligned with EmailConfirmed.jsx (cleaner than "signup-confirmed")
-    verify_url = f"{FRONTEND_ORIGIN}/email-confirm?token={token}"
+    verify_url = f"{FRONTEND_URL}/email-confirm?token={token}"
 
     subject = "Confirm your email for SlotMe"
     body = (
@@ -117,11 +117,11 @@ def send_verification_email(to_email: str, token: str):
     send_branded_customer_reply(subject=subject, body=body, customer_email=to_email)
 
 
-assert FRONTEND_ORIGIN, "FRONTEND_ORIGIN not set — check config or .env"
+assert FRONTEND_URL, "FRONTEND_URL not set — check config or .env"
 
 
 def send_password_reset_email(to_email, token):
-    reset_link = f"{FRONTEND_ORIGIN}/reset-password?token={token}"
+    reset_link = f"{FRONTEND_URL}/reset-password?token={token}"
     subject = "Reset your SlotMe password"
     html = f"""
         <h2>Password Reset Request</h2>
@@ -133,11 +133,11 @@ def send_password_reset_email(to_email, token):
     send_branded_customer_reply(subject=subject, body=html, customer_email=to_email)
 
 
-
-def _frontend_origin_fallback():
+def _FRONTEND_URL_fallback():
     try:
-        from config import FRONTEND_ORIGIN
-        return FRONTEND_ORIGIN
+        from config import FRONTEND_URL
+
+        return FRONTEND_URL
     except Exception:
         return os.getenv("FRONTEND_URL", "http://localhost:5173")
 
@@ -146,8 +146,8 @@ def send_email_change_confirmation(to_email: str, token: str):
     """
     Sends an email to the *new* email address with a confirm link.
     """
-    FRONTEND_ORIGIN = _frontend_origin_fallback()
-    confirm_url = f"{FRONTEND_ORIGIN}/confirm-email-change?token={token}"
+    FRONTEND_URL = _FRONTEND_URL_fallback()
+    confirm_url = f"{FRONTEND_URL}/confirm-email-change?token={token}"
 
     subject = "Confirm your SlotMe email change"
     body = (

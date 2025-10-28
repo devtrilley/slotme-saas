@@ -101,13 +101,14 @@ def send_html_email(to_email, subject, html_content):
         print(f"❌ Email failed: {str(e)}")
         raise
 
+
 def send_delete_confirmation_email(freelancer, token):
     """Send account deletion confirmation email"""
     from email_utils import send_branded_customer_reply
-    from config import FRONTEND_ORIGIN
+    from config import FRONTEND_URL
 
-    delete_link = f"{FRONTEND_ORIGIN}/delete/confirm/{token}"
-    
+    delete_link = f"{FRONTEND_URL}/delete/confirm/{token}"
+
     body = f"""Hi {freelancer.first_name},
 
 You requested to permanently delete your SlotMe account.

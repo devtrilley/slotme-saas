@@ -36,7 +36,7 @@ export default function FreelancerProfile() {
       .get(`${API_BASE}/freelancer/public-info/${freelancerId}`)
       .then((res) => {
         const data = res.data;
-        setfreelancerDetails(data);
+        setFreelancerDetails(data);
         setNoShowPolicy(data.no_show_policy || "");
       })
       .catch((err) => {

@@ -7,7 +7,7 @@ from models import db, Freelancer, Appointment, TimeSlot, MasterTimeSlot, Servic
 from utils.time_utils import utc_today
 from utils.jwt_utils import serializer
 from email_utils import send_feedback_submission
-from config import ALLOWED_ORIGINS, FRONTEND_ORIGIN
+from config import ALLOWED_ORIGINS, FRONTEND_URL
 from config import name_pool, ip_attempts
 from dev.seed_helpers import seed_freelancer, add_appointment
 from functools import wraps
@@ -71,7 +71,7 @@ def get_freelancer_slots(freelancer_id):
         return jsonify({}), 200
 
     from sqlalchemy.orm import joinedload
-    
+
     freelancer = Freelancer.query.get_or_404(freelancer_id)
     # Fetch master times in order to get consistent time label order
     master_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
@@ -296,6 +296,7 @@ def create_freelancer():
         201,
     )
 
+
 @dev_bp.route("/freelancers/<int:freelancer_id>", methods=["PATCH", "OPTIONS"])
 @require_dev_auth
 def update_freelancer(freelancer_id):
@@ -336,6 +337,7 @@ def update_freelancer(freelancer_id):
     db.session.commit()
 
     return jsonify({"message": "Freelancer updated successfully"}), 200
+
 
 @dev_bp.route("/freelancers/<int:freelancer_id>", methods=["DELETE", "OPTIONS"])
 @require_dev_auth
@@ -745,7 +747,7 @@ def send_confirmation_email(freelancer_id):
     freelancer.confirmation_token = token
     db.session.commit()
 
-    confirm_url = f"{FRONTEND_ORIGIN}/verify-freelancer?token={token}"
+    confirm_url = f"{FRONTEND_URL}/verify-freelancer?token={token}"
     print(f"🔗 Confirmation link: {confirm_url}")
 
     send_feedback_submission(

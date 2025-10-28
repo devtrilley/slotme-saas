@@ -31,7 +31,7 @@ name_pool = [
 
 ip_attempts = defaultdict(list)  # Track booking timestamps by IP
 
-FRONTEND_ORIGIN = os.getenv("FRONTEND_URL", "http://localhost:5173")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 # Allow multiple dev/testing origins
 ALLOWED_ORIGINS = [
@@ -41,8 +41,14 @@ ALLOWED_ORIGINS = [
 ]
 
 # Optional: add frontend env if defined
-if FRONTEND_ORIGIN not in ALLOWED_ORIGINS:
-    ALLOWED_ORIGINS.append(FRONTEND_ORIGIN)
+if FRONTEND_URL not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append(FRONTEND_URL)
+
+# PRODUCTION ONLY: Lock down CORS in prod
+if os.getenv("FLASK_ENV") == "production":
+    prod_origin = os.getenv("FRONTEND_URL")
+    if prod_origin:
+        ALLOWED_ORIGINS = [prod_origin]
 
 BACKEND_ORIGIN = os.getenv("BACKEND_ORIGIN", "http://127.0.0.1:5000")
 
