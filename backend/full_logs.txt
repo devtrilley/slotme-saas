@@ -1,4 +1,0 @@
-Retrieving logs...
-Logs were saved to /Users/tomrilley/Desktop/scheduler-app/backend/.elasticbeanstalk/logs/251027_164018
-Logs were saved to /Users/tomrilley/Desktop/scheduler-app/backend/.elasticbeanstalk/logs/251027_164018
-Updated symlink at /Users/tomrilley/Desktop/scheduler-app/backend/.elasticbeanstalk/logs/latest
