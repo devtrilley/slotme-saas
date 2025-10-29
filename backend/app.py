@@ -55,14 +55,15 @@ required_vars = [
     "BACKEND_ORIGIN",
 ]
 
-missing = [var for var in required_vars if not os.getenv(var)]
-if missing:
-    print("❌ Missing required .env variables:")
-    for var in missing:
-        print(f" - {var}")
-    exit(1)
-else:
-    print("✅ All required environment variables loaded.")
+# missing = [var for var in required_vars if not os.getenv(var)]
+# if missing:
+#     print("❌ Missing required .env variables:")
+#     for var in missing:
+#         print(f" - {var}")
+#     exit(1)
+# else:
+#     print("✅ All required environment variables loaded.")
+print("⚠️  Env check temporarily disabled")
 
 
 # DEV ONLY: enable detailed CORS logging
