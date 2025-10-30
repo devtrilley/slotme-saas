@@ -359,29 +359,36 @@ def delete_freelancer(freelancer_id):
 
     return jsonify({"message": "Freelancer deleted"}), 200
 
-@dev_bp.route('/reset-db', methods=['POST'])
+
+@dev_bp.route("/reset-db", methods=["POST"])
 def reset_database():
     """⚠️ NUCLEAR: Drops and recreates all tables"""
-    auth_header = request.headers.get('X-Dev-Auth')
-    if auth_header != 'secret123':
+    auth_header = request.headers.get("X-Dev-Auth")
+    if auth_header != "secret123":
         return jsonify({"error": "Unauthorized"}), 401
-    
+
     try:
         print("🔥 DROPPING ALL TABLES...")
         db.drop_all()
         print("✅ All tables dropped")
-        
+
         print("🏗️ CREATING ALL TABLES WITH NEW SCHEMA...")
         db.create_all()
         print("✅ All tables created")
-        
-        return jsonify({
-            "message": "✅ Database reset successfully! All tables recreated with current schema."
-        }), 200
-        
+
+        return (
+            jsonify(
+                {
+                    "message": "✅ Database reset successfully! All tables recreated with current schema."
+                }
+            ),
+            200,
+        )
+
     except Exception as e:
         print(f"❌ Reset failed: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 # SEEDME
 @dev_bp.route("/seed-all", methods=["POST"])
@@ -391,368 +398,390 @@ def seed_everything():
     from werkzeug.security import generate_password_hash
     from random import choice
 
-    # 1. Seed 96 master time slots
-    db.session.query(MasterTimeSlot).delete()
-    start_time = datetime.strptime("00:00", "%H:%M")
-    delta = timedelta(minutes=15)
-    for i in range(96):
-        time_24h = (start_time + i * delta).strftime("%H:%M")
-        label = (start_time + i * delta).strftime("%I:%M %p")
-        db.session.add(MasterTimeSlot(time_24h=time_24h, label=label))
-    db.session.commit()
+    try:
+        print("🌱 Starting seed-all...")
+        # 1. Seed 96 master time slots
+        db.session.query(MasterTimeSlot).delete()
+        start_time = datetime.strptime("00:00", "%H:%M")
+        delta = timedelta(minutes=15)
+        for i in range(96):
+            time_24h = (start_time + i * delta).strftime("%H:%M")
+            label = (start_time + i * delta).strftime("%I:%M %p")
+            db.session.add(MasterTimeSlot(time_24h=time_24h, label=label))
+        db.session.commit()
 
-    # 2. Seed demo freelancer (2 appointments: Jane & John)
-    f1, token = seed_freelancer(
-        email="emily@sattutorpro.com",
-        first_name="Emily",
-        last_name="Carson",
-        business_name="SmartStart Tutoring",
-        password="emily123",
-        tagline="Score higher. Stress less.",
-        force_bookings=True,
-        bio=(
-            "I'm Emily, an experienced SAT tutor passionate about helping high school students boost their scores "
-            "and get into their dream schools. I've helped over 100 students increase their scores by 100+ points "
-            "with personalized strategies and practice plans."
-        ),
-        logo_url="https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=987&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-        phone="555-786-0923",
-        contact_email="emily@sattutorpro.com",
-        instagram_url="https://instagram.com/smartstart.sat",
-        twitter_url="https://twitter.com/satwizemily",
-        no_show_policy="No-shows result in loss of session credit. Please cancel or reschedule at least 12 hours in advance.",
-        faq_items=[
-            {
-                "question": "What’s your SAT score?",
-                "answer": "I scored a 1550 with a perfect 800 in Math.",
-            },
-            {
-                "question": "Do you work with students with learning differences?",
-                "answer": "Absolutely — I tailor my approach for all learning styles.",
-            },
-            {
-                "question": "Do you offer group tutoring?",
-                "answer": "Not right now, but it’s coming soon!",
-            },
-        ],
-        booking_instructions="Please bring recent practice scores and show up on Zoom 5 mins early with a quiet space.",
-        preferred_payment_methods="Stripe (card), PayPal",
-        location="Raleigh, NC",
-        timezone="America/New_York",
-        services=[
-            {
-                "name": "SAT Diagnostic Session",
-                "description": "A full evaluation of your strengths and weaknesses across all SAT sections.",
-                "duration_minutes": 60,
-                "price_usd": 40.00,
-            },
-            {
-                "name": "SAT Math Focus",
-                "description": "Targeted help with algebra, geometry, and problem solving.",
-                "duration_minutes": 45,
-                "price_usd": 35.00,
-            },
-            {
-                "name": "Reading + Writing Boost",
-                "description": "Focus on critical reading, grammar, and timed writing techniques.",
-                "duration_minutes": 45,
-                "price_usd": 35.00,
-            },
-        ],
-        open_slot_labels=[
-            "01:00 PM",
-            "01:15 PM",
-            "01:30 PM",
-            "01:45 PM",
-            "02:00 PM",
-            "02:15 PM",
-            "02:30 PM",
-            "02:45 PM",
-            "03:00 PM",
-            "03:15 PM",
-            "03:30 PM",
-            "03:45 PM",
-        ],
-        demo_bookings=[
-            ("Jane", "Doe", "jane.doe@mail.com", "01:00 PM", "SAT Diagnostic Session"),
-            ("John", "Doe", "john.doe@mail.com", "02:00 PM", "SAT Math Focus"),
-        ],
-    )
-    # 3. Seed Malik Jones (Pro Tier Barber)
-    f2, token2 = seed_freelancer(
-        email="malik@fadekings.com",
-        first_name="Malik",
-        last_name="Jones",
-        business_name="Fade Kings",
-        password="malik123",
-        tagline="Fresh fades. Clean lines. Always sharp.",
-        force_bookings=True,
-        bio=(
-            "I'm Malik, a licensed barber with 7+ years of experience specializing in clean fades, sharp lines, and premium grooming. "
-            "Whether you're prepping for an event or just need your weekly fresh cut, I've got you. Located in downtown Atlanta — book ahead to skip the wait."
-        ),
-        logo_url="https://images.unsplash.com/photo-1567894340315-735d7c361db0?q=80&w=1474&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-        phone="555-902-3344",
-        contact_email="malik@fadekings.com",
-        instagram_url="https://instagram.com/fadesbymalik",
-        twitter_url="https://twitter.com/malikcuts",
-        no_show_policy="Late by 10+ minutes? Appointment is canceled. No-show once? Full charge. No-show twice? You’ll need to find another barber.",
-        faq_items=[
-            {"question": "Do you cut kids’ hair?", "answer": "Yes, age 5 and up."},
-            {
-                "question": "Do you do mobile visits?",
-                "answer": "Not at this time — in-shop only.",
-            },
-            {
-                "question": "Want a custom design or part?",
-                "answer": "DM me on IG before booking.",
-            },
-        ],
-        booking_instructions="Come with clean, product-free hair. No guests in the chair. Show up early, not late.",
-        preferred_payment_methods="Cash, Zelle, Apple Pay",
-        location="Chicago, IL",
-        timezone="America/Chicago",
-        tier="pro",
-        early_access=True,
-        is_verified=True,
-        services=[
-            {
-                "name": "Fade + Line Up",
-                "description": "Classic fade with razor-sharp lineup and detail finish.",
-                "duration_minutes": 45,
-                "price_usd": 30.00,
-            },
-            {
-                "name": "Beard Sculpt + Trim",
-                "description": "Full beard trim and shaping with straight razor finish.",
-                "duration_minutes": 30,
-                "price_usd": 20.00,
-            },
-            {
-                "name": "Cut + Beard Combo",
-                "description": "Full haircut and beard package for the cleanest look.",
-                "duration_minutes": 60,
-                "price_usd": 45.00,
-            },
-        ],
-        open_slot_labels=[
-            "02:00 PM",
-            "02:15 PM",
-            "02:30 PM",
-            "02:45 PM",
-            "03:00 PM",
-            "03:15 PM",
-            "03:30 PM",
-            "03:45 PM",
-            "04:00 PM",
-            "04:15 PM",
-            "04:30 PM",
-            "04:45 PM",
-        ],
-        demo_bookings=[
-            ("Ling", "Po", "ling.po@mail.com", "02:00 PM", "Fade + Line Up"),
-            ("Ron", "Ho", "ron.ho@mail.com", "03:00 PM", "Beard Sculpt + Trim"),
-        ],
-    )
-    # 4. Seed Jade Bryant (Elite Tier Esthetician)
-    f3, token3 = seed_freelancer(
-        email="jade@glowskinbar.com",
-        first_name="Jade",
-        last_name="Bryant",
-        business_name="Glow Skin Bar",
-        password="jade123",
-        force_bookings=True,
-        phone="555-982-7782",
-        contact_email="jade@glowskinbar.com",
-        tagline="Glow up. Show up. Repeat.",
-        bio=(
-            "I'm Jade, a licensed esthetician helping women and men achieve glowing, healthy skin with science-backed treatments. "
-            "I specialize in acne correction, hydration facials, and skin barrier restoration — all with a luxe, relaxing experience. "
-            "Located in Houston, TX. Come get your glow on ✨"
-        ),
-        logo_url="https://images.pexels.com/photos/8072270/pexels-photo-8072270.jpeg",
-        instagram_url="https://instagram.com/glowskinbar.atl",
-        twitter_url="https://twitter.com/glowjade",
-        no_show_policy="Deposits are non-refundable. No-shows or cancellations within 24 hours lose their deposit. Please respect my time — I respect yours.",
-        faq_items=[
-            {
-                "question": "Do you work with sensitive skin?",
-                "answer": "Yes — I use gentle, pregnancy-safe products.",
-            },
-            {
-                "question": "Can I wear makeup after a facial?",
-                "answer": "Wait at least 24 hours to let your skin heal.",
-            },
-            {
-                "question": "Do you sell products?",
-                "answer": "DM me or ask after your session — I only recommend what works.",
-            },
-        ],
-        booking_instructions="Please come with a clean face. No guests allowed in the studio. Late = forfeit appointment.",
-        preferred_payment_methods="Card on file, Venmo (business), Cash App",
-        location="Los Angeles, CA",
-        timezone="America/Los_Angeles",
-        tier="elite",
-        early_access=True,
-        is_verified=True,
-        services=[
-            {
-                "name": "Custom Facial",
-                "description": "A full glow-up tailored to your skin needs. Cleanse, extract, hydrate, and glow.",
-                "duration_minutes": 60,
-                "price_usd": 60.00,
-            },
-            {
-                "name": "Brow Sculpt & Tint",
-                "description": "Perfectly shaped brows with tint for definition and pop.",
-                "duration_minutes": 30,
-                "price_usd": 25.00,
-            },
-            {
-                "name": "Glow Ritual Package",
-                "description": "Facial + brow sculpt + under-eye refresh. The full Jade experience.",
-                "duration_minutes": 90,
-                "price_usd": 80.00,
-            },
-        ],
-        open_slot_labels=[
-            "06:00 PM",
-            "06:15 PM",
-            "06:30 PM",
-            "06:45 PM",
-            "07:00 PM",
-            "07:15 PM",
-            "07:30 PM",
-            "07:45 PM",
-        ],
-        demo_bookings=[
-            ("Janet", "Donasti", "janet.donasti@mail.com", "06:00 PM", "Custom Facial"),
-            (
-                "JonJon",
-                "Doemitri",
-                "jonjon.doemitri@mail.com",
+        # 2. Seed demo freelancer (2 appointments: Jane & John)
+        f1, token = seed_freelancer(
+            email="emily@sattutorpro.com",
+            first_name="Emily",
+            last_name="Carson",
+            business_name="SmartStart Tutoring",
+            password="emily123",
+            tagline="Score higher. Stress less.",
+            force_bookings=True,
+            bio=(
+                "I'm Emily, an experienced SAT tutor passionate about helping high school students boost their scores "
+                "and get into their dream schools. I've helped over 100 students increase their scores by 100+ points "
+                "with personalized strategies and practice plans."
+            ),
+            logo_url="https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=987&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+            phone="555-786-0923",
+            contact_email="emily@sattutorpro.com",
+            instagram_url="https://instagram.com/smartstart.sat",
+            twitter_url="https://twitter.com/satwizemily",
+            no_show_policy="No-shows result in loss of session credit. Please cancel or reschedule at least 12 hours in advance.",
+            faq_items=[
+                {
+                    "question": "What’s your SAT score?",
+                    "answer": "I scored a 1550 with a perfect 800 in Math.",
+                },
+                {
+                    "question": "Do you work with students with learning differences?",
+                    "answer": "Absolutely — I tailor my approach for all learning styles.",
+                },
+                {
+                    "question": "Do you offer group tutoring?",
+                    "answer": "Not right now, but it’s coming soon!",
+                },
+            ],
+            booking_instructions="Please bring recent practice scores and show up on Zoom 5 mins early with a quiet space.",
+            preferred_payment_methods="Stripe (card), PayPal",
+            location="Raleigh, NC",
+            timezone="America/New_York",
+            services=[
+                {
+                    "name": "SAT Diagnostic Session",
+                    "description": "A full evaluation of your strengths and weaknesses across all SAT sections.",
+                    "duration_minutes": 60,
+                    "price_usd": 40.00,
+                },
+                {
+                    "name": "SAT Math Focus",
+                    "description": "Targeted help with algebra, geometry, and problem solving.",
+                    "duration_minutes": 45,
+                    "price_usd": 35.00,
+                },
+                {
+                    "name": "Reading + Writing Boost",
+                    "description": "Focus on critical reading, grammar, and timed writing techniques.",
+                    "duration_minutes": 45,
+                    "price_usd": 35.00,
+                },
+            ],
+            open_slot_labels=[
+                "01:00 PM",
+                "01:15 PM",
+                "01:30 PM",
+                "01:45 PM",
+                "02:00 PM",
+                "02:15 PM",
+                "02:30 PM",
+                "02:45 PM",
+                "03:00 PM",
+                "03:15 PM",
+                "03:30 PM",
+                "03:45 PM",
+            ],
+            demo_bookings=[
+                (
+                    "Jane",
+                    "Doe",
+                    "jane.doe@mail.com",
+                    "01:00 PM",
+                    "SAT Diagnostic Session",
+                ),
+                ("John", "Doe", "john.doe@mail.com", "02:00 PM", "SAT Math Focus"),
+            ],
+        )
+        # 3. Seed Malik Jones (Pro Tier Barber)
+        f2, token2 = seed_freelancer(
+            email="malik@fadekings.com",
+            first_name="Malik",
+            last_name="Jones",
+            business_name="Fade Kings",
+            password="malik123",
+            tagline="Fresh fades. Clean lines. Always sharp.",
+            force_bookings=True,
+            bio=(
+                "I'm Malik, a licensed barber with 7+ years of experience specializing in clean fades, sharp lines, and premium grooming. "
+                "Whether you're prepping for an event or just need your weekly fresh cut, I've got you. Located in downtown Atlanta — book ahead to skip the wait."
+            ),
+            logo_url="https://images.unsplash.com/photo-1567894340315-735d7c361db0?q=80&w=1474&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+            phone="555-902-3344",
+            contact_email="malik@fadekings.com",
+            instagram_url="https://instagram.com/fadesbymalik",
+            twitter_url="https://twitter.com/malikcuts",
+            no_show_policy="Late by 10+ minutes? Appointment is canceled. No-show once? Full charge. No-show twice? You’ll need to find another barber.",
+            faq_items=[
+                {"question": "Do you cut kids’ hair?", "answer": "Yes, age 5 and up."},
+                {
+                    "question": "Do you do mobile visits?",
+                    "answer": "Not at this time — in-shop only.",
+                },
+                {
+                    "question": "Want a custom design or part?",
+                    "answer": "DM me on IG before booking.",
+                },
+            ],
+            booking_instructions="Come with clean, product-free hair. No guests in the chair. Show up early, not late.",
+            preferred_payment_methods="Cash, Zelle, Apple Pay",
+            location="Chicago, IL",
+            timezone="America/Chicago",
+            tier="pro",
+            early_access=True,
+            is_verified=True,
+            services=[
+                {
+                    "name": "Fade + Line Up",
+                    "description": "Classic fade with razor-sharp lineup and detail finish.",
+                    "duration_minutes": 45,
+                    "price_usd": 30.00,
+                },
+                {
+                    "name": "Beard Sculpt + Trim",
+                    "description": "Full beard trim and shaping with straight razor finish.",
+                    "duration_minutes": 30,
+                    "price_usd": 20.00,
+                },
+                {
+                    "name": "Cut + Beard Combo",
+                    "description": "Full haircut and beard package for the cleanest look.",
+                    "duration_minutes": 60,
+                    "price_usd": 45.00,
+                },
+            ],
+            open_slot_labels=[
+                "02:00 PM",
+                "02:15 PM",
+                "02:30 PM",
+                "02:45 PM",
+                "03:00 PM",
+                "03:15 PM",
+                "03:30 PM",
+                "03:45 PM",
+                "04:00 PM",
+                "04:15 PM",
+                "04:30 PM",
+                "04:45 PM",
+            ],
+            demo_bookings=[
+                ("Ling", "Po", "ling.po@mail.com", "02:00 PM", "Fade + Line Up"),
+                ("Ron", "Ho", "ron.ho@mail.com", "03:00 PM", "Beard Sculpt + Trim"),
+            ],
+        )
+        # 4. Seed Jade Bryant (Elite Tier Esthetician)
+        f3, token3 = seed_freelancer(
+            email="jade@glowskinbar.com",
+            first_name="Jade",
+            last_name="Bryant",
+            business_name="Glow Skin Bar",
+            password="jade123",
+            force_bookings=True,
+            phone="555-982-7782",
+            contact_email="jade@glowskinbar.com",
+            tagline="Glow up. Show up. Repeat.",
+            bio=(
+                "I'm Jade, a licensed esthetician helping women and men achieve glowing, healthy skin with science-backed treatments. "
+                "I specialize in acne correction, hydration facials, and skin barrier restoration — all with a luxe, relaxing experience. "
+                "Located in Houston, TX. Come get your glow on ✨"
+            ),
+            logo_url="https://images.pexels.com/photos/8072270/pexels-photo-8072270.jpeg",
+            instagram_url="https://instagram.com/glowskinbar.atl",
+            twitter_url="https://twitter.com/glowjade",
+            no_show_policy="Deposits are non-refundable. No-shows or cancellations within 24 hours lose their deposit. Please respect my time — I respect yours.",
+            faq_items=[
+                {
+                    "question": "Do you work with sensitive skin?",
+                    "answer": "Yes — I use gentle, pregnancy-safe products.",
+                },
+                {
+                    "question": "Can I wear makeup after a facial?",
+                    "answer": "Wait at least 24 hours to let your skin heal.",
+                },
+                {
+                    "question": "Do you sell products?",
+                    "answer": "DM me or ask after your session — I only recommend what works.",
+                },
+            ],
+            booking_instructions="Please come with a clean face. No guests allowed in the studio. Late = forfeit appointment.",
+            preferred_payment_methods="Card on file, Venmo (business), Cash App",
+            location="Los Angeles, CA",
+            timezone="America/Los_Angeles",
+            tier="elite",
+            early_access=True,
+            is_verified=True,
+            services=[
+                {
+                    "name": "Custom Facial",
+                    "description": "A full glow-up tailored to your skin needs. Cleanse, extract, hydrate, and glow.",
+                    "duration_minutes": 60,
+                    "price_usd": 60.00,
+                },
+                {
+                    "name": "Brow Sculpt & Tint",
+                    "description": "Perfectly shaped brows with tint for definition and pop.",
+                    "duration_minutes": 30,
+                    "price_usd": 25.00,
+                },
+                {
+                    "name": "Glow Ritual Package",
+                    "description": "Facial + brow sculpt + under-eye refresh. The full Jade experience.",
+                    "duration_minutes": 90,
+                    "price_usd": 80.00,
+                },
+            ],
+            open_slot_labels=[
+                "06:00 PM",
+                "06:15 PM",
+                "06:30 PM",
+                "06:45 PM",
+                "07:00 PM",
+                "07:15 PM",
                 "07:30 PM",
-                "Brow Sculpt & Tint",
-            ),
-        ],
-    )
-    # 5. Seed Monty Fitness (Elite Tier)
-    monty, token4 = seed_freelancer(
-        email="tamsirrilley@gmail.com",
-        first_name="Tom",
-        last_name="Rilley",
-        business_name="Monty Fitness",
-        password="tom123",
-        tagline="Transform Your Body, Elevate Your Mind",
-        force_bookings=True,
-        bio="Tech Bro Meets Fitness 🏋️💪 Calisthenics & Home Workouts 🏠 HIT Training 🔥 Get Fit, No Excuses 🚫 Free App coming soon 📲",
-        logo_url="https://slotme-profile-photos.s3.us-east-2.amazonaws.com/freelancers/4/logo.jpg",
-        phone="704-555-0199",
-        contact_email="tamsirrilley@gmail.com",
-        instagram_url="https://www.instagram.com/montyfitapp/",
-        twitter_url="",
-        no_show_policy="If you miss a session without 24-hour notice, the session will be forfeited. Emergencies are understood — just communicate as soon as possible.",
-        faq_items=[
-            {
-                "question": "What's your training philosophy?",
-                "answer": "I believe in functional fitness that fits your lifestyle. Whether it's calisthenics, HIIT, or combat conditioning, I focus on sustainable results without gimmicks.",
-            },
-            {
-                "question": "Do you offer online coaching?",
-                "answer": "Yes! I provide personalized online coaching with custom workout plans, nutrition guidance, and weekly check-ins via video calls.",
-            },
-            {
-                "question": "What equipment do I need for home workouts?",
-                "answer": "Minimal equipment needed! Most of my programs use bodyweight exercises. Optional: resistance bands, dumbbells, and a pull-up bar.",
-            },
-            {
-                "question": "Can you help with combat sports training?",
-                "answer": "Absolutely. I specialize in conditioning for MMA, boxing, and general combat sports — focusing on explosive power, endurance, and agility.",
-            },
-            {
-                "question": "What's the Monty Fitness app?",
-                "answer": "I'm building a free fitness tracking app to help you log workouts, track progress, and stay consistent. Coming soon! 📲",
-            },
-        ],
-        booking_instructions="📍 TRAINING LOCATION: Charlotte, NC (in-person sessions at agreed location)\n💻 ONLINE COACHING: Sessions conducted via Zoom/Google Meet\n🥊 COMBAT CONDITIONING: Outdoor or gym-based training available\n\n⏰ Please arrive 5 minutes early for in-person sessions.\n🧘 Bring water, towel, and athletic wear.\n📱 For online sessions, ensure you have a stable internet connection.\n💪 Cancellations must be made 24 hours in advance.",
-        preferred_payment_methods="Venmo, CashApp, Zelle, Card (Stripe)",
-        location="Charlotte, NC",
-        timezone="America/New_York",
-        tier="free",
-        # tier="elite",
-        early_access=True,
-        is_verified=True,
-        services=[
-            {
-                "name": "1-on-1 Personal Training",
-                "description": "Personalized in-person or virtual training sessions tailored to your fitness goals. Includes workout programming, form correction, and accountability.",
-                "duration_minutes": 60,
-                "price_usd": 75.00,
-            },
-            {
-                "name": "Online Coaching (Monthly)",
-                "description": "Custom workout plans, nutrition guidance, weekly check-ins, and 24/7 chat support. Perfect for remote clients serious about transformation.",
-                "duration_minutes": 30,
-                "price_usd": 200.00,
-            },
-            {
-                "name": "Combat Conditioning",
-                "description": "High-intensity conditioning for combat sports athletes. Includes explosive power drills, endurance work, and fight-specific training.",
-                "duration_minutes": 90,
-                "price_usd": 100.00,
-            },
-        ],
-        open_slot_labels=[
-            "09:00 AM",
-            "09:15 AM",
-            "09:30 AM",
-            "09:45 AM",
-            "10:00 AM",
-            "10:15 AM",
-            "10:30 AM",
-            "10:45 AM",
-            "11:00 AM",
-            "11:15 AM",
-            "11:30 AM",
-            "11:45 AM",
-        ],
-        demo_bookings=[
-            (
-                "Marcus",
-                "Thompson",
-                "marcus.t@example.com",
+                "07:45 PM",
+            ],
+            demo_bookings=[
+                (
+                    "Janet",
+                    "Donasti",
+                    "janet.donasti@mail.com",
+                    "06:00 PM",
+                    "Custom Facial",
+                ),
+                (
+                    "JonJon",
+                    "Doemitri",
+                    "jonjon.doemitri@mail.com",
+                    "07:30 PM",
+                    "Brow Sculpt & Tint",
+                ),
+            ],
+        )
+        # 5. Seed Monty Fitness (Elite Tier)
+        monty, token4 = seed_freelancer(
+            email="tamsirrilley@gmail.com",
+            first_name="Tom",
+            last_name="Rilley",
+            business_name="Monty Fitness",
+            password="tom123",
+            tagline="Transform Your Body, Elevate Your Mind",
+            force_bookings=True,
+            bio="Tech Bro Meets Fitness 🏋️💪 Calisthenics & Home Workouts 🏠 HIT Training 🔥 Get Fit, No Excuses 🚫 Free App coming soon 📲",
+            logo_url="https://slotme-profile-photos.s3.us-east-2.amazonaws.com/freelancers/4/logo.jpg",
+            phone="704-555-0199",
+            contact_email="tamsirrilley@gmail.com",
+            instagram_url="https://www.instagram.com/montyfitapp/",
+            twitter_url="",
+            no_show_policy="If you miss a session without 24-hour notice, the session will be forfeited. Emergencies are understood — just communicate as soon as possible.",
+            faq_items=[
+                {
+                    "question": "What's your training philosophy?",
+                    "answer": "I believe in functional fitness that fits your lifestyle. Whether it's calisthenics, HIIT, or combat conditioning, I focus on sustainable results without gimmicks.",
+                },
+                {
+                    "question": "Do you offer online coaching?",
+                    "answer": "Yes! I provide personalized online coaching with custom workout plans, nutrition guidance, and weekly check-ins via video calls.",
+                },
+                {
+                    "question": "What equipment do I need for home workouts?",
+                    "answer": "Minimal equipment needed! Most of my programs use bodyweight exercises. Optional: resistance bands, dumbbells, and a pull-up bar.",
+                },
+                {
+                    "question": "Can you help with combat sports training?",
+                    "answer": "Absolutely. I specialize in conditioning for MMA, boxing, and general combat sports — focusing on explosive power, endurance, and agility.",
+                },
+                {
+                    "question": "What's the Monty Fitness app?",
+                    "answer": "I'm building a free fitness tracking app to help you log workouts, track progress, and stay consistent. Coming soon! 📲",
+                },
+            ],
+            booking_instructions="📍 TRAINING LOCATION: Charlotte, NC (in-person sessions at agreed location)\n💻 ONLINE COACHING: Sessions conducted via Zoom/Google Meet\n🥊 COMBAT CONDITIONING: Outdoor or gym-based training available\n\n⏰ Please arrive 5 minutes early for in-person sessions.\n🧘 Bring water, towel, and athletic wear.\n📱 For online sessions, ensure you have a stable internet connection.\n💪 Cancellations must be made 24 hours in advance.",
+            preferred_payment_methods="Venmo, CashApp, Zelle, Card (Stripe)",
+            location="Charlotte, NC",
+            timezone="America/New_York",
+            tier="free",
+            # tier="elite",
+            early_access=True,
+            is_verified=True,
+            services=[
+                {
+                    "name": "1-on-1 Personal Training",
+                    "description": "Personalized in-person or virtual training sessions tailored to your fitness goals. Includes workout programming, form correction, and accountability.",
+                    "duration_minutes": 60,
+                    "price_usd": 75.00,
+                },
+                {
+                    "name": "Online Coaching (Monthly)",
+                    "description": "Custom workout plans, nutrition guidance, weekly check-ins, and 24/7 chat support. Perfect for remote clients serious about transformation.",
+                    "duration_minutes": 30,
+                    "price_usd": 200.00,
+                },
+                {
+                    "name": "Combat Conditioning",
+                    "description": "High-intensity conditioning for combat sports athletes. Includes explosive power drills, endurance work, and fight-specific training.",
+                    "duration_minutes": 90,
+                    "price_usd": 100.00,
+                },
+            ],
+            open_slot_labels=[
                 "09:00 AM",
-                "1-on-1 Personal Training",
-            ),
-            (
-                "Sarah",
-                "Kim",
-                "sarah.kim@example.com",
+                "09:15 AM",
+                "09:30 AM",
+                "09:45 AM",
                 "10:00 AM",
-                "Online Coaching (Monthly)",
-            ),
-            (
-                "Jordan",
-                "Brooks",
-                "jordan.brooks@example.com",
+                "10:15 AM",
+                "10:30 AM",
+                "10:45 AM",
+                "11:00 AM",
+                "11:15 AM",
                 "11:30 AM",
-                "Combat Conditioning",
-            ),
-        ],
-    )
+                "11:45 AM",
+            ],
+            demo_bookings=[
+                (
+                    "Marcus",
+                    "Thompson",
+                    "marcus.t@example.com",
+                    "09:00 AM",
+                    "1-on-1 Personal Training",
+                ),
+                (
+                    "Sarah",
+                    "Kim",
+                    "sarah.kim@example.com",
+                    "10:00 AM",
+                    "Online Coaching (Monthly)",
+                ),
+                (
+                    "Jordan",
+                    "Brooks",
+                    "jordan.brooks@example.com",
+                    "11:30 AM",
+                    "Combat Conditioning",
+                ),
+            ],
+        )
 
-    return (
-        jsonify(
-            {
-                "message": "✅ Seeded: Emily (Free), Malik (Pro), Jade (Elite), Monty (Elite)",
-                "emily_token": token,
-                "malik_token": token2,
-                "jade_token": token3,
-                "monty_token": token4,
-            }
-        ),
-        200,
-    )
+        return (
+            jsonify(
+                {
+                    "message": "✅ Seeded: Emily (Free), Malik (Pro), Jade (Elite), Monty (Elite)",
+                    "emily_token": token,
+                    "malik_token": token2,
+                    "jade_token": token3,
+                    "monty_token": token4,
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        print(f"🔥 SEED FAILED: {str(e)}")
+        import traceback
+
+        print(traceback.format_exc())
+        db.session.rollback()
+        return jsonify({"error": f"Seed failed: {str(e)}"}), 500
 
 
 # SEEDME
