@@ -22,6 +22,8 @@ from flask_jwt_extended import (
 from flask_jwt_extended.exceptions import NoAuthorizationError
 from config import FRONTEND_URL, BACKEND_ORIGIN, ALLOWED_ORIGINS
 
+from sqlalchemy import text
+
 
 from datetime import timezone
 
@@ -183,7 +185,7 @@ def index():
 def health_check():
     """EB health check endpoint"""
     try:
-        db.session.execute("SELECT 1")
+        db.session.execute(text("SELECT 1"))
         return jsonify({"status": "healthy", "database": "connected"}), 200
     except Exception as e:
         return jsonify({"status": "unhealthy", "error": str(e)}), 500
