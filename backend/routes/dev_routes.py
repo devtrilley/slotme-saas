@@ -359,6 +359,29 @@ def delete_freelancer(freelancer_id):
 
     return jsonify({"message": "Freelancer deleted"}), 200
 
+@dev_bp.route('/reset-db', methods=['POST'])
+def reset_database():
+    """⚠️ NUCLEAR: Drops and recreates all tables"""
+    auth_header = request.headers.get('X-Dev-Auth')
+    if auth_header != 'secret123':
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        print("🔥 DROPPING ALL TABLES...")
+        db.drop_all()
+        print("✅ All tables dropped")
+        
+        print("🏗️ CREATING ALL TABLES WITH NEW SCHEMA...")
+        db.create_all()
+        print("✅ All tables created")
+        
+        return jsonify({
+            "message": "✅ Database reset successfully! All tables recreated with current schema."
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Reset failed: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 # SEEDME
 @dev_bp.route("/seed-all", methods=["POST"])
