@@ -14,7 +14,7 @@ class Freelancer(db.Model):
     last_name = db.Column(db.String(80), nullable=False)
     business_name = db.Column(db.String(150), nullable=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(128), nullable=False)
+    password = db.Column(db.String(255), nullable=False)
     logo_url = db.Column(db.String(300), nullable=True)
     bio = db.Column(db.String(500), nullable=True)
     tagline = db.Column(db.String(200), nullable=True)
