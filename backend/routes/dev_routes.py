@@ -401,7 +401,6 @@ def seed_everything():
     try:
         print("🌱 Starting seed-all...")
         # 1. Seed 96 master time slots
-        db.session.query(MasterTimeSlot).delete()
         start_time = datetime.strptime("00:00", "%H:%M")
         delta = timedelta(minutes=15)
         for i in range(96):
