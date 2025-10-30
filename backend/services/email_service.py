@@ -57,7 +57,7 @@ With: {freelancer.first_name} {freelancer.last_name}
 {f'Business: {freelancer.business_name}' if freelancer.business_name else ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-{('📍 IMPORTANT INSTRUCTIONS:\n' + freelancer.booking_instructions + '\n') if freelancer.booking_instructions else ''}
+{'📍 IMPORTANT INSTRUCTIONS:' + chr(10) + freelancer.booking_instructions + chr(10) if freelancer.booking_instructions else ''}
 Looking forward to seeing you!
 {cancel_link}
 
