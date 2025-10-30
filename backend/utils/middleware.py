@@ -36,6 +36,7 @@ def load_freelancer():
         "/verify",
         "/dev/login",
         "/dev/seed-all",  # ✅ Add this line
+        "/dev/reset-db",
         "/404",
         "/master-times",
         # "/appointment",
