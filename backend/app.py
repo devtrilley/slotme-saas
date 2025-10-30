@@ -105,7 +105,12 @@ app.add_url_rule("/webhook", view_func=stripe_webhook, methods=["POST"])
 # 🔌 attach middleware (keeps your allowlists intact)
 from utils.middleware import load_freelancer
 
-app.before_request(load_freelancer)
+@app.before_request
+def conditional_middleware():
+    """Skip middleware for health check"""
+    if request.path == '/health':
+        return None
+    return load_freelancer()
 
 # Allow dev tools (like Postman) to access /dev/* routes
 CORS(
