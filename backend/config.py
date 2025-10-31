@@ -43,12 +43,17 @@ ALLOWED_ORIGINS = [
 # Optional: add frontend env if defined
 if FRONTEND_URL not in ALLOWED_ORIGINS:
     ALLOWED_ORIGINS.append(FRONTEND_URL)
+    # Also add www variant
+    www_url = FRONTEND_URL.replace("https://", "https://www.")
+    if www_url not in ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS.append(www_url)
 
 # PRODUCTION ONLY: Lock down CORS in prod
 if os.getenv("FLASK_ENV") == "production":
     prod_origin = os.getenv("FRONTEND_URL")
     if prod_origin:
-        ALLOWED_ORIGINS = [prod_origin]
+        www_origin = prod_origin.replace("https://", "https://www.")
+        ALLOWED_ORIGINS = [prod_origin, www_origin]
 
 BACKEND_ORIGIN = os.getenv("BACKEND_ORIGIN", "http://127.0.0.1:5000")
 
