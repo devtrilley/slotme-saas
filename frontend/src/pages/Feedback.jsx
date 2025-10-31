@@ -1,6 +1,7 @@
 import { useState } from "react";
 import axios from "../utils/axiosInstance";
 import { MessageSquare } from "lucide-react";
+import { showToast } from "../utils/toast";
 import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../utils/constants";
 
@@ -33,6 +34,7 @@ export default function Feedback() {
       await axios.post(`${API_BASE}/feedback`, payload, { headers });
 
       setStatus("success");
+      showToast("✅ Feedback sent successfully!", "success");
       setName("");
       setEmail("");
       setSubject("");
@@ -40,11 +42,12 @@ export default function Feedback() {
     } catch (err) {
       console.error("❌ Feedback failed:", err);
       setStatus("error");
+      showToast("❌ Failed to send feedback. Please try again.", "error");
     }
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-5 text-white">
+    <main className="max-w-md mx-auto p-6 space-y-5 text-white" role="main">
       <div className="flex items-center space-x-2">
         <MessageSquare className="text-purple-400" />
         <h1 className="text-xl font-bold">Feedback</h1>
@@ -126,13 +129,6 @@ export default function Feedback() {
         >
           {status === "loading" ? "Sending..." : "Send Feedback"}
         </button>
-
-        {status === "success" && (
-          <p className="text-green-400 text-sm">✅ Feedback sent!</p>
-        )}
-        {status === "error" && (
-          <p className="text-red-400 text-sm">❌ Failed to send feedback.</p>
-        )}
       </form>
 
       <button
@@ -141,6 +137,6 @@ export default function Feedback() {
       >
         ← Back to Home
       </button>
-    </div>
+    </main>
   );
 }

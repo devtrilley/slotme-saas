@@ -92,10 +92,10 @@ export default function DevFreelancerSlots() {
   }, {});
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-4">
-      <h2 className="text-2xl font-bold text-center">
+    <main className="max-w-md mx-auto p-6 space-y-4">
+      <h1 className="text-2xl font-bold text-center">
         {freelancerInfo.name}'s Time Slots
-      </h2>
+      </h1>
       {freelancerInfo.email && (
         <p className="text-center text-sm text-gray-400">
           {freelancerInfo.email}
@@ -187,6 +187,6 @@ export default function DevFreelancerSlots() {
       >
         ⬅️ Back to Admin Panel
       </button>
-    </div>
+    </main>
   );
 }

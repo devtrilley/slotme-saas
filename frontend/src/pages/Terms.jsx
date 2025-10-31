@@ -1,6 +1,6 @@
 export default function Terms() {
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
+    <main className="max-w-3xl mx-auto p-6 space-y-6">
       <h1 className="text-3xl font-bold">Terms of Service</h1>
 
       <p>
@@ -68,6 +68,6 @@ export default function Terms() {
       </p>
 
       <p className="text-sm text-gray-500">Last updated: May 2025</p>
-    </div>
+    </main>
   );
 }

@@ -6,11 +6,12 @@ export default function SignupConfirmed() {
   const navigate = useNavigate();
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-6 text-center text-white">
+    <main className="max-w-md mx-auto p-6 space-y-6 text-center text-white">
       <CheckCircle className="text-green-400 w-12 h-12 mx-auto" />
       <h1 className="text-2xl font-bold">Email Confirmed!</h1>
       <p className="text-purple-300">
-        Your account is officially confirmed. You can now log in and start using SlotMe.
+        Your account is officially confirmed. You can now log in and start using
+        SlotMe.
       </p>
       <button
         onClick={() => navigate("/auth")}
@@ -18,6 +19,6 @@ export default function SignupConfirmed() {
       >
         ← Go to Login
       </button>
-    </div>
+    </main>
   );
 }

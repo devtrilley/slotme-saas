@@ -57,7 +57,7 @@ export default function Settings() {
   }, []);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+    <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <h1 className="text-2xl font-bold mb-4 text-center">Settings</h1>
 
       {/* 🟢 CURRENT INFO PREVIEW */}
@@ -262,11 +262,7 @@ export default function Settings() {
                 new_email: ne.trim().toLowerCase(),
                 current_password: currentPwForEmail,
               });
-              showToast(
-                `Verification link sent to ${ne}`,
-                "info",
-                7000
-              );
+              showToast(`Verification link sent to ${ne}`, "info", 7000);
               setNewEmail("");
               setConfirmNewEmail("");
               setCurrentPwForEmail("");
@@ -402,6 +398,6 @@ export default function Settings() {
         open={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
       />
-    </div>
+    </main>
   );
 }

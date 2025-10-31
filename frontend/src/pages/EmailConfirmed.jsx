@@ -40,7 +40,7 @@ export default function EmailConfirmed() {
   }, [location.search, navigate]);
 
   return (
-    <div className="max-w-sm mx-auto p-8 text-center space-y-4">
+    <main className="max-w-sm mx-auto p-8 text-center space-y-4">
       {status === "loading" && (
         <>
           <div className="loading loading-spinner loading-lg mx-auto" />
@@ -69,6 +69,6 @@ export default function EmailConfirmed() {
           </Link>
         </>
       )}
-    </div>
+    </main>
   );
 }

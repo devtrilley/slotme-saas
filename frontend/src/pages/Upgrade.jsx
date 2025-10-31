@@ -131,7 +131,7 @@ export default function Upgrade() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-10">
+    <main className="max-w-5xl mx-auto p-6 space-y-10">
       <h1 className="text-4xl font-bold text-center leading-tight">
         <div>
           <img
@@ -307,6 +307,6 @@ export default function Upgrade() {
           </tbody>
         </table>
       </div>
-    </div>
+    </main>
   );
 }

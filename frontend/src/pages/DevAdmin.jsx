@@ -142,8 +142,8 @@ export default function DevAdmin() {
   }, [sortOption, sortDirection]);
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-4">
-      <h2 className="text-2xl font-bold text-center">Developer Admin Panel</h2>
+    <main className="max-w-md mx-auto p-6 space-y-4">
+      <h1 className="text-2xl font-bold text-center">Developer Admin Panel</h1>
 
       <p className="text-sm text-center text-gray-400">
         {freelancers.length} freelancer{freelancers.length !== 1 && "s"} found
@@ -336,6 +336,6 @@ export default function DevAdmin() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

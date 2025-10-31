@@ -115,7 +115,11 @@ export default function Auth({ clearSession }) {
   }, [showSessionExpired]);
 
   return (
-    <div className="max-w-sm mx-auto p-6 space-y-6">
+    <main
+      role="main"
+      className="max-w-sm mx-auto p-6 space-y-6"
+      aria-labelledby="auth-heading"
+    >
       {/* Mode Toggle */}
       <div className="flex justify-center gap-4">
         <button
@@ -136,9 +140,12 @@ export default function Auth({ clearSession }) {
         </button>
       </div>
 
-      <h2 className="text-2xl font-bold text-center">
-        {mode === "login" ? "Log In to" : "Sign Up for"} SlotMe as a Freelancer
-      </h2>
+      <header>
+        <h1 id="auth-heading" className="text-2xl font-bold text-center">
+          {mode === "login" ? "Log In to" : "Sign Up for"} SlotMe as a
+          Freelancer
+        </h1>
+      </header>
 
       {showSessionExpired && (
         <div className="alert alert-error shadow-lg text-center">
@@ -217,31 +224,31 @@ export default function Auth({ clearSession }) {
           )}
         </div>
         <button
-  type="submit"
-  className="btn btn-primary w-full"
-  disabled={submitting}
->
-  {submitting
-    ? mode === "login"
-      ? "Logging in..."
-      : "Signing up..."
-    : mode === "login"
-    ? "Log In"
-    : "Sign Up"}
-</button>
+          type="submit"
+          className="btn btn-primary w-full"
+          disabled={submitting}
+        >
+          {submitting
+            ? mode === "login"
+              ? "Logging in..."
+              : "Signing up..."
+            : mode === "login"
+            ? "Log In"
+            : "Sign Up"}
+        </button>
 
-{/* 🧠 Only show Forgot Password link in login mode */}
-{mode === "login" && (
-  <p className="text-center text-sm mt-2">
-    <button
-      type="button"
-      onClick={() => navigate("/forgot-password")}
-      className="text-blue-400 underline hover:text-blue-300 transition"
-    >
-      Forgot password?
-    </button>
-  </p>
-)}
+        {/* 🧠 Only show Forgot Password link in login mode */}
+        {mode === "login" && (
+          <p className="text-center text-sm mt-2">
+            <button
+              type="button"
+              onClick={() => navigate("/forgot-password")}
+              className="text-blue-400 underline hover:text-blue-300 transition"
+            >
+              Forgot password?
+            </button>
+          </p>
+        )}
       </form>
 
       {showResendButton && (
@@ -261,10 +268,12 @@ export default function Auth({ clearSession }) {
         </div>
       )}
 
-      <p className="text-center text-sm text-gray-500 mt-4">
-        Customers don’t need to log in. Just book directly from a freelancer’s
-        page.
-      </p>
-    </div>
+      <footer className="text-center text-sm text-gray-500 mt-4">
+        <p>
+          Customers don’t need to log in. Just book directly from a freelancer’s
+          page.
+        </p>
+      </footer>
+    </main>
   );
 }

@@ -21,8 +21,8 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="max-w-sm mx-auto p-6 space-y-6">
-      <h2 className="text-2xl font-bold text-center">Forgot Password</h2>
+    <main className="max-w-sm mx-auto p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-center">Forgot Password</h1>
       <p className="text-sm text-gray-400 text-center">
         Enter your email and we’ll send you a reset link.
       </p>
@@ -36,10 +36,14 @@ export default function ForgotPassword() {
           required
           disabled={sending}
         />
-        <button type="submit" className="btn btn-primary w-full" disabled={sending}>
+        <button
+          type="submit"
+          className="btn btn-primary w-full"
+          disabled={sending}
+        >
           {sending ? "Sending..." : "Send Reset Link"}
         </button>
       </form>
-    </div>
+    </main>
   );
 }

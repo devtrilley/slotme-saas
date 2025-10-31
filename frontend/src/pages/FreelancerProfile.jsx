@@ -64,7 +64,7 @@ export default function FreelancerProfile() {
     );
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-6 text-center text-white">
+    <main className="max-w-md mx-auto p-6 space-y-6 text-center text-white">
       {/* Logo + badge */}
       <div className="relative inline-block w-32 h-32">
         <ProfilePhoto
@@ -260,6 +260,6 @@ export default function FreelancerProfile() {
       >
         Click Here to Book Me!
       </Link>
-    </div>
+    </main>
   );
 }

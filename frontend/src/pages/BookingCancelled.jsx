@@ -78,11 +78,17 @@ export default function BookingCancelled() {
   );
 
   return (
-    <div className="max-w-md mx-auto p-6 text-white space-y-6">
-      <div className="bg-[#111827] border border-white/20 rounded-xl p-6 shadow-lg text-center space-y-4">
-        <CalendarX className="text-red-400 w-12 h-12 mx-auto" />
-
-        <h1 className="text-2xl font-bold">Cancel Appointment?</h1>
+    <main className="max-w-md mx-auto p-6 text-white space-y-6">
+      <section
+        className="bg-[#111827] border border-white/20 rounded-xl p-6 shadow-lg text-center space-y-4"
+        aria-labelledby="cancel-heading"
+      >
+        <header>
+          <CalendarX className="text-red-400 w-12 h-12 mx-auto" />
+          <h1 id="cancel-heading" className="text-2xl font-bold">
+            Cancel Appointment?
+          </h1>
+        </header>
 
         {status === "success" ? (
           <>
@@ -145,7 +151,7 @@ export default function BookingCancelled() {
             </div>
           </>
         )}
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

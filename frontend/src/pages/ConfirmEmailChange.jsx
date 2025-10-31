@@ -42,23 +42,29 @@ export default function ConfirmEmailChange() {
 
   if (status === "ok") {
     return (
-      <div className="max-w-sm mx-auto p-6 text-center space-y-3">
+      <main className="max-w-sm mx-auto p-6 text-center space-y-3">
         <h2 className="text-xl font-semibold">Email updated</h2>
         <p>You can now log in with your new email.</p>
-        <button className="btn btn-primary w-full" onClick={() => navigate("/auth")}>
+        <button
+          className="btn btn-primary w-full"
+          onClick={() => navigate("/auth")}
+        >
           Go to login
         </button>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="max-w-sm mx-auto p-6 text-center space-y-3">
+    <main className="max-w-sm mx-auto p-6 text-center space-y-3">
       <h2 className="text-xl font-semibold text-error">Link invalid</h2>
       <p>Please start again from Settings → Change Email.</p>
-      <button className="btn btn-outline w-full" onClick={() => navigate("/settings")}>
+      <button
+        className="btn btn-outline w-full"
+        onClick={() => navigate("/settings")}
+      >
         Back to Settings
       </button>
-    </div>
+    </main>
   );
 }

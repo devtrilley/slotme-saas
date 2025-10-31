@@ -39,9 +39,7 @@ def create_checkout_session():
                 else:
                     success_url += "?session_id={CHECKOUT_SESSION_ID}"
         else:
-            success_url = (
-                "http://localhost:5173/upgrade-success?session_id={CHECKOUT_SESSION_ID}"
-            )
+            success_url = f"{FRONTEND_URL}/upgrade-success?session_id={{CHECKOUT_SESSION_ID}}"
         freelancer = Freelancer.query.get(freelancer_id)
 
         session = stripe.checkout.Session.create(
@@ -51,7 +49,7 @@ def create_checkout_session():
                 else {"customer_email": freelancer.email}
             ),
             success_url=success_url,
-            cancel_url="http://localhost:5173/upgrade-cancelled",
+            cancel_url=f"{FRONTEND_URL}/upgrade-cancelled",
             payment_method_types=["card"],
             mode="subscription",
             line_items=[{"price": price_lookup[plan], "quantity": 1}],

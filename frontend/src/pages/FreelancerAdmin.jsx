@@ -302,14 +302,14 @@ export default function AdminPage() {
 
   const shareUrl =
   freelancer?.custom_url || freelancerDetails?.custom_url
-    ? `http://localhost:5173/${
+    ? `${window.location.origin}/${
         freelancer?.custom_url || freelancerDetails?.custom_url
       }`
     : freelancer?.public_slug || freelancerDetails?.public_slug
-    ? `http://localhost:5173/${
+    ? `${window.location.origin}/${
         freelancer?.public_slug || freelancerDetails?.public_slug
       }`
-    : `http://localhost:5173/book/${freelancer?.id || freelancerDetails?.id}`;
+    : `${window.location.origin}/book/${freelancer?.id || freelancerDetails?.id}`;
 
   function getFreelancerDateString(date) {
     return DateTime.fromJSDate(date)
@@ -432,11 +432,11 @@ export default function AdminPage() {
 
   return (
     <SafeLoader loading={loading}>
-      <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 space-y-6">
+      <main className="max-w-2xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <div className="flex flex-col gap-2 items-center">
-          <h2 className="text-2xl font-bold text-center">
+          <h1 className="text-2xl font-bold text-center">
             Freelancer Admin Dashboard
-          </h2>
+          </h1>
 
           <button
             onClick={() => {
@@ -812,7 +812,7 @@ export default function AdminPage() {
             }
           />
         )}
-      </div>
+      </main>
     </SafeLoader>
   );
 }

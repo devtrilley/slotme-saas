@@ -38,7 +38,7 @@ export default function UpgradeSuccess() {
           // This prevents "session expired" errors for users who took >15min at Stripe
           if (data.access_token && data.refresh_token) {
             localStorage.setItem("access_token", data.access_token);
-            localStorage.setItem("refresh_token", data.refresh_token);  // ✅ NEW
+            localStorage.setItem("refresh_token", data.refresh_token); // ✅ NEW
             console.log("🔑 Updated both tokens after payment verification");
           } else if (data.access_token) {
             // Fallback for old backend (shouldn't happen after deploy)
@@ -86,7 +86,7 @@ export default function UpgradeSuccess() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+    <main className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
       <div className="text-center space-y-6">
         <h1 className="text-4xl font-bold">🎉 Upgrade Successful!</h1>
         <p className="text-lg">Thank you for upgrading your SlotMe plan.</p>
@@ -102,7 +102,7 @@ export default function UpgradeSuccess() {
           Go to Dashboard
         </a>
       </div>
-    </div>
+    </main>
   );
 }
 

@@ -24,8 +24,8 @@ export default function DevLogin() {
   };
 
   return (
-    <div className="max-w-sm mx-auto mt-10 space-y-6 p-6 bg-base-200 shadow-md rounded-lg">
-      <h2 className="text-2xl font-bold text-center">Developer Login</h2>
+    <main className="max-w-sm mx-auto mt-10 space-y-6 p-6 bg-base-200 shadow-md rounded-lg">
+      <h1 className="text-2xl font-bold text-center">Developer Login</h1>
 
       {error && <p className="text-center text-red-500">{error}</p>}
 
@@ -40,6 +40,6 @@ export default function DevLogin() {
         />
         <button className="btn btn-primary w-full">Login</button>
       </form>
-    </div>
+    </main>
   );
 }

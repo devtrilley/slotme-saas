@@ -9,7 +9,6 @@ import { DateTime } from "luxon";
 import { useRef } from "react";
 import ReturnToTodayButton from "../components/Buttons/ReturnToTodayButton";
 
-
 export default function DevFreelancerBookings() {
   const { freelancerId } = useParams();
   const navigate = useNavigate();
@@ -167,10 +166,10 @@ export default function DevFreelancerBookings() {
   }, {});
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-4">
-      <h2 className="text-2xl font-bold text-center">
+    <main className="max-w-md mx-auto p-6 space-y-4">
+      <h1 className="text-2xl font-bold text-center">
         {freelancerInfo.name}'s Bookings
-      </h2>
+      </h1>
       {freelancerInfo.email && (
         <p className="text-center text-sm text-gray-400">
           {freelancerInfo.email}
@@ -275,6 +274,6 @@ export default function DevFreelancerBookings() {
       >
         ⬅️ Back to Admin Panel
       </button>
-    </div>
+    </main>
   );
 }

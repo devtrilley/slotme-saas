@@ -467,7 +467,7 @@ export default function BookingPage({ useCustomUrl = false }) {
 
   return (
     <SafeLoader loading={loading} error={error} onRetry={handleRetry}>
-      <div className="max-w-md mx-auto p-6 space-y-6">
+      <main className="max-w-md mx-auto p-6 space-y-6">
         <FreelancerCard
           business_name={freelancerDetails.business_name}
           first_name={freelancerDetails.first_name}
@@ -485,14 +485,14 @@ export default function BookingPage({ useCustomUrl = false }) {
             onClose={() => setShowModal(false)}
           />
         )}
-        <div className="flex flex-col items-center gap-2">
+        <section className="flex flex-col items-center gap-2">
           <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>
           <RefreshButton
             onRefresh={handleRefresh}
             toastMessage="Refreshing booking page..."
             className="btn-sm"
           />
-        </div>
+        </section>
         {freelancerDetails?.booking_instructions && (
           <div className="mb-4">
             <BookingInstructionsCard
@@ -501,7 +501,7 @@ export default function BookingPage({ useCustomUrl = false }) {
           </div>
         )}
         {services.length > 0 && (
-          <div className="mt-4">
+          <section className="mt-4">
             <h3 className="text-center text-sm text-white mb-2 font-medium">
               Available Services
             </h3>
@@ -553,9 +553,9 @@ export default function BookingPage({ useCustomUrl = false }) {
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
-        <div className="space-y-2">
+        <section className="space-y-2">
           <label className="text-sm text-gray-400 block text-center">
             Select a date:
           </label>
@@ -668,12 +668,12 @@ export default function BookingPage({ useCustomUrl = false }) {
               </p>
             );
           })()}
-        </div>
+        </section>
         {loading ? (
           <p className="text-center">Loading slots...</p>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4">
+            <section className="grid grid-cols-2 gap-4">
               {(() => {
                 let lastTimezone = null;
                 return visibleSlots.map((slot, index) => {
@@ -827,7 +827,7 @@ export default function BookingPage({ useCustomUrl = false }) {
                   );
                 });
               })()}
-            </div>
+            </section>
 
             {!loading && filteredSlots.length === 0 && (
               <NoAvailableSlotsCard
@@ -840,107 +840,109 @@ export default function BookingPage({ useCustomUrl = false }) {
             )}
           </>
         )}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {cooldownRemaining > 0 && (
-            <p className="text-center text-yellow-400 text-sm mb-2">
-              ⏳ You can book again in {cooldownRemaining} seconds.
-            </p>
-          )}
-          <h3 className="text-lg font-semibold text-center border-b pb-1">
-            Your Name & Contact Info
-          </h3>
-          <input
-            type="text"
-            placeholder="First name"
-            className="input input-bordered w-full"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            required
-          />
-
-          <input
-            type="text"
-            placeholder="Last name"
-            className="input input-bordered w-full"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            required
-          />
-
-          <input
-            type="email"
-            placeholder="Your email"
-            className="input input-bordered w-full"
-            value={email}
-            onChange={(e) => setEmail(e.target.value.trim())}
-            required
-          />
-
-          <input
-            type="tel"
-            placeholder="Your phone"
-            className="input input-bordered w-full"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            required
-          />
-
-          {/* ✅ CUSTOM QUESTIONS SECTION */}
-          {customQuestions.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-center border-b pb-1">
-                Additional Questions
-              </h3>
-
-              {customQuestions.map((q, i) => (
-                <div key={i}>
-                  <label className="block text-sm font-medium text-white mb-1">
-                    {q.question}
-                    {q.required && <span className="text-red-500"> *</span>}
-                  </label>
-                  <input
-                    type="text"
-                    className="input input-bordered w-full"
-                    value={customResponses[q.question] || ""}
-                    onChange={(e) =>
-                      setCustomResponses({
-                        ...customResponses,
-                        [q.question]: e.target.value,
-                      })
-                    }
-                    required={q.required}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          <HoneypotInput value={honeypot} setValue={setHoneypot} />
-
-          <button
-            className={`btn w-full flex items-center justify-center gap-2 ${
-              submitting || !selectedSlotId
-                ? "opacity-50 cursor-not-allowed btn-primary"
-                : cooldownRemaining > 0
-                ? "btn-outline text-white border-yellow-500"
-                : "btn-primary"
-            }`}
-            disabled={!selectedSlotId || submitting}
-            type="submit"
-          >
-            {submitting && (
-              <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-white border-opacity-60"></span>
+        <section>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {cooldownRemaining > 0 && (
+              <p className="text-center text-yellow-400 text-sm mb-2">
+                ⏳ You can book again in {cooldownRemaining} seconds.
+              </p>
             )}
-            {submitting
-              ? "Submitting..."
-              : cooldownRemaining > 0
-              ? `Please wait (${cooldownRemaining}s)`
-              : "Book Appointment"}
-          </button>
-        </form>
+            <h3 className="text-lg font-semibold text-center border-b pb-1">
+              Your Name & Contact Info
+            </h3>
+            <input
+              type="text"
+              placeholder="First name"
+              className="input input-bordered w-full"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
+
+            <input
+              type="text"
+              placeholder="Last name"
+              className="input input-bordered w-full"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+            />
+
+            <input
+              type="email"
+              placeholder="Your email"
+              className="input input-bordered w-full"
+              value={email}
+              onChange={(e) => setEmail(e.target.value.trim())}
+              required
+            />
+
+            <input
+              type="tel"
+              placeholder="Your phone"
+              className="input input-bordered w-full"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+            />
+
+            {/* ✅ CUSTOM QUESTIONS SECTION */}
+            {customQuestions.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-center border-b pb-1">
+                  Additional Questions
+                </h3>
+
+                {customQuestions.map((q, i) => (
+                  <div key={i}>
+                    <label className="block text-sm font-medium text-white mb-1">
+                      {q.question}
+                      {q.required && <span className="text-red-500"> *</span>}
+                    </label>
+                    <input
+                      type="text"
+                      className="input input-bordered w-full"
+                      value={customResponses[q.question] || ""}
+                      onChange={(e) =>
+                        setCustomResponses({
+                          ...customResponses,
+                          [q.question]: e.target.value,
+                        })
+                      }
+                      required={q.required}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <HoneypotInput value={honeypot} setValue={setHoneypot} />
+
+            <button
+              className={`btn w-full flex items-center justify-center gap-2 ${
+                submitting || !selectedSlotId
+                  ? "opacity-50 cursor-not-allowed btn-primary"
+                  : cooldownRemaining > 0
+                  ? "btn-outline text-white border-yellow-500"
+                  : "btn-primary"
+              }`}
+              disabled={!selectedSlotId || submitting}
+              type="submit"
+            >
+              {submitting && (
+                <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-white border-opacity-60"></span>
+              )}
+              {submitting
+                ? "Submitting..."
+                : cooldownRemaining > 0
+                ? `Please wait (${cooldownRemaining}s)`
+                : "Book Appointment"}
+            </button>
+          </form>
+        </section>
         <NoShowPolicy policy={noShowPolicy} />
         <FAQCard faq_items={freelancerDetails.faq_items} />{" "}
-      </div>
+      </main>
     </SafeLoader>
   );
 }

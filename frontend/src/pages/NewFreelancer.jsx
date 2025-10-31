@@ -107,8 +107,8 @@ export default function NewFreelancer() {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-4">
-      <h2 className="text-2xl font-bold text-center">Add New Freelancer</h2>
+    <main className="max-w-md mx-auto p-6 space-y-4">
+      <h1 className="text-2xl font-bold text-center">Add New Freelancer</h1>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="bg-base-300 p-3 rounded-lg">
@@ -376,6 +376,6 @@ export default function NewFreelancer() {
       >
         ⬅️ Back to Admin Panel
       </button>
-    </div>
+    </main>
   );
 }

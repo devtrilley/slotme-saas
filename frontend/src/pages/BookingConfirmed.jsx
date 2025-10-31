@@ -50,10 +50,17 @@ export default function BookingConfirmed() {
   });
 
   return (
-    <div className="max-w-md mx-auto p-6 text-white space-y-6">
-      <div className="bg-[#111827] border border-white/20 rounded-xl p-6 shadow-lg text-center space-y-4">
-        <CalendarCheck className="text-green-400 w-12 h-12 mx-auto" />
-        <h1 className="text-2xl font-bold">Booking Confirmed!</h1>
+    <main className="max-w-md mx-auto p-6 text-white space-y-6">
+      <section
+        className="bg-[#111827] border border-white/20 rounded-xl p-6 shadow-lg text-center space-y-4"
+        aria-labelledby="confirmed-heading"
+      >
+        <header>
+          <CalendarCheck className="text-green-400 w-12 h-12 mx-auto" />
+          <h1 id="confirmed-heading" className="text-2xl font-bold">
+            Booking Confirmed!
+          </h1>
+        </header>
         <p className="text-white text-sm mb-2">
           Thank you, {appointment.first_name}!
         </p>
@@ -101,16 +108,16 @@ export default function BookingConfirmed() {
         >
           📄 Download .ics (Apple/Outlook)
         </a>
-      </div>
+      </section>
 
-      <div className="text-center mt-6">
+      <nav className="text-center mt-6">
         <button
           onClick={() => navigate("/")}
           className="text-sm text-blue-400 hover:underline"
         >
           ← Return to Homepage
         </button>
-      </div>
-    </div>
+      </nav>
+    </main>
   );
 }

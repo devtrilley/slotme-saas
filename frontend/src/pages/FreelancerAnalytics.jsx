@@ -52,7 +52,7 @@ export default function FreelancerAnalytics() {
 
   return (
     <SafeLoader loading={!stats && !error} error={error} onRetry={fetchStats}>
-      <div className="max-w-md mx-auto p-6 space-y-6 text-white">
+      <main className="max-w-md mx-auto p-6 space-y-6 text-white">
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-2xl font-bold">Your Analytics</h1>
           <RefreshButton
@@ -87,7 +87,7 @@ export default function FreelancerAnalytics() {
         >
           Go to Admin Page
         </button>
-      </div>
+      </main>
     </SafeLoader>
   );
 }

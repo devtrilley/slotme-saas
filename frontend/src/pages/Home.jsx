@@ -5,7 +5,7 @@ import slotmeLogo from "../assets/slotme-logo.svg";
 
 export default function Home() {
   return (
-    <div className="max-w-md mx-auto p-6 space-y-8 text-center">
+    <main className="max-w-md mx-auto p-6 space-y-8 text-center">
       {/* Hero Section */}
       <div className="space-y-2">
         <h1 className="sr-only">SlotMe Scheduler</h1>
@@ -68,6 +68,6 @@ export default function Home() {
           Terms & Privacy
         </a>
       </div>
-    </div>
+    </main>
   );
 }

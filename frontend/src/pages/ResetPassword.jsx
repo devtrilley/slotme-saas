@@ -23,7 +23,10 @@ export default function ResetPassword() {
       return;
     }
     try {
-      await axios.post("/auth/reset-password", { token, new_password: password });
+      await axios.post("/auth/reset-password", {
+        token,
+        new_password: password,
+      });
       showToast("Password reset. You can log in now.", "success");
       setTimeout(() => navigate("/auth"), 2000);
     } catch (err) {
@@ -34,8 +37,8 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="max-w-sm mx-auto p-6 space-y-6">
-      <h2 className="text-2xl font-bold text-center">Reset Password</h2>
+    <main className="max-w-sm mx-auto p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-center">Reset Password</h1>
       <form onSubmit={handleReset} className="space-y-4">
         <input
           type="password"
@@ -54,11 +57,17 @@ export default function ResetPassword() {
           onChange={(e) => setConfirm(e.target.value)}
           required
         />
-        {showChecklist && <PasswordChecklist password={password} confirmPassword={confirm} />}
-        <button type="submit" className="btn btn-primary w-full" disabled={submitting}>
+        {showChecklist && (
+          <PasswordChecklist password={password} confirmPassword={confirm} />
+        )}
+        <button
+          type="submit"
+          className="btn btn-primary w-full"
+          disabled={submitting}
+        >
           {submitting ? "Resetting..." : "Reset Password"}
         </button>
       </form>
-    </div>
+    </main>
   );
 }

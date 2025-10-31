@@ -33,7 +33,7 @@ export default function PrioritySupportPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-5 text-white">
+    <main className="max-w-md mx-auto p-6 space-y-5 text-white">
       <div className="flex items-center space-x-2">
         <MessageSquare className="text-purple-400" />
         <h1 className="text-xl font-bold">Priority Support</h1>
@@ -96,6 +96,6 @@ export default function PrioritySupportPage() {
       >
         ← Back to Admin
       </button>
-    </div>
+    </main>
   );
 }

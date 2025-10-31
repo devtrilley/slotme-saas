@@ -205,10 +205,10 @@ export default function CRM() {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-6">
-      <h2 className="text-2xl font-bold text-center">
+    <main className="max-w-md mx-auto p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-center">
         Freelancer CRM: Bookings
-      </h2>
+      </h1>
 
       {/* === Search + Time Filter FIRST === */}
       <div className="space-y-2">
@@ -457,6 +457,6 @@ export default function CRM() {
           }}
         />
       )}
-    </div>
+    </main>
   );
 }
