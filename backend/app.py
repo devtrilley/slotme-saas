@@ -107,12 +107,14 @@ app.add_url_rule("/webhook", view_func=stripe_webhook, methods=["POST"])
 # 🔌 attach middleware (keeps your allowlists intact)
 from utils.middleware import load_freelancer
 
+
 @app.before_request
 def conditional_middleware():
     """Skip middleware for health check"""
-    if request.path == '/health':
+    if request.path == "/health":
         return None
     return load_freelancer()
+
 
 # Allow dev tools (like Postman) to access /dev/* routes
 CORS(
@@ -136,21 +138,16 @@ app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)  # Long-lived for U
 
 
 def get_database_url():
-    """Build DATABASE_URL from EB's RDS vars or use direct URL"""
+    """Get DATABASE_URL and ensure SSL is enabled for Render Postgres"""
     db_url = os.getenv("DATABASE_URL")
-    if db_url:
-        return db_url
-
-    # EB injects these after RDS is enabled
-    rds_host = os.getenv("RDS_HOSTNAME")
-    if rds_host:
-        rds_port = os.getenv("RDS_PORT", "5432")
-        rds_db = os.getenv("RDS_DB_NAME")
-        rds_user = os.getenv("RDS_USERNAME")
-        rds_pass = os.getenv("RDS_PASSWORD")
-        return f"postgresql://{rds_user}:{rds_pass}@{rds_host}:{rds_port}/{rds_db}"
-
-    return "sqlite:///scheduler.db"
+    if not db_url:
+        raise RuntimeError("DATABASE_URL not found - link Postgres in Render dashboard")
+    
+    # Add SSL requirement for Render Postgres
+    if db_url.startswith("postgresql://") and "sslmode" not in db_url:
+        db_url += "?sslmode=require" if "?" not in db_url else "&sslmode=require"
+    
+    return db_url
 
 
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
