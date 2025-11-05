@@ -39,7 +39,9 @@ def create_checkout_session():
                 else:
                     success_url += "?session_id={CHECKOUT_SESSION_ID}"
         else:
-            success_url = f"{FRONTEND_URL}/upgrade-success?session_id={{CHECKOUT_SESSION_ID}}"
+            success_url = (
+                f"{FRONTEND_URL}/upgrade-success?session_id={{CHECKOUT_SESSION_ID}}"
+            )
         freelancer = Freelancer.query.get(freelancer_id)
 
         session = stripe.checkout.Session.create(
@@ -83,36 +85,66 @@ def stripe_webhook():
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        print("📗 Test mode session accepted")
+        print("📗 Stripe checkout.session.completed received")
 
         metadata = session.get("metadata", {})
         freelancer_id = metadata.get("freelancer_id")
-        new_tier = metadata.get("tier")
+        requested_tier = metadata.get("tier")
 
-        if not freelancer_id or not new_tier:
-            print("⚠️  Missing metadata in checkout.session.completed")
+        # Attempt to pull the actual line item to confirm price_id
+        line_items = []
+        try:
+            line_items = stripe.checkout.Session.list_line_items(
+                session["id"], limit=1
+            ).data
+        except Exception as e:
+            print(f"⚠️ Could not fetch line items: {e}")
+
+        # Map price_id → tier based on your real Stripe sandbox values
+        price_map = {
+            "price_1RaRhqE05eQPvycWs9mHnfIQ": "pro",
+            "price_1RaRi8E05eQPvycWOvwxPwpV": "elite",
+        }
+
+        # Final tier from metadata (preferred) or fallback to price_id
+        final_tier = requested_tier
+        if not final_tier and line_items:
+            price_id = line_items[0].price.id
+            final_tier = price_map.get(price_id, "pro")
+
+        # Find freelancer safely (prefer metadata, fallback to customer email)
+        freelancer = None
+        if freelancer_id:
+            freelancer = Freelancer.query.get(int(freelancer_id))
+        if not freelancer:
+            customer_email = session.get("customer_email")
+            if customer_email:
+                freelancer = Freelancer.query.filter_by(email=customer_email).first()
+                if freelancer:
+                    print(f"⚠️ Matched freelancer by email {customer_email}")
+
+        if not freelancer:
+            print(f"❌ No matching freelancer found for session {session.get('id')}")
             return jsonify({"status": "ignored"}), 200
 
-        freelancer = Freelancer.query.get(int(freelancer_id))
-        if freelancer:
-            # ✅ Save Stripe customer ID if not already stored
-            customer_id = session.get("customer")
-            if customer_id and not freelancer.stripe_customer_id:
-                freelancer.stripe_customer_id = customer_id
+        # ✅ Update Stripe info
+        customer_id = session.get("customer")
+        if customer_id:
+            freelancer.stripe_customer_id = customer_id
 
-            # ✅ Save subscription ID from the session
-            subscription_id = session.get("subscription")
-            if subscription_id:
-                freelancer.stripe_subscription_id = subscription_id
-                print(f"💾 Saved subscription_id: {subscription_id}")
+        subscription_id = session.get("subscription")
+        if subscription_id:
+            freelancer.stripe_subscription_id = subscription_id
+            print(f"💾 Saved subscription_id: {subscription_id}")
 
-            freelancer.tier = new_tier
-            db.session.commit()
-            print(
-                f"✅ Upgraded freelancer {freelancer_id} to {new_tier} (customer: {customer_id}, sub: {subscription_id})"
-            )
-        else:
-            print(f"❌ Freelancer with ID {freelancer_id} not found")
+        # ✅ Update tier and save
+        freelancer.tier = final_tier
+        db.session.commit()
+
+        print(
+            f"✅ Upgraded freelancer {freelancer.id} ({freelancer.email}) "
+            f"to {final_tier.upper()} (price_id={line_items[0].price.id if line_items else 'N/A'})"
+        )
 
     # ✅ Handle subscription cancellation events
     elif event["type"] in [
