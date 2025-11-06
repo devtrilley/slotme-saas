@@ -142,11 +142,11 @@ def get_database_url():
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
         raise RuntimeError("DATABASE_URL not found - link Postgres in Render dashboard")
-    
+
     # Add SSL requirement for Render Postgres
     if db_url.startswith("postgresql://") and "sslmode" not in db_url:
         db_url += "?sslmode=require" if "?" not in db_url else "&sslmode=require"
-    
+
     return db_url
 
 
@@ -154,7 +154,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,  # Test connections before using them
-    "pool_recycle": 300,     # Recycle connections after 5 minutes
+    "pool_recycle": 300,  # Recycle connections after 5 minutes
 }
 db.init_app(app)
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")

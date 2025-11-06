@@ -24,18 +24,19 @@ def load_freelancer():
         return
 
     open_prefixes = (
+        "/stripe/webhook",
         "/auth/signup",
         "/auth/verify-email",
         "/auth/refresh",
         "/auth/forgot-password",
         "/auth/reset-password",
         "/auth/resend-verification",
-        "/auth/change-email/confirm",  # ✅ Public (uses token in body)
+        "/auth/change-email/confirm",
         "/signup",
         "/seed",
         "/verify",
         "/dev/login",
-        "/dev/seed-all",  # ✅ Add this line
+        "/dev/seed-all",
         "/dev/reset-db",
         "/404",
         "/master-times",
