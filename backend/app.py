@@ -141,7 +141,11 @@ def get_database_url():
     """Get DATABASE_URL and ensure SSL is enabled for Render Postgres"""
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        raise RuntimeError("DATABASE_URL not found - link Postgres in Render dashboard")
+        # Local development fallback to SQLite with absolute path
+        print("⚠️ DATABASE_URL not found - using local SQLite")
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance', 'scheduler.db')
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        return f"sqlite:///{db_path}"
 
     # Add SSL requirement for Render Postgres
     if db_url.startswith("postgresql://") and "sslmode" not in db_url:
@@ -152,10 +156,13 @@ def get_database_url():
 
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_pre_ping": True,  # Test connections before using them
-    "pool_recycle": 300,  # Recycle connections after 5 minutes
-}
+
+# Only apply PostgreSQL pool settings in production
+if os.getenv("DATABASE_URL"):
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,  # Test connections before using them
+        "pool_recycle": 300,  # Recycle connections after 5 minutes
+    }
 db.init_app(app)
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 jwt = JWTManager(app)

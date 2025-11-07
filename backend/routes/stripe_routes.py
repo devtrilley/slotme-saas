@@ -182,6 +182,44 @@ def stripe_webhook():
     return jsonify(success=True), 200
 
 
+@stripe_bp.route("/cancel-subscription", methods=["POST"])
+@jwt_required()
+def cancel_subscription():
+    """Cancel user's subscription at end of billing period"""
+    freelancer_id = int(get_jwt_identity())
+    
+    try:
+        freelancer = Freelancer.query.get(freelancer_id)
+        
+        if not freelancer:
+            return jsonify({"error": "Freelancer not found"}), 404
+            
+        if freelancer.tier == "free":
+            return jsonify({"error": "No active subscription to cancel"}), 400
+            
+        if not freelancer.stripe_subscription_id:
+            return jsonify({"error": "No subscription ID found"}), 400
+        
+        # Cancel at period end (user keeps access until billing cycle ends)
+        subscription = stripe.Subscription.modify(
+            freelancer.stripe_subscription_id,
+            cancel_at_period_end=True
+        )
+        
+        print(f"✅ Subscription {subscription.id} set to cancel at period end for freelancer {freelancer_id}")
+        
+        return jsonify({
+            "message": "Subscription will cancel at end of billing period"
+        }), 200
+        
+    except stripe.error.StripeError as e:
+        print(f"❌ Stripe error canceling subscription: {e}")
+        return jsonify({"error": "Failed to cancel subscription"}), 500
+    except Exception as e:
+        print(f"❌ Error canceling subscription: {e}")
+        return jsonify({"error": "Failed to cancel subscription"}), 500
+
+
 @stripe_bp.route("/check-session-status/<session_id>", methods=["GET"])
 def check_session_status(session_id):
     print("🚨 HIT check-session-status with no auth")

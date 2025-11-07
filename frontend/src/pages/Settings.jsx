@@ -6,7 +6,9 @@ import { setStoredFreelancer } from "../utils/setStoredFreelancer";
 import { isTokenExpired } from "../utils/jwt";
 import { useNavigate } from "react-router-dom";
 import DeleteAccountModal from "../components/Modals/DeleteAccountModal";
+import CancelSubscriptionModal from "../components/Modals/CancelSubscriptionModal";
 import PasswordChecklist from "../components/Inputs/PasswordChecklist";
+import TierStatusCard from "../components/Cards/TierStatusCard";
 
 export default function Settings() {
   const { freelancer, setFreelancer } = useFreelancer();
@@ -22,6 +24,7 @@ export default function Settings() {
   });
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const [showPasswordChecklist, setShowPasswordChecklist] = useState(false);
 
   // inside Settings component, add local state:
@@ -382,6 +385,34 @@ export default function Settings() {
         </button>
       </div>
 
+      {/* 💳 SUBSCRIPTION MANAGEMENT */}
+      {freelancer?.tier !== "free" && (
+        <div className="bg-base-100 p-6 rounded-xl shadow-md space-y-4">
+          <h2 className="text-lg font-semibold text-center">Subscription</h2>
+
+          <TierStatusCard tier={freelancer?.tier} />
+
+          <button
+            onClick={() => navigate("/upgrade")}
+            className="btn btn-primary w-full"
+          >
+            Change Subscription
+          </button>
+
+          <button
+            onClick={() => setShowCancelModal(true)}
+            className="btn bg-red-600 hover:bg-red-700 text-white border-none w-full"
+          >
+            Cancel Subscription
+          </button>
+
+          <p className="text-xs text-center text-gray-500">
+            Your subscription will remain active until the end of your current
+            billing period.
+          </p>
+        </div>
+      )}
+
       {/* 🔴 DANGER ZONE */}
       <div className="bg-base-100 p-6 rounded-xl shadow-md border border-red-500 space-y-4 mt-32">
         <h2 className="text-lg font-semibold text-red-500 text-center">
@@ -397,6 +428,45 @@ export default function Settings() {
       <DeleteAccountModal
         open={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
+      />
+
+      <CancelSubscriptionModal
+        open={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        tier={freelancer?.tier}
+        onConfirm={async () => {
+          const token = localStorage.getItem("access_token");
+          if (!token || isTokenExpired(token)) {
+            showToast("Session expired. Please log in again.", "error");
+            localStorage.clear();
+            setTimeout(() => {
+              navigate("/auth", { state: { sessionExpired: true } });
+            }, 1000);
+            return;
+          }
+
+          try {
+            await axios.post("/stripe/cancel-subscription");
+
+            showToast(
+              `Subscription cancelled. You'll have access until your billing period ends.`,
+              "success",
+              8000
+            );
+
+            // Refresh freelancer data
+            const res = await axios.get("/freelancer/me");
+            setFreelancer(res.data);
+            setStoredFreelancer(res.data);
+
+            setShowCancelModal(false);
+          } catch (err) {
+            const msg =
+              err?.response?.data?.error || "Failed to cancel subscription";
+            showToast(msg, "error");
+            console.error("Cancel subscription error:", err);
+          }
+        }}
       />
     </main>
   );
