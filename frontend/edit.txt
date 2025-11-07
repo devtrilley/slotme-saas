@@ -1,8 +1,7 @@
-Booking.jsx
-FreelancerProfile.jsx
 FreelancerAdmin.jsx
-CRM.jsx
-FreelancerContext.jsx
-ViewBookingModal.jsx
-InternalBookingModal.jsx
-TimeSlotCard.jsx
+
+ProfilePhoto.jsx
+
+getStoredFreelancer.js
+
+axiosInstance.js

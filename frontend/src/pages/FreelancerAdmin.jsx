@@ -71,18 +71,28 @@ export default function AdminPage() {
   const [servicesError, setServicesError] = useState(false);
   const [freelancerDetailsLoadError, setFreelancerDetailsLoadError] =
     useState(false);
-  const [freelancerDetails, setFreelancerDetails] = useState(
-    freelancer || {
-      business_name: "",
-      first_name: "",
-      last_name: "",
-      logo_url: "",
-      tagline: "",
-      bio: "",
-      is_verified: false,
-      tier: "free",
-    }
-  );
+    const [freelancerDetails, setFreelancerDetails] = useState(() => {
+      // Try to get from localStorage directly to avoid context timing issues
+      const stored = localStorage.getItem("freelancer");
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          console.warn("Failed to parse stored freelancer data");
+        }
+      }
+      // Fallback to context or empty defaults
+      return freelancer || {
+        business_name: "",
+        first_name: "",
+        last_name: "",
+        logo_url: "",
+        tagline: "",
+        bio: "",
+        is_verified: false,
+        tier: "free",
+      };
+    });
 
   // 🔥 AUTO-SYNC freelancerDetails when context freelancer updates
   useEffect(() => {
@@ -301,15 +311,17 @@ export default function AdminPage() {
   const [freelancerDetailsUpdated, setFreelancerDetailsUpdated] = useState(0);
 
   const shareUrl =
-  freelancer?.custom_url || freelancerDetails?.custom_url
-    ? `${window.location.origin}/${
-        freelancer?.custom_url || freelancerDetails?.custom_url
-      }`
-    : freelancer?.public_slug || freelancerDetails?.public_slug
-    ? `${window.location.origin}/${
-        freelancer?.public_slug || freelancerDetails?.public_slug
-      }`
-    : `${window.location.origin}/book/${freelancer?.id || freelancerDetails?.id}`;
+    freelancer?.custom_url || freelancerDetails?.custom_url
+      ? `${window.location.origin}/${
+          freelancer?.custom_url || freelancerDetails?.custom_url
+        }`
+      : freelancer?.public_slug || freelancerDetails?.public_slug
+      ? `${window.location.origin}/${
+          freelancer?.public_slug || freelancerDetails?.public_slug
+        }`
+      : `${window.location.origin}/book/${
+          freelancer?.id || freelancerDetails?.id
+        }`;
 
   function getFreelancerDateString(date) {
     return DateTime.fromJSDate(date)
@@ -477,12 +489,12 @@ export default function AdminPage() {
               business_name={freelancerDetails.business_name}
               first_name={freelancerDetails.first_name}
               last_name={freelancerDetails.last_name}
-              logoUrl={freelancerDetails.logo_url}
-              tagline={freelancerDetails.tagline}
-              bio={freelancerDetails.bio}
+              email={freelancerDetails.email}
+              logoUrl={freelancer?.logo_url || freelancerDetails.logo_url}
               isVerified={freelancerDetails.is_verified}
+              tagline={freelancerDetails.tagline}
+              tier={tier}
               onClick={() => setShowModal(true)}
-              tier={freelancer?.tier || "free"}
             />
 
             {showModal && (

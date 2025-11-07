@@ -37,6 +37,8 @@ import { PUBLIC_SAFE_PATHS } from "./utils/constants";
 import AlreadyTaken from "./pages/AlreadyTaken";
 import Settings from "./pages/Settings";
 
+import FooterNavbar from "./components/Layout/FooterNavbar";
+
 import ConfirmEmailChange from "./pages/ConfirmEmailChange";
 
 // Component Imports
@@ -45,8 +47,6 @@ import RequireDevAuth from "./components/Auth/RequireDevAuth";
 import RequireFreelancerAuth from "./components/Auth/RequireFreelancerAuth";
 import RequireTier from "./components/Auth/RequireTier";
 import { Toaster } from "react-hot-toast"; // 🔼 Put this at the top
-
-
 
 import { useEffect, useState } from "react";
 import { useFreelancer } from "./context/FreelancerContext";
@@ -125,6 +125,7 @@ export default function App() {
     <div className="min-h-screen bg-base-200 flex flex-col">
       <NavigatorInit />
       <Navbar />
+      <FooterNavbar />
 
       <Toaster
         position="top-center"
@@ -138,7 +139,7 @@ export default function App() {
         }}
       />
 
-      <div className="p-4">
+      <div className="p-4 pb-20 lg:pb-4">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/auth" element={<Auth />} />
@@ -272,7 +273,10 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
-          <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
+          <Route
+            path="/confirm-email-change"
+            element={<ConfirmEmailChange />}
+          />
         </Routes>
       </div>
     </div>

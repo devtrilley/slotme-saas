@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { FaCheck } from "react-icons/fa";
 import FallbackText from "../Layout/FallbackText";
 import ProfilePhoto from "../ProfilePhoto";
+import { useFreelancer } from "../../context/FreelancerContext";
 
 export default function FreelancerCard({
   business_name,
@@ -15,6 +16,7 @@ export default function FreelancerCard({
   tier = "free",
   showEmail = false,
 }) {
+  const { isLoaded } = useFreelancer(); // ✅ Check if context is ready
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
   const badgeRef = useRef();
@@ -38,6 +40,21 @@ export default function FreelancerCard({
   }, []);
 
   const isUpgradedTier = tier !== "free";
+
+  // ✅ Don't render until context is loaded
+  if (!isLoaded) {
+    return (
+      <div className="rounded-xl p-[2px] border-2 border-white/40">
+        <div className="flex items-center gap-4 p-4 rounded-[10px] shadow bg-base-200 animate-pulse">
+          <div className="w-17 h-17 rounded-full bg-gray-700"></div>
+          <div className="flex-1 space-y-2">
+            <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+            <div className="h-3 bg-gray-700 rounded w-1/2"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
