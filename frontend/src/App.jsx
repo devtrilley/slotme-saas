@@ -131,12 +131,19 @@ export default function App() {
 
       <Toaster
         position="top-center"
+        containerStyle={{
+          top: "80px",
+          left: 0,
+          right: 0,
+        }}
         toastOptions={{
           duration: 6000,
           style: {
             background: "#1F2937",
             color: "#fff",
             fontSize: "0.875rem",
+            zIndex: 60,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
           },
         }}
       />

@@ -142,3 +142,96 @@ body.modal-open {
     transform: translateX(0);
   }
 }
+
+/* React DatePicker Mobile Fixes */
+.date-picker-popper {
+  z-index: 100 !important;
+}
+
+.react-datepicker {
+  font-size: 0.875rem !important;
+  border: 2px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+  background-color: #1f2937 !important;
+}
+
+.react-datepicker__header {
+  background-color: #1f2937 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  padding-top: 12px !important;
+}
+
+.react-datepicker__current-month {
+  color: white !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+}
+
+.react-datepicker__day-names {
+  display: flex !important;
+  justify-content: space-around !important;
+}
+
+.react-datepicker__week {
+  display: flex !important;
+  justify-content: space-around !important;
+}
+
+.react-datepicker__day-name,
+.react-datepicker__day {
+  width: 2rem !important;
+  height: 2rem !important;
+  line-height: 2rem !important;
+  margin: 0.166rem !important;
+  color: white !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.react-datepicker__day--outside-month {
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: rgba(99, 102, 241, 0.5) !important;
+  border-radius: 6px !important;
+}
+
+.react-datepicker__day--selected {
+  background-color: #6366f1 !important;
+  color: white !important;
+  border-radius: 6px !important;
+}
+
+.react-datepicker__navigation {
+  top: 12px !important;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: white !important;
+  border-width: 2px 2px 0 0 !important;
+  height: 7px !important;
+  width: 7px !important;
+}
+
+.react-datepicker__month {
+  margin: 0.4rem !important;
+}
+
+/* Mobile centering */
+@media (max-width: 768px) {
+  .date-picker-popper {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    max-width: 90vw !important;
+  }
+  
+  .react-datepicker {
+    width: auto !important;
+  }
+}

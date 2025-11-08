@@ -71,18 +71,19 @@ export default function AdminPage() {
   const [servicesError, setServicesError] = useState(false);
   const [freelancerDetailsLoadError, setFreelancerDetailsLoadError] =
     useState(false);
-    const [freelancerDetails, setFreelancerDetails] = useState(() => {
-      // Try to get from localStorage directly to avoid context timing issues
-      const stored = localStorage.getItem("freelancer");
-      if (stored) {
-        try {
-          return JSON.parse(stored);
-        } catch (e) {
-          console.warn("Failed to parse stored freelancer data");
-        }
+  const [freelancerDetails, setFreelancerDetails] = useState(() => {
+    // Try to get from localStorage directly to avoid context timing issues
+    const stored = localStorage.getItem("freelancer");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        console.warn("Failed to parse stored freelancer data");
       }
-      // Fallback to context or empty defaults
-      return freelancer || {
+    }
+    // Fallback to context or empty defaults
+    return (
+      freelancer || {
         business_name: "",
         first_name: "",
         last_name: "",
@@ -91,8 +92,9 @@ export default function AdminPage() {
         bio: "",
         is_verified: false,
         tier: "free",
-      };
-    });
+      }
+    );
+  });
 
   // 🔥 AUTO-SYNC freelancerDetails when context freelancer updates
   useEffect(() => {
@@ -265,31 +267,38 @@ export default function AdminPage() {
   const handleDelete = () => {
     if (!slotToDelete) return;
 
+    // ✅ Optimistic update
+    const deletedSlot = slots.find((s) => s.id === slotToDelete);
+    setSlots((prev) => prev.filter((s) => s.id !== slotToDelete));
+    showToast("Slot deleted.", "success");
+    setShowSlotConfirm(false);
+    setSlotToDelete(null);
+
+    // Send to server
     axios
       .delete(`${API_BASE}/slots/${slotToDelete}`)
-      .then(() => {
-        showToast("Slot deleted.", "success");
-        quietFetchSlots();
-      })
       .catch((err) => {
         console.error("❌ Delete failed:", err.response?.data || err.message);
         const msg = err.response?.data?.error || "Failed to delete slot";
+        // ✅ Rollback on failure
+        setSlots((prev) => [...prev, deletedSlot].sort((a, b) => a.id - b.id));
         showToast(msg, "error");
-      })
-      .finally(() => {
-        setShowSlotConfirm(false);
-        setSlotToDelete(null);
       });
   };
 
   const handleDeleteService = async (serviceId) => {
+    // ✅ Optimistic update
+    const deletedService = services.find((s) => s.id === serviceId);
+    setServices((prev) => prev.filter((s) => s.id !== serviceId));
+    showToast("Service deleted.", "success");
+
     try {
       await axios.delete(`${API_BASE}/freelancer/services/${serviceId}`);
-      showToast("Service deleted.", "success");
-      await quietFetchServices(); // ✅ re-fetch full services list
     } catch (err) {
       console.error("❌ Failed to delete service", err);
-      showToast("Couldn't delete service. Try again.", "error");
+      // ✅ Rollback on failure
+      setServices((prev) => [...prev, deletedService].sort((a, b) => a.id - b.id));
+      showToast("Couldn't delete service. Restored.", "error");
     }
   };
 

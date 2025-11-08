@@ -37,6 +37,9 @@ export default function ServiceForm({ onServiceAdded }) {
       return;
     }
 
+    // ✅ Immediate feedback
+    showToast("Adding service...", "info");
+
     axios
       .post(`${API_BASE}/freelancer/services`, {
         name: trimmedName,

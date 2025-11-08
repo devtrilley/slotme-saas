@@ -1,7 +1,5 @@
-FreelancerAdmin.jsx
-
-ProfilePhoto.jsx
-
-getStoredFreelancer.js
-
-axiosInstance.js
+frontend/src/pages/FreelancerAdmin.jsx
+frontend/src/components/Forms/ServiceForm.jsx
+frontend/src/components/Cards/ServiceCard.jsx
+App.jsx
+toast.jsx
