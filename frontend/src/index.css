@@ -111,3 +111,34 @@ body.modal-open {
 .animate-shake {
   animation: shake 0.4s ease-in-out;
 }
+
+/* Page Transitions - Slide */
+.page-slide-forward {
+  animation: slideInRight 250ms ease-out;
+}
+
+.page-slide-back {
+  animation: slideInLeft 250ms ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

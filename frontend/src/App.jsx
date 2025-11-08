@@ -37,6 +37,8 @@ import { PUBLIC_SAFE_PATHS } from "./utils/constants";
 import AlreadyTaken from "./pages/AlreadyTaken";
 import Settings from "./pages/Settings";
 
+import PageTransition from "./components/Layout/PageTransition";
+
 import FooterNavbar from "./components/Layout/FooterNavbar";
 
 import ConfirmEmailChange from "./pages/ConfirmEmailChange";
@@ -140,144 +142,146 @@ export default function App() {
       />
 
       <div className="p-4 pb-20 lg:pb-4">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/dev-login" element={<DevLogin />} />
-          <Route
-            path="/freelancer-admin"
-            element={
-              <RequireFreelancerAuth>
-                <FreelancerAdmin />
-              </RequireFreelancerAuth>
-            }
-          />
-          <Route
-            path="/freelancer-bookings"
-            element={
-              <RequireFreelancerAuth>
-                <CRM />
-              </RequireFreelancerAuth>
-            }
-          />
-          <Route
-            path="/dev-admin"
-            element={
-              <RequireDevAuth>
-                <DevAdmin />
-              </RequireDevAuth>
-            }
-          />
-          <Route
-            path="/dev/slots/:freelancerId"
-            element={
-              <RequireDevAuth>
-                <DevFreelancerSlots />
-              </RequireDevAuth>
-            }
-          />
-          <Route
-            path="/dev/appointments/:freelancerId"
-            element={
-              <RequireDevAuth>
-                <DevFreelancerBookings />
-              </RequireDevAuth>
-            }
-          />
-          <Route
-            path="/dev/new-freelancer"
-            element={
-              <RequireDevAuth>
-                <NewFreelancer />
-              </RequireDevAuth>
-            }
-          />
-          <Route path="/book/:freelancerId" element={<BookingPage />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/upgrade" element={<Upgrade />} />
-          <Route
-            path="/freelancers/:freelancerId"
-            element={<FreelancerProfile />}
-          />
+        <PageTransition>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/dev-login" element={<DevLogin />} />
+            <Route
+              path="/freelancer-admin"
+              element={
+                <RequireFreelancerAuth>
+                  <FreelancerAdmin />
+                </RequireFreelancerAuth>
+              }
+            />
+            <Route
+              path="/freelancer-bookings"
+              element={
+                <RequireFreelancerAuth>
+                  <CRM />
+                </RequireFreelancerAuth>
+              }
+            />
+            <Route
+              path="/dev-admin"
+              element={
+                <RequireDevAuth>
+                  <DevAdmin />
+                </RequireDevAuth>
+              }
+            />
+            <Route
+              path="/dev/slots/:freelancerId"
+              element={
+                <RequireDevAuth>
+                  <DevFreelancerSlots />
+                </RequireDevAuth>
+              }
+            />
+            <Route
+              path="/dev/appointments/:freelancerId"
+              element={
+                <RequireDevAuth>
+                  <DevFreelancerBookings />
+                </RequireDevAuth>
+              }
+            />
+            <Route
+              path="/dev/new-freelancer"
+              element={
+                <RequireDevAuth>
+                  <NewFreelancer />
+                </RequireDevAuth>
+              }
+            />
+            <Route path="/book/:freelancerId" element={<BookingPage />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/upgrade" element={<Upgrade />} />
+            <Route
+              path="/freelancers/:freelancerId"
+              element={<FreelancerProfile />}
+            />
 
-          <Route
-            path="/freelancer-analytics"
-            element={
-              <RequireFreelancerAuth>
-                <RequireTier
-                  feature="analyticsFull"
-                  backHref="/freelancer-admin"
-                >
-                  <FreelancerAnalytics />
-                </RequireTier>
-              </RequireFreelancerAuth>
-            }
-          />
+            <Route
+              path="/freelancer-analytics"
+              element={
+                <RequireFreelancerAuth>
+                  <RequireTier
+                    feature="analyticsFull"
+                    backHref="/freelancer-admin"
+                  >
+                    <FreelancerAnalytics />
+                  </RequireTier>
+                </RequireFreelancerAuth>
+              }
+            />
 
-          <Route
-            path="/priority-support"
-            element={
-              <RequireFreelancerAuth>
-                <RequireTier
-                  feature="prioritySupport"
-                  backHref="/freelancer-admin"
-                >
-                  <PrioritySupport />
-                </RequireTier>
-              </RequireFreelancerAuth>
-            }
-          />
-          <Route path="/404" element={<NotFound />} />
-          <Route
-            path="/:custom_url"
-            element={<BookingPage useCustomUrl={true} />}
-          />
-          <Route path="*" element={<NotFound />} />
-          <Route
-            path="/qr-code"
-            element={
-              <RequireFreelancerAuth>
-                <QRCodePage />
-              </RequireFreelancerAuth>
-            }
-          />
-          <Route path="/feedback" element={<Feedback />} />
-          <Route path="/signup-success" element={<SignupSuccess />} />
-          <Route path="/booking-success" element={<BookingSuccess />} />
-          <Route path="/booking-confirmed" element={<BookingConfirmed />} />
-          {/* New canonical route used in verification emails */}
-          <Route path="/upgrade-success" element={<UpgradeSuccess />} />
-          <Route path="/upgrade-cancelled" element={<UpgradeCancelled />} />
-          <Route path="/already-taken" element={<AlreadyTaken />} />
+            <Route
+              path="/priority-support"
+              element={
+                <RequireFreelancerAuth>
+                  <RequireTier
+                    feature="prioritySupport"
+                    backHref="/freelancer-admin"
+                  >
+                    <PrioritySupport />
+                  </RequireTier>
+                </RequireFreelancerAuth>
+              }
+            />
+            <Route path="/404" element={<NotFound />} />
+            <Route
+              path="/:custom_url"
+              element={<BookingPage useCustomUrl={true} />}
+            />
+            <Route path="*" element={<NotFound />} />
+            <Route
+              path="/qr-code"
+              element={
+                <RequireFreelancerAuth>
+                  <QRCodePage />
+                </RequireFreelancerAuth>
+              }
+            />
+            <Route path="/feedback" element={<Feedback />} />
+            <Route path="/signup-success" element={<SignupSuccess />} />
+            <Route path="/booking-success" element={<BookingSuccess />} />
+            <Route path="/booking-confirmed" element={<BookingConfirmed />} />
+            {/* New canonical route used in verification emails */}
+            <Route path="/upgrade-success" element={<UpgradeSuccess />} />
+            <Route path="/upgrade-cancelled" element={<UpgradeCancelled />} />
+            <Route path="/already-taken" element={<AlreadyTaken />} />
 
-          <Route path="/email-confirm" element={<EmailConfirmed />} />
-          <Route path="/signup-confirmed" element={<EmailConfirmed />} />
+            <Route path="/email-confirm" element={<EmailConfirmed />} />
+            <Route path="/signup-confirmed" element={<EmailConfirmed />} />
 
-          <Route
-            path="/settings"
-            element={
-              <RequireFreelancerAuth>
-                <Settings />
-              </RequireFreelancerAuth>
-            }
-          />
+            <Route
+              path="/settings"
+              element={
+                <RequireFreelancerAuth>
+                  <Settings />
+                </RequireFreelancerAuth>
+              }
+            />
 
-          <Route path="/cancel/:cancelToken" element={<BookingCancelled />} />
+            <Route path="/cancel/:cancelToken" element={<BookingCancelled />} />
 
-          <Route
-            path="/delete-confirm/:token"
-            element={<DeleteConfirmation />}
-          />
+            <Route
+              path="/delete-confirm/:token"
+              element={<DeleteConfirmation />}
+            />
 
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
-          <Route
-            path="/confirm-email-change"
-            element={<ConfirmEmailChange />}
-          />
-        </Routes>
+            <Route
+              path="/confirm-email-change"
+              element={<ConfirmEmailChange />}
+            />
+          </Routes>
+        </PageTransition>
       </div>
     </div>
   );
