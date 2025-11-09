@@ -148,7 +148,7 @@ export default function App() {
         }}
       />
 
-      <div className="p-4 pb-20 lg:pb-4">
+<div className="p-4 pb-20 lg:pb-4 w-full max-w-full overflow-x-hidden">
         <PageTransition>
           <Routes>
             <Route path="/" element={<Home />} />

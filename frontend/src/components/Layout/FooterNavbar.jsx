@@ -95,12 +95,11 @@ export default function FooterNavbar() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-[999] bg-base-100 border-t border-base-300 lg:hidden"
+      className="fixed bottom-0 left-0 right-0 z-[999] bg-base-100 border-t border-base-300 lg:hidden w-full"
       style={{
         paddingBottom: "calc(env(safe-area-inset-bottom) + 0px)",
-        marginBottom: "-1px",
-        bottom: "-1px",
         boxShadow: "0 -2px 8px rgba(0,0,0,0.1)",
+        maxWidth: "100vw",
       }}
     >
       <div className="flex justify-around items-center h-16 px-2">
