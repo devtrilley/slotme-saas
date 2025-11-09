@@ -1,7 +1,32 @@
-frontend/src/index.css 
-frontend/index.html 
-frontend/src/App.jsx 
-frontend/src/components/Layout/FooterNavbar.jsx 
+Favicon for site ✅
+
+Fixed index.html to use slotme-favicon.png
+ACTION NEEDED: Move slotme-favicon.png to frontend/public/ folder first
 
 
-Start with FreelancerAdmin.jsx, CRM.jsx, Booking.jsx, Settings.jsx
+Signup flow ✅
+
+Confirmed working (no code changes needed)
+
+
+Auth page labels ✅
+
+Added labels above all inputs
+Changed placeholders to example text
+
+
+iPhone horizontal scroll ✅
+
+Fixed viewport meta tag
+Fixed input zoom prevention (16px minimum)
+Fixed container width constraints
+
+
+Footer navbar gap ✅
+
+Fixed bottom overlap with -1px positioning
+
+
+.ics calendar download ✅ (needs backend deploy to test)
+
+Fixed ICS whitespace formatting in booking_routes.py

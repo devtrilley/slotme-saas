@@ -738,17 +738,20 @@ export default function BookingPage({ useCustomUrl = false }) {
                   };
 
                   return (
-                    <div key={`slot-group-${slot.id}`}>
+                    <>
                       {/* 🔥 Timezone group header - spans full width */}
                       {showHeader && (
-                        <div className="col-span-2 mt-4 mb-2 text-center">
+                        <div
+                          key={`tz-${slotTimezone}-${slot.id}`}
+                          className="col-span-2 mt-4 mb-2 text-center w-full"
+                        >
                           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                             {slotTimezone.replace("America/", "")} Timezone
                           </span>
                         </div>
                       )}
 
-                      <div className="flex flex-col">
+                      <div key={`slot-${slot.id}`} className="flex flex-col">
                         <button
                           className={`btn w-full text-sm ${
                             isDisabled
@@ -823,7 +826,7 @@ export default function BookingPage({ useCustomUrl = false }) {
                           </div>
                         )}
                       </div>
-                    </div>
+                    </>
                   );
                 });
               })()}

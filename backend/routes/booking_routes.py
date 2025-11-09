@@ -499,7 +499,7 @@ def download_ics(appointment_id):
     local_start = utc_start.astimezone(frozen_tz)
     timezone_abbr = local_start.tzname()
 
-    # ✅ Include timezone info for better calendar compatibility
+    # ✅ Include timezone info for better calendar compatibility (no leading whitespace)
     ics = f"""BEGIN:VCALENDAR
     VERSION:2.0
     PRODID:-//SlotMe//Booking System//EN
@@ -514,7 +514,7 @@ def download_ics(appointment_id):
     LOCATION:{location}
     STATUS:CONFIRMED
     END:VEVENT
-    END:VCALENDAR"""
+    END:VCALENDAR""".replace("    ", "")  # Strip leading spaces
 
     return Response(
         ics,

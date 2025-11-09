@@ -156,63 +156,84 @@ export default function Auth({ clearSession }) {
 
       {/* Auth Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {mode === "signup" && (
-          <>
-            <input
-              type="text"
-              className="input input-bordered w-full"
-              placeholder="First Name"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              required
-            />
-            <input
-              type="text"
-              className="input input-bordered w-full"
-              placeholder="Last Name"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              required
-            />
-          </>
-        )}
-        <input
-          type="email"
-          className="input input-bordered w-full"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          disabled={submitting}
-        />
-        {/* Password Input */}
-        <div className="space-y-1">
-          <input
-            type="password"
-            className="input input-bordered w-full"
-            placeholder="Password"
-            value={password}
-            onFocus={() => setShowPasswordChecklist(true)}
-            onChange={(e) => setPassword(e.target.value)}
-            onBlur={() => {
-              if (password.length === 0 && confirmPassword.length === 0)
-                setShowPasswordChecklist(false);
-            }}
-            required
-            disabled={submitting}
-          />
+      {mode === "signup" && (
+  <>
+    <div>
+      <label className="label">
+        <span className="label-text">First Name</span>
+      </label>
+      <input
+        type="text"
+        className="input input-bordered w-full"
+        placeholder="e.g. John"
+        value={firstName}
+        onChange={(e) => setFirstName(e.target.value)}
+        required
+      />
+    </div>
+    <div>
+      <label className="label">
+        <span className="label-text">Last Name</span>
+      </label>
+      <input
+        type="text"
+        className="input input-bordered w-full"
+        placeholder="e.g. Smith"
+        value={lastName}
+        onChange={(e) => setLastName(e.target.value)}
+        required
+      />
+    </div>
+  </>
+)}
+<div>
+  <label className="label">
+    <span className="label-text">Email</span>
+  </label>
+  <input
+    type="email"
+    className="input input-bordered w-full"
+    placeholder="you@example.com"
+    value={email}
+    onChange={(e) => setEmail(e.target.value)}
+    required
+    disabled={submitting}
+  />
+</div>
+{/* Password Input */}
+<div className="space-y-1">
+  <label className="label">
+    <span className="label-text">Password</span>
+  </label>
+  <input
+    type="password"
+    className="input input-bordered w-full"
+    placeholder="Enter password"
+    value={password}
+    onFocus={() => setShowPasswordChecklist(true)}
+    onChange={(e) => setPassword(e.target.value)}
+    onBlur={() => {
+      if (password.length === 0 && confirmPassword.length === 0)
+        setShowPasswordChecklist(false);
+    }}
+    required
+    disabled={submitting}
+  />
 
-          {mode === "signup" && (
-            <>
-              <input
-                type="password"
-                className="input input-bordered w-full"
-                placeholder="Confirm Password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                disabled={submitting}
-              />
+  {mode === "signup" && (
+    <>
+      <label className="label">
+        <span className="label-text">Confirm Password</span>
+      </label>
+      <input
+        type="password"
+        className="input input-bordered w-full"
+        placeholder="Re-enter password"
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
+        required
+        disabled={submitting}
+      />
               {/* ✅ Inline password requirements */}
               {showPasswordChecklist && (
                 <PasswordChecklist
