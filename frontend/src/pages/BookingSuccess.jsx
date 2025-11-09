@@ -57,7 +57,7 @@ export default function BookingSuccess() {
             {
               name: "Outlook",
               url: "https://outlook.live.com/mail/",
-              logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/Microsoft_Office_Outlook_%282018%E2%80%93present%29.svg/1101px-Microsoft_Office_Outlook_%282018%E2%80%93present%29.svg.png",
+              logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Microsoft_Office_Outlook_%282018%E2%80%932024%29.svg/1024px-Microsoft_Office_Outlook_%282018%E2%80%932024%29.svg.png?20230309112740",
             },
             {
               name: "Yahoo",

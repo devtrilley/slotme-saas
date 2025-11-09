@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useFreelancer } from "../context/FreelancerContext";
 import axios, { resetSessionFlag } from "../utils/axiosInstance";
 import { showToast } from "../utils/toast";
 import { validatePassword } from "../utils/validatePassword";
 import PasswordChecklist from "../components/Inputs/PasswordChecklist";
 
 export default function Auth({ clearSession }) {
-  const [mode, setMode] = useState("login"); // "login" or "signup"
+  const { clearFreelancer } = useFreelancer();
+  const [mode, setMode] = useState("login");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -56,15 +58,18 @@ export default function Auth({ clearSession }) {
           email: cleanEmail,
           password,
         });
-
-        // 🔐 Store BOTH tokens after successful login
+        
+        // ✅ Clear old freelancer data BEFORE storing new login
+        clearFreelancer();
+        
+        // 🔒 Store BOTH tokens after successful login
         localStorage.setItem("access_token", res.data.access_token);
-        localStorage.setItem("refresh_token", res.data.refresh_token); // ✅ NEW
+        localStorage.setItem("refresh_token", res.data.refresh_token);
         localStorage.setItem("freelancer_id", res.data.freelancer_id);
         localStorage.setItem("freelancer_logged_in", "true");
-
+        
         if (clearSession) clearSession();
-
+        
         navigate(nextPage);
       }
     } catch (err) {

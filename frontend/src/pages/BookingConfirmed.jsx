@@ -106,7 +106,7 @@ export default function BookingConfirmed() {
           href={`${API_BASE}/download-ics/${appointmentId}`}
           className="btn btn-sm btn-outline mt-2"
         >
-          📄 Download .ics (Apple/Outlook)
+          📱 Download .ics (Apple/Outlook)
         </a>
       </section>
 
