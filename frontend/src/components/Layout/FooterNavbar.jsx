@@ -95,14 +95,14 @@ export default function FooterNavbar() {
 
   return (
     <nav
-  className="fixed left-0 right-0 z-[999] bg-base-100 border-t border-base-300 lg:hidden w-full"
-  style={{
-    bottom: "-1px",
-    paddingBottom: "calc(env(safe-area-inset-bottom) + 1px)",
-    boxShadow: "0 -2px 8px rgba(0,0,0,0.1)",
-    maxWidth: "100vw",
-  }}
->
+      className="fixed left-0 right-0 z-[999] bg-base-100 border-t border-base-300 lg:hidden w-full"
+      style={{
+        bottom: "-1px",
+        paddingBottom: "calc(env(safe-area-inset-bottom) + 1px)",
+        boxShadow: "0 -2px 8px rgba(0,0,0,0.1)",
+        maxWidth: "100vw",
+      }}
+    >
       <div className="flex justify-around items-center h-16 px-2">
         {/* Back */}
         <button
@@ -171,16 +171,22 @@ export default function FooterNavbar() {
           </svg>
         </button>
 
-        {/* Dashboard */}
+        {/* Dashboard (requires login) */}
         <button
           onClick={() => {
+            if (!isLoaded || !freelancer) return;
             sessionStorage.setItem(FLAG_KEY, "push");
             navigate("/freelancer-admin", { replace: false });
           }}
-          className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all duration-200 active:scale-95 ${
-            isActive("/freelancer-admin")
-              ? "bg-primary/10 text-primary shadow-lg shadow-primary/20"
-              : "hover:bg-base-200"
+          disabled={!isLoaded || !freelancer}
+          className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all duration-200 ${
+            !isLoaded || !freelancer
+              ? "opacity-30 cursor-not-allowed"
+              : `active:scale-95 ${
+                  isActive("/freelancer-admin")
+                    ? "bg-primary/10 text-primary shadow-lg shadow-primary/20"
+                    : "hover:bg-base-200"
+                }`
           }`}
           aria-label="Dashboard"
         >

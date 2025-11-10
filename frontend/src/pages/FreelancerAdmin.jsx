@@ -275,15 +275,13 @@ export default function AdminPage() {
     setSlotToDelete(null);
 
     // Send to server
-    axios
-      .delete(`${API_BASE}/slots/${slotToDelete}`)
-      .catch((err) => {
-        console.error("❌ Delete failed:", err.response?.data || err.message);
-        const msg = err.response?.data?.error || "Failed to delete slot";
-        // ✅ Rollback on failure
-        setSlots((prev) => [...prev, deletedSlot].sort((a, b) => a.id - b.id));
-        showToast(msg, "error");
-      });
+    axios.delete(`${API_BASE}/slots/${slotToDelete}`).catch((err) => {
+      console.error("❌ Delete failed:", err.response?.data || err.message);
+      const msg = err.response?.data?.error || "Failed to delete slot";
+      // ✅ Rollback on failure
+      setSlots((prev) => [...prev, deletedSlot].sort((a, b) => a.id - b.id));
+      showToast(msg, "error");
+    });
   };
 
   const handleDeleteService = async (serviceId) => {
@@ -297,7 +295,9 @@ export default function AdminPage() {
     } catch (err) {
       console.error("❌ Failed to delete service", err);
       // ✅ Rollback on failure
-      setServices((prev) => [...prev, deletedService].sort((a, b) => a.id - b.id));
+      setServices((prev) =>
+        [...prev, deletedService].sort((a, b) => a.id - b.id)
+      );
       showToast("Couldn't delete service. Restored.", "error");
     }
   };
@@ -577,7 +577,7 @@ export default function AdminPage() {
           title="Date Sync"
           subtitle="Sync slot forms with time slots"
         >
-          <label className="flex items-start gap-3 cursor-pointer select-none">
+          <label className="flex items-start gap-3 cursor-pointer select-none md:justify-center">
             <input
               type="checkbox"
               checked={syncDates}

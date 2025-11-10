@@ -53,63 +53,89 @@ export default function TimeSlotCard({
         slot.appointment?.name &&
         slot.appointment?.email &&
         !slot.is_inherited_block ? (
-          <>
-            <p className="text-sm text-primary font-medium">Booked by:</p>
-            <button
-              onClick={() => onClick(slot)}
-              className="underline text-primary text-sm text-left"
-            >
-              {slot.appointment.name} ({slot.appointment.email})
-            </button>
-          </>
+          <div className="space-y-2">
+            <div>
+              <p className="text-sm text-primary font-medium">Booked by:</p>
+              <button
+                onClick={() => onClick(slot)}
+                className="underline text-primary text-sm text-left"
+              >
+                {slot.appointment.name} ({slot.appointment.email})
+              </button>
+            </div>
+            {showButton && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick({ ...slot, _deleteAction: true });
+                }}
+                className="btn btn-sm btn-error w-full"
+              >
+                🗑️ Delete Slot
+              </button>
+            )}
+          </div>
         ) : (
-          <p className="text-sm text-primary italic">
-            Booked (part of earlier appointment)
-          </p>
+          <>
+            <p className="text-sm text-primary italic">
+              Booked (part of earlier appointment)
+            </p>
+            {showButton && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick({ ...slot, _deleteAction: true });
+                }}
+                className="btn btn-sm btn-error mt-2 w-full"
+              >
+                🗑️ Delete Slot
+              </button>
+            )}
+          </>
         )
       ) : isPast ? (
-        <p className="text-sm text-gray-400">⏱️ Passed</p>
+        <>
+          <p className="text-sm text-gray-400">⏱️ Passed</p>
+          {showButton && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onClick({ ...slot, _deleteAction: true });
+              }}
+              className="btn btn-sm btn-error mt-2 w-full"
+            >
+              🗑️ Delete Slot
+            </button>
+          )}
+        </>
       ) : (
-        <p className={`${centered ? "text-base" : "text-sm"} text-green-400`}>
-          Available
-        </p>
-      )}
-
-      {/* 🔥 NEW: Show both Book and Delete buttons for available slots */}
-      {showButton && !slot.is_booked && !slot.is_inherited_block && !isPast && (
-        <div className="mt-2 flex gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick(slot);
-            }}
-            className="btn btn-primary btn-sm"
-          >
-            Manually Book
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick({ ...slot, _deleteAction: true });
-            }}
-            className="btn btn-error btn-sm"
-          >
-            Delete
-          </button>
-        </div>
-      )}
-
-      {/* 🔥 NEW: Show delete button for passed/booked slots */}
-      {showButton && (slot.is_booked || slot.is_inherited_block || isPast) && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick({ ...slot, _deleteAction: true });
-          }}
-          className="btn btn-sm btn-error mt-2"
-        >
-          🗑️ Delete Slot
-        </button>
+        <>
+          <p className={`${centered ? "text-base" : "text-sm"} text-green-400`}>
+            Available
+          </p>
+          {showButton && (
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick(slot);
+                }}
+                className="btn btn-primary btn-sm flex-1"
+              >
+                Manually Book
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick({ ...slot, _deleteAction: true });
+                }}
+                className="btn btn-error btn-sm flex-1"
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

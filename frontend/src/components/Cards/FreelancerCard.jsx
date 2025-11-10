@@ -65,7 +65,7 @@ export default function FreelancerCard({
       }`}
     >
       <div
-        className="flex items-center gap-4 p-4 rounded-[10px] shadow bg-base-200 cursor-pointer"
+        className="flex items-center gap-4 p-4 rounded-[10px] shadow bg-base-200 cursor-pointer md:justify-center"
         onClick={onClick}
       >
         <div className="relative">
@@ -96,7 +96,7 @@ export default function FreelancerCard({
           )}
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 md:flex-initial">
           <FallbackText
             value={
               business_name?.trim() ||

@@ -59,6 +59,18 @@ export default function Navbar() {
         </NavLink>
       </li>
 
+      {/* 👇 Show only when logged out */}
+      {!isFreelancerLoggedIn && !isDevLoggedIn && (
+        <li className="pt-2">
+          <button
+            onClick={() => navigate("/auth")}
+            className="bg-gradient-to-r from-primary to-purple-600 text-white text-xs font-medium py-2 rounded-md w-full hover:opacity-90 transition"
+          >
+            Login / Sign Up
+          </button>
+        </li>
+      )}
+
       {(isFreelancerLoggedIn || isDevLoggedIn) && (
         <div className="my-2 h-px bg-gray-600 opacity-40" />
       )}
@@ -154,10 +166,10 @@ export default function Navbar() {
         isSticky ? "sticky top-0 z-50" : ""
       }`}
     >
-      <div className="navbar-start">
-        {/* Mobile Dropdown */}
+      <div className="navbar-start flex items-center gap-2">
+        {/* Always-visible hamburger dropdown (all screen sizes) */}
         <div className="dropdown">
-          <label tabIndex={0} className="btn btn-ghost lg:hidden">
+          <label tabIndex={0} className="btn btn-ghost">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-5 w-5"
@@ -194,8 +206,99 @@ export default function Navbar() {
         </NavLink>
       </div>
 
-      <div className="navbar-end hidden lg:flex">
-        <ul className="menu menu-horizontal px-1">{renderLinks()}</ul>
+      {/* Navbar end (right side) */}
+      <div className="navbar-end hidden lg:flex items-center gap-5">
+        {/* 👆 Only visible on large screens and up (desktop) */}
+
+        {isFreelancerLoggedIn || isDevLoggedIn ? (
+          <>
+            <NavLink
+              to="/freelancer-admin"
+              className={({ isActive }) =>
+                `hover:text-primary transition ${
+                  isActive
+                    ? "text-primary font-semibold border-b-2 border-primary pb-1"
+                    : ""
+                }`
+              }
+            >
+              Dashboard
+            </NavLink>
+
+            <NavLink
+              to="/freelancer-bookings"
+              className={({ isActive }) =>
+                `hover:text-primary transition ${
+                  isActive
+                    ? "text-primary font-semibold border-b-2 border-primary pb-1"
+                    : ""
+                }`
+              }
+            >
+              CRM
+            </NavLink>
+
+            <NavLink
+              to={
+                freelancer?.custom_url
+                  ? `/freelancers/${freelancer.custom_url}`
+                  : freelancer?.public_slug
+                  ? `/freelancers/${freelancer.public_slug}`
+                  : `/freelancers/${localStorage.getItem("freelancer_id")}`
+              }
+              className={({ isActive }) =>
+                `hover:text-primary transition ${
+                  isActive
+                    ? "text-primary font-semibold border-b-2 border-primary pb-1"
+                    : ""
+                }`
+              }
+            >
+              Profile
+            </NavLink>
+
+            <NavLink
+              to="/upgrade"
+              className={({ isActive }) =>
+                `hover:text-primary transition ${
+                  isActive
+                    ? "text-primary font-semibold border-b-2 border-primary pb-1"
+                    : ""
+                }`
+              }
+            >
+              Upgrade
+            </NavLink>
+
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                `hover:text-primary transition ${
+                  isActive
+                    ? "text-primary font-semibold border-b-2 border-primary pb-1"
+                    : ""
+                }`
+              }
+            >
+              Settings
+            </NavLink>
+
+            {/* 🔥 Red logout button (desktop only) */}
+            <button
+              onClick={() => handleLogout("freelancer")}
+              className="bg-gradient-to-r from-red-500 to-rose-600 text-white text-xs font-semibold px-3.5 py-1.5 rounded-full shadow-sm hover:from-red-600 hover:to-rose-700 active:scale-95 transition"
+            >
+              Logout
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => navigate("/auth")}
+            className="btn btn-primary btn-sm text-xs"
+          >
+            Login / Sign Up
+          </button>
+        )}
       </div>
     </div>
   );

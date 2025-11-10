@@ -127,7 +127,7 @@ export default function FreelancerProfile() {
             </li>
           )}
 
-          <div className="border border-white/20 bg-white/5 rounded-lg p-4 text-left mt-4">
+          <div className="border border-white/20 bg-white/5 rounded-lg p-4 text-left mt-10 mb-10">
             <h2 className="text-sm font-semibold text-white mb-2 uppercase tracking-wide text-center">
               Contact Info
             </h2>
@@ -228,7 +228,7 @@ export default function FreelancerProfile() {
               </p>
             </div>
           )}
-          <li>
+          <li className="mt-10 mb-10">
             <NoShowPolicy policy={noShowPolicy} />
           </li>
           <li>
