@@ -53,9 +53,9 @@ Great news! Your appointment is confirmed. ✅
 👤 With: {freelancer.first_name} {freelancer.last_name}
 🏢 Business: {freelancer.business_name or "N/A"}
 
-{f"📍 IMPORTANT INSTRUCTIONS\n{freelancer.booking_instructions}\n" if freelancer.booking_instructions else ""}
+{("📍 IMPORTANT INSTRUCTIONS\n" + freelancer.booking_instructions + "\n") if freelancer.booking_instructions else ""}
 
-{f"🔗 Need to cancel or reschedule?\n{cancel_link}\n" if cancel_link else ""}
+{("🔗 Need to cancel or reschedule?\n" + cancel_link + "\n") if cancel_link else ""}
 
 Looking forward to seeing you!
 
