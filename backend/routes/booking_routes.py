@@ -308,16 +308,37 @@ def book_slot():
     token = serializer.dumps({"appointment_id": appointment.id}, salt="booking-confirm")
     link = f"{BACKEND_ORIGIN}/confirm-booking/{token}"
 
-    subject = "Confirm Your Appointment – SlotMe"
+    subject = f"Confirm Your Appointment – {freelancer.business_name or freelancer.first_name}"
+
+    # Format appointment info for clarity
+    from zoneinfo import ZoneInfo
+
+    slot_tz = ZoneInfo(slot.timezone or freelancer.timezone or "America/New_York")
+    slot_date = datetime.strptime(slot.day, "%Y-%m-%d").date()
+    utc_time = datetime.strptime(slot.master_time.time_24h, "%H:%M").time()
+    utc_dt = datetime.combine(slot_date, utc_time).replace(tzinfo=ZoneInfo("UTC"))
+    local_dt = utc_dt.astimezone(slot_tz)
+    local_time_display = local_dt.strftime("%I:%M %p").lstrip("0")
+    timezone_abbr = local_dt.tzname()
+    local_date_display = local_dt.strftime("%A, %B %d, %Y")
+
     body = f"""Hi {first_name},
 
     Thanks for booking with SlotMe! You're one step away from confirming your appointment.
 
-    ✅ Confirm here: {link}
+    📋 Service: {service.name}
+    🗓️ Date: {local_date_display}
+    ⏰ Time: {local_time_display} {timezone_abbr}
+    👤 With: {freelancer.first_name} {freelancer.last_name}
+    🏢 Business: {freelancer.business_name or "N/A"}
+
+    ✅ Confirm your booking here:
+    {link}
 
     If you didn’t request this, feel free to ignore it.
 
     – The SlotMe Team
+    https://slotme.xyz
     """
 
     ip_attempts.setdefault(client_ip, []).append(now)  # Count all booking attempts
@@ -514,7 +535,9 @@ def download_ics(appointment_id):
     LOCATION:{location}
     STATUS:CONFIRMED
     END:VEVENT
-    END:VCALENDAR""".replace("    ", "")  # Strip leading spaces
+    END:VCALENDAR""".replace(
+        "    ", ""
+    )  # Strip leading spaces
 
     return Response(
         ics,
@@ -846,19 +869,43 @@ def resend_confirmation_email(appointment_id):
     token = serializer.dumps({"appointment_id": appointment.id}, salt="booking-confirm")
     link = f"{BACKEND_ORIGIN}/confirm-booking/{token}"
 
-    subject = "Confirm Your Appointment – SlotMe (Resend)"
+    from zoneinfo import ZoneInfo
+
+    slot = appointment.slot
+    service = appointment.service
+    freelancer = appointment.freelancer
+
+    # Convert UTC slot to freelancer-local time
+    slot_tz = ZoneInfo(slot.timezone or freelancer.timezone or "America/New_York")
+    slot_date = datetime.strptime(slot.day, "%Y-%m-%d").date()
+    utc_time = datetime.strptime(slot.master_time.time_24h, "%H:%M").time()
+    utc_dt = datetime.combine(slot_date, utc_time).replace(tzinfo=ZoneInfo("UTC"))
+    local_dt = utc_dt.astimezone(slot_tz)
+    local_time_display = local_dt.strftime("%I:%M %p").lstrip("0")
+    timezone_abbr = local_dt.tzname()
+    local_date_display = local_dt.strftime("%A, %B %d, %Y")
+
+    subject = f"🔁 Resend: Confirm Your Appointment – {freelancer.business_name or freelancer.first_name}"
     body = f"""Hi {user.first_name},
 
-You requested a new confirmation email for your appointment.
+    Oops! Looks like our first email might’ve gone missing — no worries! Here’s your confirmation link again so you don’t miss your appointment.
 
-Just click the link below to confirm:
+    📋 Service: {service.name}
+    🗓️ Date: {local_date_display}
+    ⏰ Time: {local_time_display} {timezone_abbr}
+    👤 With: {freelancer.first_name} {freelancer.last_name}
+    🏢 Business: {freelancer.business_name or "N/A"}
 
-{link}
+    ✅ Confirm your booking here:
+    {link}
 
-If you didn’t request this, feel free to ignore it.
+    Once confirmed, you’ll receive a final confirmation email with all your details.
 
-– The SlotMe Team
-"""
+    If you’ve already confirmed, you can safely ignore this message.
+
+    — The SlotMe Team
+    https://slotme.xyz
+    """
 
     try:
         send_branded_customer_reply(subject, body, user.email)

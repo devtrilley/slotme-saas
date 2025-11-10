@@ -102,25 +102,25 @@ function SwipeableToast({ message, type = "success", toastId }) {
     ? "translateY(0) scale(1)"
     : "translateY(-8px) scale(0.95)";
 
-    const style = {
-      ...getToastStyle(type),
-      padding: "10px 16px",
-      borderRadius: "6px",
-      fontSize: "0.875rem",
-      fontWeight: 500,
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      maxWidth: "90vw",
-      justifyContent: "space-between",
-      cursor: "default",
-      transform,
-      opacity: dismissed ? 0 : entered ? 1 : 0,
-      transition: "transform 0.3s ease, opacity 0.3s ease",
-      position: "relative",
-      zIndex: 10000,
-      boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
-    };
+  const style = {
+    ...getToastStyle(type),
+    padding: "10px 16px",
+    borderRadius: "6px",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    maxWidth: "90vw",
+    justifyContent: "space-between",
+    cursor: "default",
+    transform,
+    opacity: dismissed ? 0 : entered ? 1 : 0,
+    transition: "transform 0.3s ease, opacity 0.3s ease",
+    position: "relative",
+    zIndex: 10000,
+    boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+  };
 
   const closeBtnStyle = {
     background: "transparent",

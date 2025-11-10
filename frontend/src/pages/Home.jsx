@@ -25,24 +25,24 @@ export default function Home() {
 
       {/* Demo Booking CTA */}
       {/* <div className="bg-base-200 border rounded-lg p-4 shadow space-y-2">
-        <p className="text-sm text-gray-300 font-semibold">
-          Want to see how it works?
-        </p>
-        <a
-          href="/book/1"
-          className="btn btn-outline btn-primary w-full"
-        >
-          Try Demo Booking Page
-        </a>
-      </div> */}
+          <p className="text-sm text-gray-300 font-semibold">
+            Want to see how it works?
+          </p>
+          <a
+            href="/book/1"
+            className="btn btn-outline btn-primary w-full"
+          >
+            Try Demo Booking Page
+          </a>
+        </div> */}
 
-      {/* Freelancer and Dev Login CTA */}
+      {/* Freelancer Login CTA */}
       <div className="grid grid-cols-1 gap-3">
         <Link to="/auth" className="btn btn-primary w-full">
           Freelancer Login
         </Link>
-        <Link to="/dev-login" className="btn btn-outline w-full">
-          Developer Admin Login
+        <Link to="/why-slotme" className="btn btn-outline btn-accent w-full">
+          Why SlotMe? 🚀
         </Link>
       </div>
 

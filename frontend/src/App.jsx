@@ -39,6 +39,8 @@ import Settings from "./pages/Settings";
 
 import PageTransition from "./components/Layout/PageTransition";
 
+import WhySlotMe from "./pages/WhySlotMe";
+
 import FooterNavbar from "./components/Layout/FooterNavbar";
 
 import ConfirmEmailChange from "./pages/ConfirmEmailChange";
@@ -148,7 +150,7 @@ export default function App() {
         }}
       />
 
-<div className="p-4 pb-20 lg:pb-4 w-full max-w-full overflow-x-hidden">
+      <div className="p-4 pb-20 lg:pb-4 w-full max-w-full overflow-x-hidden">
         <PageTransition>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -210,7 +212,6 @@ export default function App() {
               path="/freelancers/:freelancerId"
               element={<FreelancerProfile />}
             />
-
             <Route
               path="/freelancer-analytics"
               element={
@@ -224,7 +225,6 @@ export default function App() {
                 </RequireFreelancerAuth>
               }
             />
-
             <Route
               path="/priority-support"
               element={
@@ -260,10 +260,8 @@ export default function App() {
             <Route path="/upgrade-success" element={<UpgradeSuccess />} />
             <Route path="/upgrade-cancelled" element={<UpgradeCancelled />} />
             <Route path="/already-taken" element={<AlreadyTaken />} />
-
             <Route path="/email-confirm" element={<EmailConfirmed />} />
             <Route path="/signup-confirmed" element={<EmailConfirmed />} />
-
             <Route
               path="/settings"
               element={
@@ -272,21 +270,18 @@ export default function App() {
                 </RequireFreelancerAuth>
               }
             />
-
             <Route path="/cancel/:cancelToken" element={<BookingCancelled />} />
-
             <Route
               path="/delete-confirm/:token"
               element={<DeleteConfirmation />}
             />
-
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-
             <Route
               path="/confirm-email-change"
               element={<ConfirmEmailChange />}
             />
+            <Route path="/why-slotme" element={<WhySlotMe />} />
           </Routes>
         </PageTransition>
       </div>

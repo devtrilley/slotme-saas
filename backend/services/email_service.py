@@ -13,60 +13,58 @@ from utils.timezone_utils import (
 
 
 def send_booking_confirmation_email(appointment, customer_timezone=None):
-    """Send simple plain text booking confirmation - GUARANTEED TO WORK"""
+    """Send cleaner text booking confirmation (Brevo safe, no ASCII box)"""
     from email_utils import send_branded_customer_reply
+    from zoneinfo import ZoneInfo
 
     freelancer = appointment.freelancer
     user = appointment.user
     slot = appointment.slot
     service = appointment.service
 
-    # Get cancel link if available
+    # Cancel link
     cancel_link = ""
     if appointment.cancel_token:
         from config import BACKEND_ORIGIN
 
-        cancel_link = f"\n\n🔗 Need to cancel? {BACKEND_ORIGIN}/cancel-booking/{appointment.cancel_token}"
+        cancel_link = f"{BACKEND_ORIGIN}/cancel-booking/{appointment.cancel_token}"
 
-    # Convert UTC time to slot's frozen timezone (stored in appointment)
-    from zoneinfo import ZoneInfo
-
-    # 🔥 Use the frozen timezone from when the slot was created
+    # Time conversion (frozen timezone)
     frozen_tz = ZoneInfo(appointment.freelancer_timezone or "America/New_York")
     slot_date = datetime.strptime(slot.day, "%Y-%m-%d").date()
     utc_time = datetime.strptime(slot.master_time.time_24h, "%H:%M").time()
     utc_dt = datetime.combine(slot_date, utc_time).replace(tzinfo=ZoneInfo("UTC"))
-
     local_dt = utc_dt.astimezone(frozen_tz)
+
+    # Format for display
     local_time_display = local_dt.strftime("%I:%M %p").lstrip("0")
     timezone_abbr = local_dt.tzname()
-    local_date_display = local_dt.strftime("%Y-%m-%d")  # ✅ Extract local date
+    local_date_display = local_dt.strftime("%A, %B %d, %Y")
 
-    # Build simple, reliable email body
+    # ✅ Clean, no boxes — looks uniform in Gmail/Brevo
     body = f"""Hi {user.first_name},
 
-Your appointment has been confirmed! ✅
+Great news! Your appointment is confirmed. ✅
 
-📅 APPOINTMENT DETAILS:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Service: {service.name}
-Duration: {service.duration_minutes} minutes
-Date: {local_date_display}
-Time: {local_time_display} ({timezone_abbr})
-With: {freelancer.first_name} {freelancer.last_name}
-{f'Business: {freelancer.business_name}' if freelancer.business_name else ''}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 Service: {service.name}
+⏱️ Duration: {service.duration_minutes} minutes
+📅 Date: {local_date_display}
+🕐 Time: {local_time_display} {timezone_abbr}
+👤 With: {freelancer.first_name} {freelancer.last_name}
+🏢 Business: {freelancer.business_name or "N/A"}
 
-{'📍 IMPORTANT INSTRUCTIONS:' + chr(10) + freelancer.booking_instructions + chr(10) if freelancer.booking_instructions else ''}
+{f"📍 IMPORTANT INSTRUCTIONS\n{freelancer.booking_instructions}\n" if freelancer.booking_instructions else ""}
+
+{f"🔗 Need to cancel or reschedule?\n{cancel_link}\n" if cancel_link else ""}
+
 Looking forward to seeing you!
-{cancel_link}
 
 — The SlotMe Team
+https://slotme.xyz
 """
 
-    # Use the EXACT same system as the confirmation link email (which works)
     send_branded_customer_reply(
-        subject=f"Booking Confirmed with {freelancer.business_name or 'your freelancer'}",
+        subject=f"✅ Booking Confirmed with {freelancer.business_name or freelancer.first_name}",
         body=body,
         customer_email=user.email,
     )

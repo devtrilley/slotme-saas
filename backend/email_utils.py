@@ -94,27 +94,38 @@ if __name__ == "__main__":
 
 def send_verification_email(to_email: str, token: str):
     """
-    Sends the email verification link to the new freelancer (plain text).
-    Frontend route expected to read ?token= and call /auth/verify-email (GET).
+    Sends a styled text-based email verification for new freelancers (Brevo-safe).
     """
     try:
-        from config import FRONTEND_URL  # e.g., http://localhost:5173
+        from config import FRONTEND_URL
     except Exception:
         FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
-    # 👇 Route name aligned with EmailConfirmed.jsx (cleaner than "signup-confirmed")
     verify_url = f"{FRONTEND_URL}/email-confirm?token={token}"
 
-    subject = "Confirm your email for SlotMe"
-    body = (
-        "Welcome to SlotMe!\n\n"
-        "Please confirm your email to finish setting up your account.\n\n"
-        f"Verify your email: {verify_url}\n\n"
-        "If you didn't request this, you can ignore this email."
-    )
+    subject = "✅ Confirm Your Email – SlotMe"
+    body = f"""Hi there,
 
-    # Reuse the SMTP helper
-    send_branded_customer_reply(subject=subject, body=body, customer_email=to_email)
+Welcome to SlotMe! 🎉
+
+Please confirm your email to finish setting up your account.
+
+🔗 Verify your email:
+{verify_url}
+
+Once verified, you'll be able to create your booking page and start accepting clients instantly.
+
+If you didn't request this, you can safely ignore this email.
+
+— The SlotMe Team
+https://slotme.xyz
+"""
+
+    send_branded_customer_reply(
+        subject=subject,
+        body=body,
+        customer_email=to_email,
+    )
 
 
 assert FRONTEND_URL, "FRONTEND_URL not set — check config or .env"
