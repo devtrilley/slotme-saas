@@ -87,14 +87,6 @@ export default function Navbar() {
           <li>
             <NavLink
               className={navLinkClass}
-              to={`/book/${localStorage.getItem("freelancer_id")}`}
-            >
-              My Booking Page
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              className={navLinkClass}
               to={
                 freelancer?.custom_url
                   ? `/freelancers/${freelancer.custom_url}`

@@ -58,18 +58,28 @@ export default function Auth({ clearSession }) {
           email: cleanEmail,
           password,
         });
-        
+
+        // Clear dev session first
+        const wasDev = localStorage.getItem("dev_logged_in");
+        localStorage.removeItem("dev_logged_in");
+        localStorage.removeItem("dev_access_token");
+
+        if (wasDev) {
+          showToast("Logged out as Dev Admin", "info");
+        }
+
         // ✅ Clear old freelancer data BEFORE storing new login
         clearFreelancer();
-        
+
         // 🔒 Store BOTH tokens after successful login
         localStorage.setItem("access_token", res.data.access_token);
         localStorage.setItem("refresh_token", res.data.refresh_token);
         localStorage.setItem("freelancer_id", res.data.freelancer_id);
         localStorage.setItem("freelancer_logged_in", "true");
-        
+
         if (clearSession) clearSession();
-        
+
+        showToast("Logged in as Freelancer", "success");
         navigate(nextPage);
       }
     } catch (err) {
@@ -161,84 +171,84 @@ export default function Auth({ clearSession }) {
 
       {/* Auth Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
-      {mode === "signup" && (
-  <>
-    <div>
-      <label className="label">
-        <span className="label-text">First Name</span>
-      </label>
-      <input
-        type="text"
-        className="input input-bordered w-full"
-        placeholder="e.g. John"
-        value={firstName}
-        onChange={(e) => setFirstName(e.target.value)}
-        required
-      />
-    </div>
-    <div>
-      <label className="label">
-        <span className="label-text">Last Name</span>
-      </label>
-      <input
-        type="text"
-        className="input input-bordered w-full"
-        placeholder="e.g. Smith"
-        value={lastName}
-        onChange={(e) => setLastName(e.target.value)}
-        required
-      />
-    </div>
-  </>
-)}
-<div>
-  <label className="label">
-    <span className="label-text">Email</span>
-  </label>
-  <input
-    type="email"
-    className="input input-bordered w-full"
-    placeholder="you@example.com"
-    value={email}
-    onChange={(e) => setEmail(e.target.value)}
-    required
-    disabled={submitting}
-  />
-</div>
-{/* Password Input */}
-<div className="space-y-1">
-  <label className="label">
-    <span className="label-text">Password</span>
-  </label>
-  <input
-    type="password"
-    className="input input-bordered w-full"
-    placeholder="Enter password"
-    value={password}
-    onFocus={() => setShowPasswordChecklist(true)}
-    onChange={(e) => setPassword(e.target.value)}
-    onBlur={() => {
-      if (password.length === 0 && confirmPassword.length === 0)
-        setShowPasswordChecklist(false);
-    }}
-    required
-    disabled={submitting}
-  />
+        {mode === "signup" && (
+          <>
+            <div>
+              <label className="label">
+                <span className="label-text">First Name</span>
+              </label>
+              <input
+                type="text"
+                className="input input-bordered w-full"
+                placeholder="e.g. John"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="label">
+                <span className="label-text">Last Name</span>
+              </label>
+              <input
+                type="text"
+                className="input input-bordered w-full"
+                placeholder="e.g. Smith"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+              />
+            </div>
+          </>
+        )}
+        <div>
+          <label className="label">
+            <span className="label-text">Email</span>
+          </label>
+          <input
+            type="email"
+            className="input input-bordered w-full"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={submitting}
+          />
+        </div>
+        {/* Password Input */}
+        <div className="space-y-1">
+          <label className="label">
+            <span className="label-text">Password</span>
+          </label>
+          <input
+            type="password"
+            className="input input-bordered w-full"
+            placeholder="Enter password"
+            value={password}
+            onFocus={() => setShowPasswordChecklist(true)}
+            onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => {
+              if (password.length === 0 && confirmPassword.length === 0)
+                setShowPasswordChecklist(false);
+            }}
+            required
+            disabled={submitting}
+          />
 
-  {mode === "signup" && (
-    <>
-      <label className="label">
-        <span className="label-text">Confirm Password</span>
-      </label>
-      <input
-        type="password"
-        className="input input-bordered w-full"
-        placeholder="Re-enter password"
-        value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
-        required
-        disabled={submitting}
-      />
+          {mode === "signup" && (
+            <>
+              <label className="label">
+                <span className="label-text">Confirm Password</span>
+              </label>
+              <input
+                type="password"
+                className="input input-bordered w-full"
+                placeholder="Re-enter password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                disabled={submitting}
+              />
               {/* ✅ Inline password requirements */}
               {showPasswordChecklist && (
                 <PasswordChecklist

@@ -239,7 +239,7 @@ body.modal-open {
     transform: translate(-50%, -50%) !important;
     max-width: 90vw !important;
   }
-  
+
   .react-datepicker {
     width: auto !important;
   }

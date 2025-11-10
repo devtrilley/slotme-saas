@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../utils/axiosInstance";
+import { showToast } from "../utils/toast";
 
 export default function DevLogin() {
   const [secret, setSecret] = useState("");
@@ -14,8 +15,24 @@ export default function DevLogin() {
     axios
       .post("/dev/login", { password: secret })
       .then((res) => {
+        // Clear freelancer session first
+        const wasFreelancer = localStorage.getItem("freelancer_logged_in");
+        localStorage.removeItem("freelancer_logged_in");
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("freelancer_id");
+        localStorage.removeItem("branding_updated");
+        localStorage.removeItem("client_id");
+
+        if (wasFreelancer) {
+          showToast("Logged out as Freelancer", "info");
+        }
+
+        // Set dev session
         localStorage.setItem("dev_access_token", res.data.access_token);
         localStorage.setItem("dev_logged_in", "true");
+
+        showToast("Logged in as Dev Admin", "success");
         navigate("/dev-admin");
       })
       .catch(() => {
