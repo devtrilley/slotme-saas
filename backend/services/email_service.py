@@ -42,26 +42,33 @@ def send_booking_confirmation_email(appointment, customer_timezone=None):
     local_date_display = local_dt.strftime("%A, %B %d, %Y")
 
     # ✅ Clean, no boxes — looks uniform in Gmail/Brevo
-    body = f"""Hi {user.first_name},
 
-Great news! Your appointment is confirmed. ✅
+    # Optional sections built separately to avoid f-string parser issues
+    instructions_block = ""
+    if freelancer.booking_instructions:
+        instructions_block = (
+            "📍 IMPORTANT INSTRUCTIONS\n" + freelancer.booking_instructions + "\n\n"
+        )
 
-📋 Service: {service.name}
-⏱️ Duration: {service.duration_minutes} minutes
-📅 Date: {local_date_display}
-🕐 Time: {local_time_display} {timezone_abbr}
-👤 With: {freelancer.first_name} {freelancer.last_name}
-🏢 Business: {freelancer.business_name or "N/A"}
+    cancel_block = ""
+    if cancel_link:
+        cancel_block = "🔗 Need to cancel or reschedule?\n" + cancel_link + "\n\n"
 
-{("📍 IMPORTANT INSTRUCTIONS\n" + freelancer.booking_instructions + "\n") if freelancer.booking_instructions else ""}
-
-{("🔗 Need to cancel or reschedule?\n" + cancel_link + "\n") if cancel_link else ""}
-
-Looking forward to seeing you!
-
-— The SlotMe Team
-https://slotme.xyz
-"""
+    body = (
+        f"Hi {user.first_name},\n\n"
+        "Great news! Your appointment is confirmed. ✅\n\n"
+        f"📋 Service: {service.name}\n"
+        f"⏱️ Duration: {service.duration_minutes} minutes\n"
+        f"📅 Date: {local_date_display}\n"
+        f"🕐 Time: {local_time_display} {timezone_abbr}\n"
+        f"👤 With: {freelancer.first_name} {freelancer.last_name}\n"
+        f"🏢 Business: {freelancer.business_name or 'N/A'}\n\n"
+        f"{instructions_block}"
+        f"{cancel_block}"
+        "Looking forward to seeing you!\n\n"
+        "— The SlotMe Team\n"
+        "https://slotme.xyz\n"
+    )
 
     send_branded_customer_reply(
         subject=f"✅ Booking Confirmed with {freelancer.business_name or freelancer.first_name}",
