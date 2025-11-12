@@ -708,7 +708,10 @@ export default function AdminPage() {
                         {showHeader && (
                           <div className="mt-4 mb-2 text-center">
                             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                              {slotTimezone.replace("America/", "")} Timezone
+                              {slotTimezone
+                                .replace("America/", "")
+                                .replace("_", " ")}{" "}
+                              Timezone
                             </span>
                           </div>
                         )}

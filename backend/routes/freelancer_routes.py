@@ -109,6 +109,8 @@ def get_public_time_slots(identifier):
             joinedload(TimeSlot.appointment).joinedload(Appointment.service),
         )
         .filter_by(freelancer_id=freelancer_id)
+        .join(MasterTimeSlot, TimeSlot.master_time_id == MasterTimeSlot.id)
+        .order_by(TimeSlot.day.asc(), MasterTimeSlot.time_24h.asc())
         .all()
     )
 

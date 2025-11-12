@@ -34,7 +34,7 @@ export default function Feedback() {
       await axios.post(`${API_BASE}/feedback`, payload, { headers });
 
       setStatus("success");
-      showToast("✅ Feedback sent successfully!", "success");
+      showToast("Feedback sent successfully!", "success");
       setName("");
       setEmail("");
       setSubject("");

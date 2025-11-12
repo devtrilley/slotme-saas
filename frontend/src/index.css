@@ -10,8 +10,24 @@
 @layer utilities {
   @media (min-width: 375px) {
     .text-375 {
-      font-size: 0.875rem; /* Tailwind's text-sm */
-      line-height: 1.25rem; /* optional: line height for consistency */
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+  }
+
+  /* Fade-in animation for slot buttons */
+  .animate-fadeInFast {
+    animation: fadeInFast 0.25s ease-out forwards;
+  }
+
+  @keyframes fadeInFast {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 }
@@ -243,4 +259,32 @@ body.modal-open {
   .react-datepicker {
     width: auto !important;
   }
+}
+
+/* ============================= */
+/*  GLOBAL BUTTON INTERACTIONS   */
+/* ============================= */
+
+/* Make all buttons visually clickable */
+.btn,
+.btn-primary,
+.btn-outline,
+button {
+  cursor: pointer !important;
+}
+
+/* Ensure clickable feel on hover */
+.btn:hover,
+.btn-primary:hover,
+.btn-outline:hover {
+  filter: brightness(1.05);
+  transition: all 0.15s ease-in-out;
+}
+
+/* Optional: subtle tap feedback */
+.btn:active,
+.btn-primary:active,
+.btn-outline:active {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
 }

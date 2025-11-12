@@ -111,6 +111,14 @@ export default function Navbar() {
             </NavLink>
           </li>
           <li>
+            <NavLink
+              className={navLinkClass}
+              to={`/book/${localStorage.getItem("freelancer_id")}`}
+            >
+              My Booking Page
+            </NavLink>
+          </li>
+          <li>
             <NavLink className={navLinkClass} to="/freelancer-analytics">
               Analytics
             </NavLink>
@@ -207,88 +215,102 @@ export default function Navbar() {
       </div>
 
       {/* Navbar end (right side) */}
-      <div className="navbar-end hidden lg:flex items-center gap-5">
-        {/* 👆 Only visible on large screens and up (desktop) */}
-
+      <div className="navbar-end hidden md:flex items-center gap-5">
         {isFreelancerLoggedIn || isDevLoggedIn ? (
           <>
-            <NavLink
-              to="/freelancer-admin"
-              className={({ isActive }) =>
-                `hover:text-primary transition ${
-                  isActive
-                    ? "text-primary font-semibold border-b-2 border-primary pb-1"
-                    : ""
-                }`
-              }
-            >
-              Dashboard
-            </NavLink>
+            {/* 🔥 Links: DESKTOP ONLY */}
+            <div className="hidden lg:flex items-center gap-5">
+              <NavLink
+                to="/freelancer-admin"
+                className={({ isActive }) =>
+                  `hover:text-primary transition ${
+                    isActive
+                      ? "text-primary font-semibold border-b-2 border-primary pb-1"
+                      : ""
+                  }`
+                }
+              >
+                Dashboard
+              </NavLink>
 
-            <NavLink
-              to="/freelancer-bookings"
-              className={({ isActive }) =>
-                `hover:text-primary transition ${
-                  isActive
-                    ? "text-primary font-semibold border-b-2 border-primary pb-1"
-                    : ""
-                }`
-              }
-            >
-              CRM
-            </NavLink>
+              <NavLink
+                to="/freelancer-bookings"
+                className={({ isActive }) =>
+                  `hover:text-primary transition ${
+                    isActive
+                      ? "text-primary font-semibold border-b-2 border-primary pb-1"
+                      : ""
+                  }`
+                }
+              >
+                CRM
+              </NavLink>
 
-            <NavLink
-              to={
-                freelancer?.custom_url
-                  ? `/freelancers/${freelancer.custom_url}`
-                  : freelancer?.public_slug
-                  ? `/freelancers/${freelancer.public_slug}`
-                  : `/freelancers/${localStorage.getItem("freelancer_id")}`
-              }
-              className={({ isActive }) =>
-                `hover:text-primary transition ${
-                  isActive
-                    ? "text-primary font-semibold border-b-2 border-primary pb-1"
-                    : ""
-                }`
-              }
-            >
-              Profile
-            </NavLink>
+              <NavLink
+                to={
+                  freelancer?.custom_url
+                    ? `/freelancers/${freelancer.custom_url}`
+                    : freelancer?.public_slug
+                    ? `/freelancers/${freelancer.public_slug}`
+                    : `/freelancers/${localStorage.getItem("freelancer_id")}`
+                }
+                className={({ isActive }) =>
+                  `hover:text-primary transition ${
+                    isActive
+                      ? "text-primary font-semibold border-b-2 border-primary pb-1"
+                      : ""
+                  }`
+                }
+              >
+                Profile
+              </NavLink>
 
-            <NavLink
-              to="/upgrade"
-              className={({ isActive }) =>
-                `hover:text-primary transition ${
-                  isActive
-                    ? "text-primary font-semibold border-b-2 border-primary pb-1"
-                    : ""
-                }`
-              }
-            >
-              Upgrade
-            </NavLink>
+              <NavLink
+                to={`/book/${localStorage.getItem("freelancer_id")}`}
+                className={({ isActive }) =>
+                  `hover:text-primary transition ${
+                    isActive
+                      ? "text-primary font-semibold border-b-2 border-primary pb-1"
+                      : ""
+                  }`
+                }
+              >
+                Booking
+              </NavLink>
 
-            <NavLink
-              to="/settings"
-              className={({ isActive }) =>
-                `hover:text-primary transition ${
-                  isActive
-                    ? "text-primary font-semibold border-b-2 border-primary pb-1"
-                    : ""
-                }`
-              }
-            >
-              Settings
-            </NavLink>
+              <NavLink
+                to="/upgrade"
+                className={({ isActive }) =>
+                  `hover:text-primary transition ${
+                    isActive
+                      ? "text-primary font-semibold border-b-2 border-primary pb-1"
+                      : ""
+                  }`
+                }
+              >
+                Upgrade
+              </NavLink>
 
-            {/* 🔥 Red logout button (desktop only) */}
+              <NavLink
+                to="/settings"
+                className={({ isActive }) =>
+                  `hover:text-primary transition ${
+                    isActive
+                      ? "text-primary font-semibold border-b-2 border-primary pb-1"
+                      : ""
+                  }`
+                }
+              >
+                Settings
+              </NavLink>
+            </div>
+
+            {/* 🔥 Logout button: TABLET + DESKTOP */}
             <button
-              onClick={() => handleLogout("freelancer")}
+              onClick={() => handleLogout(isDevLoggedIn ? "dev" : "freelancer")}
               className="bg-gradient-to-r from-red-500 to-rose-600 text-white text-xs font-semibold px-3.5 py-1.5 rounded-full shadow-sm hover:from-red-600 hover:to-rose-700 active:scale-95 transition"
             >
-              Logout
+              {isDevLoggedIn ? "👷 Logout" : "Logout"}
             </button>
           </>
         ) : (

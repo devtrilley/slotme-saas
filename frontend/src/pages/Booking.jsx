@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react"; // ✅ Added useRef
 import { useParams } from "react-router-dom";
 import axios from "../utils/axiosInstance";
 import { DateTime } from "luxon";
-
+import React from "react";
 import "react-datepicker/dist/react-datepicker.css";
 import FreelancerCard from "../components/Cards/FreelancerCard";
 import FreelancerModal from "../components/Modals/FreelancerModal";
@@ -67,6 +67,9 @@ export default function BookingPage({ useCustomUrl = false }) {
   const [submitting, setSubmitting] = useState(false);
   const [bookingStatus, setBookingStatus] = useState(null);
   // null = unknown, "pending", "confirmed", "none"
+  const carouselRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const [customQuestions, setCustomQuestions] = useState([]);
   const [customResponses, setCustomResponses] = useState({});
@@ -92,18 +95,12 @@ export default function BookingPage({ useCustomUrl = false }) {
 
   const sortSlots = (slots) => {
     return [...slots].sort((a, b) => {
-      const timezoneA = a.timezone || freelancerTimeZone;
-      const timezoneB = b.timezone || freelancerTimeZone;
-
-      // 🔥 FIRST: Group by timezone (alphabetical)
-      if (timezoneA !== timezoneB) {
-        return timezoneA.localeCompare(timezoneB);
+      // 🔥 FIRST: Sort by day (YYYY-MM-DD format)
+      if (a.day !== b.day) {
+        return a.day.localeCompare(b.day);
       }
-
-      // 🔥 SECOND: Within same timezone, sort by time
-      const timeA = DateTime.fromFormat(a.time, "hh:mm a");
-      const timeB = DateTime.fromFormat(b.time, "hh:mm a");
-      return timeA.toMillis() - timeB.toMillis();
+      // 🔥 SECOND: Sort by time_24h (HH:mm format like "09:00", "18:00")
+      return a.time_24h.localeCompare(b.time_24h);
     });
   };
 
@@ -146,6 +143,60 @@ export default function BookingPage({ useCustomUrl = false }) {
       }
     }
   };
+
+  // ✅ ADD THESE FUNCTIONS:
+  const updateScrollButtons = () => {
+    if (!carouselRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
+    setCanScrollLeft(scrollLeft > 0);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+  };
+
+  const scrollCarousel = (direction) => {
+    if (!carouselRef.current) return;
+    const scrollAmount = 300; // One card width + gap
+    carouselRef.current.scrollBy({
+      left: direction === "left" ? -scrollAmount : scrollAmount,
+      behavior: "smooth",
+    });
+    setTimeout(updateScrollButtons, 300);
+  };
+
+  const scrollServiceIntoView = (serviceId) => {
+    if (!carouselRef.current) return;
+    const serviceCard = carouselRef.current.querySelector(
+      `[data-service-id="${serviceId}"]`
+    );
+    if (serviceCard) {
+      serviceCard.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+    setTimeout(updateScrollButtons, 300);
+  };
+
+  useEffect(() => {
+    if (services.length > 0) {
+      // ⏱ Delay to let carousel fully render before checking scroll state
+      const timer = setTimeout(() => {
+        updateScrollButtons();
+      }, 100);
+  
+      const carousel = carouselRef.current;
+      if (carousel) {
+        carousel.addEventListener("scroll", updateScrollButtons);
+      }
+  
+      return () => {
+        clearTimeout(timer);
+        if (carousel) {
+          carousel.removeEventListener("scroll", updateScrollButtons);
+        }
+      };
+    }
+  }, [services]);
 
   const fetchFreelancerInfo = () => {
     axios
@@ -428,12 +479,6 @@ export default function BookingPage({ useCustomUrl = false }) {
     return true;
   });
 
-  console.log("Selected Date:", selectedDate);
-  console.log(
-    "Parsed Luxon Date:",
-    DateTime.fromJSDate(selectedDate).toISODate()
-  );
-
   // 🚨 Handle missing freelancer BEFORE SafeLoader
   if (error === "missing-freelancer") {
     return (
@@ -467,7 +512,7 @@ export default function BookingPage({ useCustomUrl = false }) {
 
   return (
     <SafeLoader loading={loading} error={error} onRetry={handleRetry}>
-      <main className="max-w-md mx-auto p-6 space-y-6">
+      <main className="max-w-md lg:max-w-2xl mx-auto p-6 space-y-6">
         <FreelancerCard
           business_name={freelancerDetails.business_name}
           first_name={freelancerDetails.first_name}
@@ -502,61 +547,103 @@ export default function BookingPage({ useCustomUrl = false }) {
         )}
         {services.length > 0 && (
           <section className="mt-4">
-            <h3 className="text-center text-sm text-white mb-2 font-medium">
+            <h3 className="text-center text-sm text-white mb-2 mt-6 font-medium">
               Available Services
             </h3>
-            <div className="flex overflow-x-auto gap-4 px-5 py-4 snap-x snap-mandatory rounded-xl bg-white/5">
-              {services.map((service) => (
-                <div key={service.id} className="snap-start shrink-0 w-72">
-                  <ServiceCard
-                    service={service}
-                    isPublicView={true}
-                    onClick={() => {
-                      setSelectedServiceId(service.id);
-                      setSelectedServiceDuration(service.duration_minutes);
 
-                      const requiredBlocks = getRequiredBlocks(
-                        service.duration_minutes
-                      );
-                      const index = filteredSlots.findIndex(
-                        (s) => s.id === selectedSlotId
-                      );
+            {/* ✅ No gap - buttons touch carousel */}
+            <div className="flex items-stretch">
+              {/* ✅ Left arrow - rounds left edge */}
+              <button
+                onClick={() => scrollCarousel("left")}
+                disabled={!canScrollLeft}
+                className={`hidden lg:flex items-center justify-center w-12 rounded-l-xl transition-all ${
+                  canScrollLeft
+                    ? "bg-white/10 hover:bg-white/15 border-l border-t border-b border-white/20 text-white"
+                    : "bg-white/5 border-l border-t border-b border-white/10 text-gray-600 cursor-not-allowed"
+                }`}
+                aria-label="Scroll left"
+              >
+                <span className="text-2xl">←</span>
+              </button>
 
-                      if (index === -1) {
-                        setSelectedSlotId(null);
-                        return;
-                      }
+              {/* ✅ Carousel - sharp corners */}
+              <div
+                ref={carouselRef}
+                className="flex-1 flex overflow-x-auto gap-4 px-5 py-4 snap-x snap-mandatory lg:snap-none bg-white/5 border-t border-b border-white/10 scrollbar-hide"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
+                {services.map((service) => (
+                  <div
+                    key={service.id}
+                    data-service-id={service.id}
+                    className={`snap-center shrink-0 w-72 flex items-stretch transition-all rounded-xl
+                    bg-gradient-to-br from-white/5 to-white/0 shadow-lg shadow-black/20
+                    ${
+                      selectedServiceId === service.id
+                        ? "ring-2 ring-primary scale-[1.02]"
+                        : ""
+                    }`}
+                  >
+                    <ServiceCard
+                      service={service}
+                      isPublicView={true}
+                      onClick={() => {
+                        setSelectedServiceId(service.id);
+                        setSelectedServiceDuration(service.duration_minutes);
+                        scrollServiceIntoView(service.id);
 
-                      const futureSlots = filteredSlots.slice(index);
-                      const relevantSlice = futureSlots.slice(
-                        0,
-                        requiredBlocks
-                      );
+                        const requiredBlocks = getRequiredBlocks(
+                          service.duration_minutes
+                        );
+                        const index = filteredSlots.findIndex(
+                          (s) => s.id === selectedSlotId
+                        );
+                        if (index === -1) {
+                          setSelectedSlotId(null);
+                          return;
+                        }
+                        const futureSlots = filteredSlots.slice(index);
+                        const relevantSlice = futureSlots.slice(
+                          0,
+                          requiredBlocks
+                        );
+                        const visibleFree = relevantSlice.every(
+                          (s) => !s.is_booked && !s.is_inherited_block
+                        );
+                        const missingBlocks =
+                          requiredBlocks - relevantSlice.length;
+                        const startSlot = futureSlots[0];
+                        const lastSlotId =
+                          filteredSlots[filteredSlots.length - 1]?.id;
+                        const isLastSlot = startSlot?.id === lastSlotId;
+                        const valid =
+                          visibleFree && (missingBlocks <= 0 || isLastSlot);
+                        if (!valid) setSelectedSlotId(null);
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
 
-                      const visibleFree = relevantSlice.every(
-                        (s) => !s.is_booked && !s.is_inherited_block
-                      );
-
-                      const missingBlocks =
-                        requiredBlocks - relevantSlice.length;
-                      const startSlot = futureSlots[0];
-                      const lastSlotId =
-                        filteredSlots[filteredSlots.length - 1]?.id;
-                      const isLastSlot = startSlot?.id === lastSlotId;
-
-                      const valid =
-                        visibleFree && (missingBlocks <= 0 || isLastSlot);
-
-                      if (!valid) setSelectedSlotId(null);
-                    }}
-                  />
-                </div>
-              ))}
+              {/* ✅ Right arrow - rounds right edge */}
+              <button
+                onClick={() => scrollCarousel("right")}
+                disabled={!canScrollRight}
+                className={`hidden lg:flex items-center justify-center w-12 rounded-r-xl transition-all ${
+                  canScrollRight
+                    ? "bg-white/10 hover:bg-white/15 border-r border-t border-b border-white/20 text-white"
+                    : "bg-white/5 border-r border-t border-b border-white/10 text-gray-600 cursor-not-allowed"
+                }`}
+                aria-label="Scroll right"
+              >
+                <span className="text-2xl">→</span>
+              </button>
             </div>
           </section>
         )}
         <section className="space-y-2">
-          <label className="text-sm text-gray-400 block text-center">
+          <label className="text-sm text-gray-400 block text-center mt-6">
             Select a date:
           </label>
           <IconDatePicker
@@ -567,7 +654,7 @@ export default function BookingPage({ useCustomUrl = false }) {
 
           {services.length > 0 && (
             <div className="space-y-2">
-              <label className="text-sm text-gray-400 block text-center">
+              <label className="text-sm text-gray-400 block text-center mt-6">
                 Select a service:
               </label>
               <div
@@ -694,7 +781,11 @@ export default function BookingPage({ useCustomUrl = false }) {
                     const requiredBlocks = getRequiredBlocks(
                       selectedServiceDuration
                     );
-                    const futureSlots = filteredSlots.slice(index);
+                    // 🔥 FIX: Find actual index in filteredSlots
+                    const actualIndex = filteredSlots.findIndex(
+                      (s) => s.id === slot.id
+                    );
+                    const futureSlots = filteredSlots.slice(actualIndex);
 
                     const relevantSlice = futureSlots.slice(0, requiredBlocks);
 
@@ -738,36 +829,33 @@ export default function BookingPage({ useCustomUrl = false }) {
                   };
 
                   return (
-                    <>
+                    <React.Fragment key={`slot-${slot.id}`}>
                       {/* 🔥 Timezone group header - spans full width */}
                       {showHeader && (
-                        <div
-                          key={`tz-${slotTimezone}-${slot.id}`}
-                          className="col-span-2 mt-4 mb-2 text-center w-full"
-                        >
+                        <div className="col-span-2 mt-4 mb-2 text-center w-full">
                           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                            {slotTimezone.replace("America/", "")} Timezone
+                            {slotTimezone
+                              .replace("America/", "")
+                              .replace("_", " ")}{" "}
+                            Timezone
                           </span>
                         </div>
                       )}
-
-                      <div key={`slot-${slot.id}`} className="flex flex-col">
+                      <div className="flex flex-col">
                         <button
-                          className={`btn w-full text-sm ${
+                          className={`btn w-full text-sm lg:text-base lg:p-5 animate-fadeInFast ${
                             isDisabled
                               ? "bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
                               : isSelected
-                              ? "btn-primary text-white"
+                              ? "bg-primary text-white ring-2 ring-primary/40 shadow-lg shadow-primary/20 scale-[1.02]"
                               : "btn-outline text-white border-white"
                           }`}
                           onClick={() => {
                             if (loading) return;
-
                             if (!selectedServiceId) {
                               showToast("Select a service first.", "warning");
                               return;
                             }
-
                             if (isDisabled) {
                               const nowInFreelancerTZ = DateTime.now()
                                 .setZone(freelancerTimeZone)
@@ -776,7 +864,6 @@ export default function BookingPage({ useCustomUrl = false }) {
                                 DateTime.fromJSDate(selectedDate).startOf(
                                   "day"
                                 );
-
                               if (selectedEST < nowInFreelancerTZ) {
                                 showToast(
                                   "Past date. Choose another day.",
@@ -790,7 +877,6 @@ export default function BookingPage({ useCustomUrl = false }) {
                               }
                               return;
                             }
-
                             handleSelectSlot();
                           }}
                           type="button"
@@ -826,7 +912,7 @@ export default function BookingPage({ useCustomUrl = false }) {
                           </div>
                         )}
                       </div>
-                    </>
+                    </React.Fragment>
                   );
                 });
               })()}

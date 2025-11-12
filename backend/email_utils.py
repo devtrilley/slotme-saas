@@ -101,7 +101,7 @@ def send_verification_email(to_email: str, token: str):
     except Exception:
         FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
-    verify_url = f"{FRONTEND_URL}/email-confirm?token={token}"
+    verify_url = f"{FRONTEND_URL}/signup-confirmed?token={token}"
 
     subject = "✅ Confirm Your Email – SlotMe"
     body = f"""Hi there,
@@ -133,15 +133,22 @@ assert FRONTEND_URL, "FRONTEND_URL not set — check config or .env"
 
 def send_password_reset_email(to_email, token):
     reset_link = f"{FRONTEND_URL}/reset-password?token={token}"
-    subject = "Reset your SlotMe password"
-    html = f"""
-        <h2>Password Reset Request</h2>
-        <p>Click the link below to reset your SlotMe password:</p>
-        <a href="{reset_link}">{reset_link}</a>
-        <p>This link will expire in 1 hour.</p>
-        <p>If you didn’t request a password reset, you can ignore this email.</p>
-    """
-    send_branded_customer_reply(subject=subject, body=html, customer_email=to_email)
+    subject = "🔐 Reset your SlotMe password"
+    body = f"""Hi there,
+
+You requested to reset your SlotMe password.
+
+🔗 Reset your password:
+{reset_link}
+
+⏰ This link will expire in 1 hour.
+
+If you didn't request a password reset, you can safely ignore this email.
+
+— The SlotMe Team
+https://slotme.xyz
+"""
+    send_branded_customer_reply(subject=subject, body=body, customer_email=to_email)
 
 
 def _FRONTEND_URL_fallback():
@@ -159,13 +166,19 @@ def send_email_change_confirmation(to_email: str, token: str):
     """
     FRONTEND_URL = _FRONTEND_URL_fallback()
     confirm_url = f"{FRONTEND_URL}/confirm-email-change?token={token}"
+    subject = "📧 Confirm your SlotMe email change"
+    body = f"""Hi there,
 
-    subject = "Confirm your SlotMe email change"
-    body = (
-        "You requested to change your SlotMe login email.\n\n"
-        f"Confirm this change: {confirm_url}\n\n"
-        "If you didn’t request this, ignore this email."
-    )
+You requested to change your SlotMe login email.
 
-    # Reuse branded sender (same as verification + password emails)
+🔗 Confirm this change:
+{confirm_url}
+
+⏰ This link will expire in 1 hour.
+
+If you didn't request this email change, you can safely ignore this email.
+
+— The SlotMe Team
+https://slotme.xyz
+"""
     send_branded_customer_reply(subject=subject, body=body, customer_email=to_email)

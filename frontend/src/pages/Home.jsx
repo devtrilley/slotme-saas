@@ -16,7 +16,7 @@ export default function Home() {
         />
         <p className="text-gray-400 text-sm">
           Modern appointment booking for freelancers, coaches, barbers,
-          trainers, and more.
+          trainers, and more!
         </p>
         <p className="text-xs text-gray-500 italic">
           No sign-up needed for customers. Share your link. Get booked. Simple.

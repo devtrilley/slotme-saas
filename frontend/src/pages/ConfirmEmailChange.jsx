@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import axios from "../utils/axiosInstance";
 import { showToast } from "../utils/toast";
+import { CheckCircle, XCircle, Loader2, Mail } from "lucide-react";
 
 export default function ConfirmEmailChange() {
   const [search] = useSearchParams();
-  const [status, setStatus] = useState("loading"); // loading | ok | error
+  const [status, setStatus] = useState("loading");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,55 +17,64 @@ export default function ConfirmEmailChange() {
     }
     (async () => {
       try {
-        const res = await axios.post("/auth/change-email/confirm", { token });
-        showToast("Email updated. Log in with new email.", "success", 7000);
+        await axios.post("/auth/change-email/confirm", { token });
+        showToast("Email updated. Log in with new email.", "success");
         setStatus("ok");
-        // Hard-logout local state
         localStorage.clear();
       } catch (err) {
         showToast(
           err?.response?.data?.error || "Link invalid or expired.",
-          "error",
-          7000
+          "error"
         );
         setStatus("error");
       }
     })();
   }, []);
 
-  if (status === "loading") {
-    return (
-      <div className="max-w-sm mx-auto p-6 text-center">
-        <p>Confirming email change…</p>
-      </div>
-    );
-  }
-
-  if (status === "ok") {
-    return (
-      <main className="max-w-sm mx-auto p-6 text-center space-y-3">
-        <h2 className="text-xl font-semibold">Email updated</h2>
-        <p>You can now log in with your new email.</p>
-        <button
-          className="btn btn-primary w-full"
-          onClick={() => navigate("/auth")}
-        >
-          Go to login
-        </button>
-      </main>
-    );
-  }
-
   return (
-    <main className="max-w-sm mx-auto p-6 text-center space-y-3">
-      <h2 className="text-xl font-semibold text-error">Link invalid</h2>
-      <p>Please start again from Settings → Change Email.</p>
-      <button
-        className="btn btn-outline w-full"
-        onClick={() => navigate("/settings")}
-      >
-        Back to Settings
-      </button>
+    <main className="max-w-md mx-auto p-8 text-center space-y-6">
+      {status === "loading" && (
+        <>
+          <Loader2 className="w-16 h-16 mx-auto text-primary animate-spin" />
+          <h1 className="text-2xl font-bold">Confirming Email Change...</h1>
+          <p className="text-gray-400">Please wait a moment</p>
+        </>
+      )}
+
+      {status === "ok" && (
+        <>
+          <CheckCircle className="w-16 h-16 mx-auto text-green-400" />
+          <h1 className="text-3xl font-bold text-white">Email Updated!</h1>
+          <p className="text-purple-300 text-lg">
+            Your login email has been successfully changed. You can now log in
+            with your new email address.
+          </p>
+          <button
+            className="btn btn-primary w-full mt-4"
+            onClick={() => navigate("/auth")}
+          >
+            Go to Login
+          </button>
+        </>
+      )}
+
+      {status === "error" && (
+        <>
+          <XCircle className="w-16 h-16 mx-auto text-red-400" />
+          <h1 className="text-2xl font-bold text-white">
+            Link Invalid or Expired
+          </h1>
+          <p className="text-gray-400">
+            Please request a new email change from your Settings page.
+          </p>
+          <button
+            className="btn btn-outline w-full mt-4"
+            onClick={() => navigate("/settings")}
+          >
+            Back to Settings
+          </button>
+        </>
+      )}
     </main>
   );
 }

@@ -5,6 +5,7 @@ export default function AccordionSection({
   title,
   subtitle,
   right,
+  color = "primary", // 👈 add this line
   defaultOpen = false,
   children,
   id: idProp, // optional: if you want to pass a stable id
@@ -151,8 +152,10 @@ export default function AccordionSection({
         className={[
           "w-full h-11 md:h-12 rounded",
           "px-4 md:px-5",
-          hasTierAccess(tier, requiredTier || "free")
-            ? "bg-primary text-primary-content"
+          color === "red"
+            ? "bg-red-600 text-white hover:bg-red-700"
+            : hasTierAccess(tier, requiredTier || "free")
+            ? "bg-primary text-primary-content hover:bg-primary/90"
             : "bg-primary/60 text-primary-content/70 cursor-not-allowed",
           "flex items-center justify-center relative",
           "shadow-md transition-all duration-150 hover:shadow-lg active:scale-[0.99]",

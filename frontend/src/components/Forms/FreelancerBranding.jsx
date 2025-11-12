@@ -124,7 +124,7 @@ export default function FreelancerBranding({ onUpdate }) {
     axios
       .patch(`${API_BASE}/freelancer/branding`, payload)
       .then(() => {
-        showToast("✅ Branding updated!", "success");
+        showToast("Branding updated!", "success");
 
         setFreelancer((prev) => ({
           ...(prev || {}),
@@ -255,13 +255,13 @@ export default function FreelancerBranding({ onUpdate }) {
             </p>
           ) : (
             <p className="text-[11px] text-zinc-300">
-  Your booking page will be:{" "}
-  <code className="font-mono text-zinc-100">
-    {form.custom_url
-      ? `${window.location.origin}/${form.custom_url}`
-      : `${window.location.origin}/book/${freelancer?.id || "..."}`}
-  </code>
-</p>
+              Your booking page will be:{" "}
+              <code className="font-mono text-zinc-100">
+                {form.custom_url
+                  ? `${window.location.origin}/${form.custom_url}`
+                  : `${window.location.origin}/book/${freelancer?.id || "..."}`}
+              </code>
+            </p>
           )}
         </div>
         <div className="space-y-1">

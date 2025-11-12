@@ -113,7 +113,7 @@ function SwipeableToast({ message, type = "success", toastId }) {
     gap: "8px",
     maxWidth: "90vw",
     justifyContent: "space-between",
-    cursor: "default",
+    cursor: "pointer",
     transform,
     opacity: dismissed ? 0 : entered ? 1 : 0,
     transition: "transform 0.3s ease, opacity 0.3s ease",
@@ -133,10 +133,17 @@ function SwipeableToast({ message, type = "success", toastId }) {
   };
 
   return (
-    <div ref={ref} style={style}>
+    <div 
+      ref={ref} 
+      style={style}
+      onClick={handleClose}  // ✅ Click anywhere on toast to dismiss
+    >
       <span>{iconMap[type] || "💬"}</span>
-      <span>{message}</span>
-      <button style={closeBtnStyle} onClick={handleClose}>
+      <span style={{ userSelect: "none" }}>{message}</span>  {/* ✅ Prevent text selection */}
+      <button style={closeBtnStyle} onClick={(e) => {
+        e.stopPropagation();
+        handleClose();
+      }}>
         ×
       </button>
     </div>

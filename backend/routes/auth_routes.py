@@ -97,6 +97,9 @@ def signup_freelancer():
 
     hashed = generate_password_hash(password)
 
+    # 🔥 Generate token BEFORE creating user
+    token = serializer.dumps(email, salt="email-confirm")
+
     new_freelancer = Freelancer(
         first_name=first_name,
         last_name=last_name,
@@ -104,22 +107,20 @@ def signup_freelancer():
         contact_email=email,
         password=hashed,
         email_confirmed=False,
-        location="",  # 👈 default so we don't violate NOT NULL anywhere
+        location="",
+        confirmation_token=token,  # ✅ Set token at creation
     )
 
     # 🔥 Generate unique random slug for all new users
     new_freelancer.public_slug = generate_unique_slug()
 
     db.session.add(new_freelancer)
-    db.session.commit()
 
-    # 🔗 Generate confirmation token and send email
-    token = serializer.dumps(email, salt="email-confirm")
-    new_freelancer.confirmation_token = token
-    db.session.commit()
-
-    # Send the actual tokenized link (frontend route expects ?token=...)
+    # ✅ Send email BEFORE commit (doesn't need DB record yet)
     send_verification_email(to_email=email, token=token)
+
+    # ✅ Single commit at the end
+    db.session.commit()
     print(f"📨 Sent email verification for {email}")
     print(f"EMAIL CONFIRM TOKEN: {token}")
 

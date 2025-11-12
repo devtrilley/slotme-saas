@@ -140,19 +140,23 @@ export default function ServiceCard({
             </div>
           </div>
         ) : (
-          <>
-            <h3 className="font-semibold text-white text-sm">{form.name}</h3>
-            <p className="text-sm text-gray-300">{form.description}</p>
-            <p className="text-xs text-gray-400">
-              Duration: {form.duration_minutes} mins
-            </p>
-            <p className="text-xs text-green-400">
-              ${parseFloat(form.price_usd || 0).toFixed(2)}
-            </p>
-            {!isPublicView && !isEnabled && (
-              <p className="text-xs text-red-400 font-medium">Disabled</p>
-            )}
-          </>
+          <div className="flex flex-col h-full">
+            <div>
+              <h3 className="font-semibold text-white text-sm">{form.name}</h3>
+              <p className="text-sm text-gray-300">{form.description}</p>
+            </div>
+            <div className="mt-auto space-y-1">
+              <p className="text-xs text-gray-400 mt-3">
+                Duration: {form.duration_minutes} mins
+              </p>
+              <p className="text-xs text-green-400">
+                ${parseFloat(form.price_usd || 0).toFixed(2)}
+              </p>
+              {!isPublicView && !isEnabled && (
+                <p className="text-xs text-red-400 font-medium">Disabled</p>
+              )}
+            </div>
+          </div>
         )}
 
         {!isPublicView && (

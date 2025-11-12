@@ -13,8 +13,7 @@ import DevFreelancerBookings from "./pages/DevFreelancerBookings";
 import NewFreelancer from "./pages/NewFreelancer";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
+import TermsAndPrivacy from "./pages/TermsAndPrivacy";
 import Upgrade from "./pages/Upgrade";
 import FreelancerProfile from "./pages/FreelancerProfile";
 import FreelancerAnalytics from "./pages/FreelancerAnalytics";
@@ -25,7 +24,7 @@ import SignupSuccess from "./pages/SignupSuccess";
 import BookingSuccess from "./pages/BookingSuccess";
 import BookingConfirmed from "./pages/BookingConfirmed";
 import BookingCancelled from "./pages/BookingCancelled";
-import EmailConfirmed from "./pages/EmailConfirmed";
+import SignupConfirmed from "./pages/SignupConfirmed";
 import DeleteConfirmation from "./pages/DeleteConfirmation";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -146,6 +145,12 @@ export default function App() {
             fontSize: "0.875rem",
             zIndex: 60,
             boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+            cursor: "pointer", // ✅ Shows it's clickable
+          },
+          onClick: (toast) => {
+            // ✅ Dismiss toast on click
+            const toastInstance = require("react-hot-toast").toast;
+            toastInstance.dismiss(toast.id);
           },
         }}
       />
@@ -205,8 +210,7 @@ export default function App() {
               }
             />
             <Route path="/book/:freelancerId" element={<BookingPage />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<TermsAndPrivacy />} />
             <Route path="/upgrade" element={<Upgrade />} />
             <Route
               path="/freelancers/:freelancerId"
@@ -260,8 +264,8 @@ export default function App() {
             <Route path="/upgrade-success" element={<UpgradeSuccess />} />
             <Route path="/upgrade-cancelled" element={<UpgradeCancelled />} />
             <Route path="/already-taken" element={<AlreadyTaken />} />
-            <Route path="/email-confirm" element={<EmailConfirmed />} />
-            <Route path="/signup-confirmed" element={<EmailConfirmed />} />
+            <Route path="/signup-confirmed" element={<SignupConfirmed />} />
+            <Route path="/signup-confirmed" element={<SignupConfirmed />} />
             <Route
               path="/settings"
               element={

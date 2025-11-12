@@ -294,31 +294,52 @@ export default function CRM() {
             return (
               <div
                 key={a.id}
-                className="p-4 border rounded-lg bg-base-200 shadow-sm space-y-2"
+                className="p-5 rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 shadow-md border border-slate-700 hover:shadow-lg hover:-translate-y-[1px] transition-all duration-150"
               >
-                <p className="text-xs text-gray-400">Appointment ID: {a.id}</p>
-                <p>
-                  <strong>Name:</strong> {a.name || "Unknown"}
-                </p>
-                <p>
-                  <strong>Email:</strong> {a.email || "N/A"}
-                </p>
-                <p>
-                  <strong>Date:</strong> {formatDate(a.slot_day)}
-                </p>
-                <p>
-                  <strong>Time:</strong> {a.slot_time}
-                  <span className="ml-1 text-xs text-gray-400">
-                    {a.timezone_abbr}
+                <div className="flex justify-between items-center">
+                  <p className="text-xs text-gray-500">#{a.id}</p>
+                  <span
+                    className={`px-2 py-0.5 text-xs rounded-full ${
+                      a.status === "confirmed"
+                        ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                        : a.status === "cancelled"
+                        ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                        : "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
+                    }`}
+                  >
+                    {a.status}
                   </span>
-                </p>
-                <p>
-                  <strong>Service:</strong> {a.service || "N/A"}
-                </p>
-                <p>
-                  <strong>Duration:</strong> {a.service_duration_minutes || "?"}{" "}
-                  minutes
-                </p>
+                </div>
+
+                <h2 className="text-lg font-semibold text-white mt-1">
+                  {a.name || "Unknown"}
+                </h2>
+                <p className="text-sm text-gray-400">{a.email || "N/A"}</p>
+
+                <div className="mt-3 text-sm space-y-1">
+                  <p>
+                    🗓{" "}
+                    <span className="text-gray-300">
+                      {formatDate(a.slot_day)}
+                    </span>
+                  </p>
+                  <p>
+                    ⏰{" "}
+                    <span className="text-gray-300">
+                      {a.slot_time}{" "}
+                      <span className="text-xs text-gray-500">
+                        {a.timezone_abbr}
+                      </span>
+                    </span>
+                  </p>
+                  <p>
+                    💈{" "}
+                    <span className="text-gray-300">{a.service || "N/A"}</span>{" "}
+                    <span className="text-gray-500">
+                      ({a.service_duration_minutes || "?"} min)
+                    </span>
+                  </p>
+                </div>
                 <p
                   className={`text-sm font-medium ${
                     a.status === "confirmed"
