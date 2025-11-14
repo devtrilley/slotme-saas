@@ -116,7 +116,7 @@ export default function CustomQuestionsForm() {
           onClick={handleSave}
           className="text-sm bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"
         >
-          Save Question
+          Save Questions
         </button>
       </div>
     </div>

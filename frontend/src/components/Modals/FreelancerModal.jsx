@@ -20,7 +20,7 @@ export default function FreelancerModal({
       title={null} // we render the heading inside, not in the modal header
     >
       {/* Logo + Badge */}
-      <div className="flex justify-center mb-4">
+      <div className="flex justify-center mb-4 mt-3">
         <ProfilePhoto
           src={freelancer.logo_url}
           tier={freelancer.tier}

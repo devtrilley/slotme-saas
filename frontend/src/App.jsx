@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import BookingPage from "./pages/Booking";
 import CRM from "./pages/CRM";
 import FreelancerAdmin from "./pages/FreelancerAdmin";
+import Expired from "./pages/Expired";
 import DevLogin from "./pages/DevLogin";
 import DevAdmin from "./pages/DevAdmin";
 import DevFreelancerSlots from "./pages/DevFreelancerSlots";
@@ -286,6 +287,8 @@ export default function App() {
               element={<ConfirmEmailChange />}
             />
             <Route path="/why-slotme" element={<WhySlotMe />} />
+
+            <Route path="/expired" element={<Expired />} />
           </Routes>
         </PageTransition>
       </div>

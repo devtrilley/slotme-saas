@@ -58,18 +58,42 @@ export default function FreelancerCard({
 
   return (
     <div
-      className={`rounded-xl p-[2px] ${
-        isUpgradedTier
-          ? "bg-gradient-to-r from-purple-500 to-indigo-500"
+      className={`relative rounded-xl p-[2px] ${
+        tier === "elite"
+          ? "bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-300 animate-[shine_3s_infinite]"
+          : tier === "pro"
+          ? "bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-600"
           : "border-2 border-white/40"
+      } shadow-lg ${
+        tier !== "free"
+          ? "hover:scale-[1.015] transition-transform duration-200"
+          : ""
       }`}
     >
       <div
-        className="flex items-center gap-4 p-4 rounded-[10px] shadow bg-base-200 cursor-pointer md:justify-center"
+        className={`flex items-center gap-4 p-5 rounded-xl cursor-pointer md:justify-center
+${
+  tier === "elite"
+    ? "bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 shadow-md border border-yellow-400/30 hover:bg-slate-900/70 transition-colors duration-150"
+    : tier === "pro"
+    ? "bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 shadow-md border border-purple-400/30 hover:bg-slate-900/70 transition-colors duration-150"
+    : "bg-base-200 shadow-sm"
+}`}
         onClick={onClick}
       >
         <div className="relative">
-          <ProfilePhoto src={logoUrl} tier={tier} size="w-17 h-17" />
+          <div
+            className={`relative ${
+              tier !== "free"
+                ? "before:absolute before:inset-0 before:rounded-full before:blur-xl before:opacity-40 before:content-[''] " +
+                  (tier === "elite"
+                    ? "before:bg-yellow-400"
+                    : "before:bg-purple-500")
+                : ""
+            }`}
+          >
+            <ProfilePhoto src={logoUrl} tier={tier} size="w-17 h-17" />
+          </div>
 
           {isVerified && tier !== "free" && (
             <div

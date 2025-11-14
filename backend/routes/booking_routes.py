@@ -214,21 +214,43 @@ def book_slot():
 
     db.session.commit()
 
-    # 🛡️ Prevent multiple pending bookings for same freelancer
-    # 🛡️ Prevent abuse: only 1 active booking per email per freelancer
-    existing_active = Appointment.query.filter(
+    # 🛡️ Prevent duplicate booking for exact same slot
+    duplicate_slot = Appointment.query.filter(
         Appointment.user_id == user.id,
         Appointment.freelancer_id == slot.freelancer_id,
+        Appointment.slot_id == slot_id,
         Appointment.status.in_(["pending", "confirmed"]),
     ).first()
 
-    if existing_active:
+    if duplicate_slot:
         return (
             jsonify(
                 {
-                    "error": "You already have a booking with this freelancer. Cancel or reschedule before making another.",
-                    "appointment_id": existing_active.id,
-                    "status": existing_active.status,
+                    "error": "You already have a booking for this time slot.",
+                    "appointment_id": duplicate_slot.id,
+                    "status": duplicate_slot.status,
+                }
+            ),
+            400,
+        )
+
+    # 🛡️ Prevent abuse: max 3 bookings per email per day per freelancer
+    same_day_bookings = (
+        Appointment.query.filter(
+            Appointment.user_id == user.id,
+            Appointment.freelancer_id == slot.freelancer_id,
+            Appointment.status.in_(["pending", "confirmed"]),
+        )
+        .join(TimeSlot)
+        .filter(TimeSlot.day == slot.day)
+        .count()
+    )
+
+    if same_day_bookings >= 3:
+        return (
+            jsonify(
+                {
+                    "error": "Maximum 3 bookings per day with this freelancer. Please contact them directly for additional sessions."
                 }
             ),
             400,
@@ -366,17 +388,69 @@ def book_slot():
 @cross_origin(origins="*")
 def confirm_booking_email(token):
     try:
-        data = serializer.loads(token, salt="booking-confirm", max_age=600)
+        # data = serializer.loads(
+        #     token, salt="booking-confirm", max_age=60
+        # )  # 60 sec for testing
+        data = serializer.loads(
+            token, salt="booking-confirm", max_age=900
+        )  # 15 minutes for prod
         appointment_id = data["appointment_id"]
     except SignatureExpired:
+        # Extract freelancer slug even from expired token
+        try:
+            expired_data = serializer.loads(token, salt="booking-confirm", max_age=None)
+            appt = Appointment.query.get(expired_data.get("appointment_id"))
+            if appt and appt.freelancer:
+                freelancer = appt.freelancer
+                # Priority: custom_url → public_slug → numeric ID
+                slug = freelancer.custom_url or freelancer.public_slug
+                if slug:
+                    return redirect(f"{FRONTEND_URL}/expired?slug={slug}")
+                else:
+                    # Fallback to numeric ID if no slug exists
+                    return redirect(
+                        f"{FRONTEND_URL}/expired?freelancer_id={freelancer.id}"
+                    )
+        except:
+            pass
         return redirect(f"{FRONTEND_URL}/expired")
     except BadSignature:
         return redirect(f"{FRONTEND_URL}/invalid")
 
     appointment = Appointment.query.get(appointment_id)
-
     if appointment and appointment.status == "pending":
         slot = appointment.slot
+
+        # 🔥 FIX #7: Check if slot time has already passed (using appointment's frozen timezone)
+        from zoneinfo import ZoneInfo
+
+        freelancer = appointment.freelancer
+        # Use the appointment's frozen timezone, not freelancer's current timezone
+        appointment_tz = ZoneInfo(appointment.freelancer_timezone or "America/New_York")
+
+        # Parse slot datetime in UTC, then convert to appointment's timezone
+        slot_date = datetime.strptime(slot.day, "%Y-%m-%d").date()
+        utc_time = datetime.strptime(slot.master_time.time_24h, "%H:%M").time()
+        slot_utc_dt = datetime.combine(slot_date, utc_time).replace(
+            tzinfo=ZoneInfo("UTC")
+        )
+        slot_local_dt = slot_utc_dt.astimezone(appointment_tz)
+
+        # Get current time in appointment's timezone
+        now_local = datetime.now(appointment_tz)
+
+        # If slot time has passed, reject confirmation
+        if now_local >= slot_local_dt:
+            print(f"⏰ Slot time has passed. Slot: {slot_local_dt}, Now: {now_local}")
+            slug = freelancer.custom_url or freelancer.public_slug
+            if slug:
+                return redirect(
+                    f"{FRONTEND_URL}/expired?slug={slug}&reason=time_passed"
+                )
+            else:
+                return redirect(
+                    f"{FRONTEND_URL}/expired?freelancer_id={freelancer.id}&reason=time_passed"
+                )
 
         # Load all master times and compute required labels FIRST
         all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
@@ -709,15 +783,11 @@ def create_time_slot():
     if not master_time:
         return jsonify({"error": "Invalid master time ID"}), 400
 
-    # Check if slot already exists for this timezone (🔥 compare frozen zone too)
-    freelancer = Freelancer.query.get(freelancer_id)
-    frozen_timezone = (freelancer.timezone or "America/New_York").strip()
-
+    # Check if slot already exists (ignore timezone for duplicate check)
     existing = TimeSlot.query.filter_by(
         freelancer_id=freelancer_id,
         day=day,
         master_time_id=master_time_id,
-        timezone=frozen_timezone,  # ✅ Now we check for exact timezone match
     ).first()
 
     if existing:
@@ -1223,16 +1293,37 @@ def create_internal_appointment():
 
     db.session.commit()
 
-    # Check for existing active appointments (same logic as external booking)
-    existing_active = Appointment.query.filter(
+    # Check for duplicate booking for exact same slot
+    duplicate_slot = Appointment.query.filter(
         Appointment.user_id == user.id,
         Appointment.freelancer_id == freelancer_id,
+        Appointment.slot_id == slot_id,
         Appointment.status.in_(["pending", "confirmed"]),
     ).first()
 
-    if existing_active:
+    if duplicate_slot:
         return (
-            jsonify({"error": "Customer already has an active booking with you"}),
+            jsonify({"error": "Customer already has a booking for this time slot"}),
+            400,
+        )
+
+    # Prevent abuse: max 3 bookings per email per day
+    same_day_bookings = (
+        Appointment.query.filter(
+            Appointment.user_id == user.id,
+            Appointment.freelancer_id == freelancer_id,
+            Appointment.status.in_(["pending", "confirmed"]),
+        )
+        .join(TimeSlot)
+        .filter(TimeSlot.day == slot.day)
+        .count()
+    )
+
+    if same_day_bookings >= 3:
+        return (
+            jsonify(
+                {"error": "Customer already has 3 bookings today. Maximum 3 per day."}
+            ),
             400,
         )
 

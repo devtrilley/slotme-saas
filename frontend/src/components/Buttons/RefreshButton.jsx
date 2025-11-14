@@ -1,5 +1,4 @@
-import { useState, useRef } from "react";
-import { showToast } from "../../utils/toast";
+import { useState } from "react";
 
 export default function RefreshButton({
   onRefresh,
@@ -10,14 +9,12 @@ export default function RefreshButton({
   const [clicked, setClicked] = useState(false);
 
   const handleClick = async () => {
-    // Save scroll position
     const scrollY = window.scrollY;
 
     setClicked(true);
     await onRefresh?.();
     setTimeout(() => setClicked(false), 300);
 
-    // Restore scroll
     window.scrollTo({ top: scrollY, behavior: "auto" });
   };
 
@@ -25,10 +22,20 @@ export default function RefreshButton({
     <button
       type="button"
       onClick={handleClick}
-      className={`transition-all duration-200 ease-in-out px-4 py-2 rounded-md font-semibold text-sm
-        border border-white text-white bg-transparent
-        hover:bg-[#3ABFF8] hover:text-black hover:border-[#3ABFF8]
-        active:scale-95 focus:outline-none
+      className={`
+        px-5 py-2.5 rounded-full font-semibold text-sm
+        text-white transition-all duration-200 active:scale-95
+
+        /* 🔥 POP STYLE */
+        bg-gradient-to-b from-slate-700 to-slate-900
+        border border-slate-500/60
+        shadow-[0_0_8px_rgba(0,0,0,0.35)]
+        
+        /* 🔥 HOVER = SLOTME PURPLE */
+        hover:from-purple-500 hover:to-purple-600
+        hover:border-purple-400
+        hover:shadow-[0_0_12px_rgba(168,85,247,0.55)]
+
         ${className}
       `}
     >

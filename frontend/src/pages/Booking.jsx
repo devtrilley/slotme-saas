@@ -183,12 +183,12 @@ export default function BookingPage({ useCustomUrl = false }) {
       const timer = setTimeout(() => {
         updateScrollButtons();
       }, 100);
-  
+
       const carousel = carouselRef.current;
       if (carousel) {
         carousel.addEventListener("scroll", updateScrollButtons);
       }
-  
+
       return () => {
         clearTimeout(timer);
         if (carousel) {
@@ -293,8 +293,8 @@ export default function BookingPage({ useCustomUrl = false }) {
       const lastBookingTime = localStorage.getItem("last_booking_time");
       if (lastBookingTime) {
         const elapsed = Date.now() - lastBookingTime;
-        // const remaining = Math.max(0, 120000 - elapsed); // 120000ms = 2 minutes, 120 seconds
-        const remaining = Math.max(0, 20000 - elapsed); // 20 second cooldown
+        const COOLDOWN_MS = 90000; // 🧪 TESTING: Change to 20000 for 20 sec testing, 90000 for 90 sec prod
+        const remaining = Math.max(0, COOLDOWN_MS - elapsed);
         setCooldownRemaining(Math.ceil(remaining / 1000));
       } else {
         setCooldownRemaining(0);
@@ -339,7 +339,21 @@ export default function BookingPage({ useCustomUrl = false }) {
 
     const latestSlot = sorted.find((s) => s.id === selectedSlotId);
     if (!latestSlot || latestSlot.is_booked || latestSlot.is_inherited_block) {
-      showToast("Slot no longer available. Refresh page.", "error");
+      const toastContent = (
+        <div>
+          <p className="font-semibold mb-2">This slot was just taken!</p>
+          <button
+            onClick={() => {
+              fetchSlots();
+              showToast("Refreshing...", "info", 1000);
+            }}
+            className="underline text-purple-200 hover:text-purple-100 cursor-pointer text-sm"
+          >
+            🔄 Click to refresh
+          </button>
+        </div>
+      );
+      showToast(toastContent, "error", 8000);
       setSelectedSlotId(null);
       setSubmitting(false);
       return;
@@ -348,8 +362,8 @@ export default function BookingPage({ useCustomUrl = false }) {
     const lastBookingTime = localStorage.getItem("last_booking_time");
     const now = Date.now();
 
-    // Testing, switch between 20 seconds and 120 seconds (2 min)
-    if (lastBookingTime && now - lastBookingTime < 20 * 1000) {
+    const COOLDOWN_MS = 20000; // 🧪 TESTING: Change to 20000 for 20s, 90000 for 90s
+    if (lastBookingTime && now - lastBookingTime < COOLDOWN_MS) {
       showToast("Wait before booking again.", "warning");
       setSubmitting(false);
       return;
@@ -386,7 +400,7 @@ export default function BookingPage({ useCustomUrl = false }) {
             throw new Error("Booking failed. Please try again.");
           }
           localStorage.setItem("last_booking_time", Date.now());
-          setCooldownRemaining(90);
+          setCooldownRemaining(Math.ceil(COOLDOWN_MS / 1000));
           showToast("Booking successful. Redirecting...", "success", 1500);
           fetchSlots();
           setSelectedSlotId(null);
@@ -401,53 +415,106 @@ export default function BookingPage({ useCustomUrl = false }) {
           const msg =
             err.response?.data?.error || err.message || "Booking failed";
 
+          // Handle IP rate limit (429 status)
+          if (
+            err.response?.status === 429 ||
+            msg.includes("booking too fast")
+          ) {
+            showToast(
+              "⏸️ Slow down! You've made 2 bookings recently. Please wait a few minutes before booking again.",
+              "warning",
+              6000
+            );
+            setSubmitting(false);
+            return;
+          }
+
+          // Handle maximum 3 bookings per day
+          if (msg.includes("Maximum 3 bookings")) {
+            showToast(
+              "Max 3 bookings per day reached. Contact the freelancer directly for more.",
+              "warning",
+              6000
+            );
+            setSubmitting(false);
+            return;
+          }
+
+          // Handle duplicate slot or pending booking
           if (msg.includes("already have a booking")) {
             const appointmentId = err.response?.data?.appointment_id;
-            const extractedId = !appointmentId && msg?.match(/ID: (\d+)/)?.[1];
-            const safeAppointmentId = appointmentId || extractedId;
+            const bookingStatus = err.response?.data?.status;
 
-            // ✅ Use React JSX instead of createElement
             const toastContent = (
               <div>
-                <p
-                  style={{
-                    fontWeight: "bold",
-                    fontSize: "0.95rem",
-                    marginBottom: "0.5rem",
-                  }}
-                >
-                  You're already booked with this freelancer! You'll need to
-                  cancel first.
-                </p>
-
-                {status === "pending" && safeAppointmentId && (
-                  <button
-                    className="underline text-purple-800 cursor-pointer text-sm"
-                    disabled={resendLoading}
-                    onClick={() => resendConfirmation(safeAppointmentId)}
-                  >
-                    Resend confirmation email
-                  </button>
+                {bookingStatus === "pending" && (
+                  <>
+                    <p className="font-semibold mb-1">
+                      You have a pending booking for this time!
+                    </p>
+                    <p className="text-sm mb-2">Check your email to confirm.</p>
+                    {appointmentId && (
+                      <button
+                        className="underline text-purple-200 hover:text-purple-100 cursor-pointer text-sm"
+                        disabled={resendLoading}
+                        onClick={() => resendConfirmation(appointmentId)}
+                      >
+                        📧 Resend confirmation email
+                      </button>
+                    )}
+                  </>
                 )}
 
-                {status === "confirmed" && (
-                  <p className="text-white text-sm mt-1">
-                    This appointment is already confirmed. You're good to go!
-                  </p>
-                )}
-
-                {status !== "pending" && status !== "confirmed" && (
-                  <p className="text-yellow-400 text-sm mt-1">
-                    Status unknown — please check your email.
-                  </p>
+                {bookingStatus === "confirmed" && (
+                  <>
+                    <p className="font-semibold mb-2">
+                      This slot is already booked by you!
+                    </p>
+                    <button
+                      onClick={() => {
+                        fetchSlots();
+                        showToast("Refreshing...", "info", 1000);
+                      }}
+                      className="underline text-purple-200 hover:text-purple-100 cursor-pointer text-sm"
+                    >
+                      🔄 Click to refresh
+                    </button>
+                  </>
                 )}
               </div>
             );
 
             showToast(toastContent, "error", 8000);
-          } else {
-            showToast(msg, "error");
+            setSubmitting(false);
+            return;
           }
+
+          // Generic error fallback
+          const hasRefreshAction =
+            msg.includes("unavailable") ||
+            msg.includes("no longer") ||
+            msg.includes("already");
+
+          if (hasRefreshAction) {
+            const toastContent = (
+              <div>
+                <p className="font-semibold mb-2">Booking unavailable</p>
+                <button
+                  onClick={() => {
+                    fetchSlots();
+                    showToast("Refreshing...", "info", 1000);
+                  }}
+                  className="underline text-purple-200 hover:text-purple-100 cursor-pointer text-sm"
+                >
+                  🔄 Click to refresh
+                </button>
+              </div>
+            );
+            showToast(toastContent, "error", 6000);
+          } else {
+            showToast(msg, "error", 5000);
+          }
+
           setSubmitting(false);
           console.error("❌", msg);
         });
