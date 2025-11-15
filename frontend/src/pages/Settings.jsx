@@ -213,6 +213,54 @@ export default function Settings() {
         </div>
       </AccordionSection>
 
+      {/* 📱 UI PREFERENCES */}
+      <AccordionSection
+        title="UI Preferences"
+        subtitle="Customize your interface"
+      >
+        <div className="bg-base-100 p-6 rounded-xl border border-gray-700 shadow-md space-y-4">
+          <h2 className="text-lg font-semibold text-center">Mobile Navigation</h2>
+          
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={freelancer?.show_footer_navbar ?? true}
+              onChange={async (e) => {
+                const newValue = e.target.checked;
+                try {
+                  await axios.patch("/freelancer/account", {
+                    show_footer_navbar: newValue,
+                  });
+                  
+                  // Update context
+                  setFreelancer((prev) => ({
+                    ...prev,
+                    show_footer_navbar: newValue,
+                  }));
+                  
+                  showToast(
+                    newValue 
+                      ? "Footer navbar enabled" 
+                      : "Footer navbar disabled",
+                    "success"
+                  );
+                } catch (err) {
+                  console.error("Failed to update footer navbar setting:", err);
+                  showToast("Couldn't save preference. Try again.", "error");
+                }
+              }}
+              className="checkbox checkbox-sm mt-0.5 shrink-0"
+            />
+            <span className="text-sm leading-6">
+              <span className="font-medium">Enable Footer Navbar (Mobile)</span>
+              <span className="block mt-1 text-xs text-gray-400">
+                Show quick navigation buttons at the bottom on mobile devices
+              </span>
+            </span>
+          </label>
+        </div>
+      </AccordionSection>
+
       {/* 🔐 EMAIL & PASSWORD */}
       <AccordionSection title="Email & Password" subtitle="Security settings">
         {/* Change Email */}

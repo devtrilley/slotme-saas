@@ -545,14 +545,12 @@ export default function AdminPage() {
                 >
                   Copy Link
                 </button>
-                <a
-                  href={shareUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => navigate(shareUrl.replace(window.location.origin, ''))}
                   className="btn btn-xs btn-primary"
                 >
                   Go to Booking Page
-                </a>
+                </button>
               </div>
             )}
           </div>

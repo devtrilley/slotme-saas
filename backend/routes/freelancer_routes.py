@@ -684,7 +684,7 @@ def get_freelancer_info():
                 "timezone": f.timezone,
                 "business_address": f.business_address,
                 "custom_url": f.custom_url,
-                "public_slug": f.public_slug,  # 🔥 ADD THIS LINE
+                "public_slug": f.public_slug,
                 "no_show_policy": f.no_show_policy,
                 "faq_items": f.faq_items,
                 "tier": f.tier,
@@ -692,6 +692,7 @@ def get_freelancer_info():
                 "location": f.location,
                 "booking_instructions": f.booking_instructions,
                 "preferred_payment_methods": f.preferred_payment_methods,
+                "show_footer_navbar": f.show_footer_navbar,
             }
         ),
         200,
@@ -790,9 +791,9 @@ def update_account():
     if "business_name" in data:
         freelancer.business_name = data["business_name"].strip()
 
-    # Optional password update
-    if "business_name" in data:
-        freelancer.business_name = data["business_name"].strip()
+    # 📱 UI Preferences
+    if "show_footer_navbar" in data:
+        freelancer.show_footer_navbar = bool(data["show_footer_navbar"])
 
     # 🔒 Custom URL gating (Pro/Elite only)
     if "custom_url" in data:
@@ -916,6 +917,7 @@ def get_freelancer_profile():
             "phone": f.phone,
             "business_name": f.business_name,
             "tier": f.tier,
+            "show_footer_navbar": f.show_footer_navbar,
         },
     )
 
@@ -928,6 +930,7 @@ def get_freelancer_profile():
             "phone": f.phone,
             "business_name": f.business_name,
             "tier": f.tier,
+            "show_footer_navbar": f.show_footer_navbar,
         }
     )
 

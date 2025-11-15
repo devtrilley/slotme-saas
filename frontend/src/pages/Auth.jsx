@@ -53,7 +53,7 @@ export default function Auth({ clearSession }) {
 
         // ✅ Save email for resend button AFTER signup
         localStorage.setItem("pendingEmail", cleanEmail);
-        
+
         showToast("Verification email sent. Check inbox.", "success");
         navigate("/signup-success");
       } else {

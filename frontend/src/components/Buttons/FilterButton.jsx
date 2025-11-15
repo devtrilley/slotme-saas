@@ -24,8 +24,15 @@ export default function FilterButton({
         return "🟣 Elite";
       case "paid":
         return "💰 Paid";
+      case "confirmed":
+        return "✅ Confirmed";
+      case "pending":
+        return "⚠️ Pending";
+      case "cancelled":
+        return "✖️ Cancelled";
       default:
-        return option;
+        // Capitalize first letter for any other options (like service names)
+        return option.charAt(0).toUpperCase() + option.slice(1);
     }
   };
 

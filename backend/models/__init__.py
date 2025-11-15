@@ -48,6 +48,9 @@ class Freelancer(db.Model):
     custom_url = db.Column(db.String(50), unique=True, nullable=True)
     public_slug = db.Column(db.String(12), unique=True, nullable=True)  # 8-char random slug for all users
 
+    # 📱 UI Preferences
+    show_footer_navbar = db.Column(db.Boolean, default=True, nullable=False)
+
     # ✅ New contact fields
     contact_email = db.Column(db.String(120), unique=True, nullable=False)
     phone = db.Column(db.String(50), nullable=True)

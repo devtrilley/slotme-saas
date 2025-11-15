@@ -113,7 +113,13 @@ export default function Navbar() {
           <li>
             <NavLink
               className={navLinkClass}
-              to={`/book/${localStorage.getItem("freelancer_id")}`}
+              to={
+                freelancer?.custom_url
+                  ? `/${freelancer.custom_url}`
+                  : freelancer?.public_slug
+                  ? `/${freelancer.public_slug}`
+                  : `/book/${localStorage.getItem("freelancer_id")}`
+              }
             >
               My Booking Page
             </NavLink>
@@ -266,7 +272,13 @@ export default function Navbar() {
               </NavLink>
 
               <NavLink
-                to={`/book/${localStorage.getItem("freelancer_id")}`}
+                to={
+                  freelancer?.custom_url
+                    ? `/${freelancer.custom_url}`
+                    : freelancer?.public_slug
+                    ? `/${freelancer.public_slug}`
+                    : `/book/${localStorage.getItem("freelancer_id")}`
+                }
                 className={({ isActive }) =>
                   `hover:text-primary transition ${
                     isActive

@@ -8,6 +8,8 @@ import { showToast } from "../utils/toast";
 import RefreshButton from "../components/Buttons/RefreshButton";
 import ViewBookingModal from "../components/Modals/ViewBookingModal";
 import ConfirmModal from "../components/Modals/ConfirmModal";
+import SortButton from "../components/Buttons/SortButton";
+import FilterButton from "../components/Buttons/FilterButton";
 import ReturnToTodayButton from "../components/Buttons/ReturnToTodayButton";
 import {
   getTimezoneAbbreviation,
@@ -27,6 +29,10 @@ export default function CRM() {
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [sortDirection, setSortDirection] = useState("asc");
+  const [showFilters, setShowFilters] = useState(true);
+  const [serviceFilter, setServiceFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [exportRange, setExportRange] = useState("selected_date");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(""); // ✅ NEW
@@ -138,16 +144,28 @@ export default function CRM() {
 
     const inTimeRange = isInTimeRange(a.slot_time);
 
-    // 🔥 FIX: Simple date comparison - backend already returns correct local dates
-    const slotDate = a.slot_day; // "2025-10-13"
+    const slotDate = a.slot_day;
     const selectedDateStr =
       DateTime.fromJSDate(selectedDate).toFormat("yyyy-MM-dd");
-
     const inDate = slotDate === selectedDateStr;
 
-    const isNotCancelled = a.status !== "cancelled";
+    // 🔥 Service filter
+    const matchesService =
+      serviceFilter === "all" || a.service === serviceFilter;
 
-    return matchesSearch && inTimeRange && inDate && isNotCancelled;
+    // 🔥 Status filter (show all by default, let user filter)
+    const matchesStatus = statusFilter === "all" || a.status === statusFilter;
+
+    return (
+      matchesSearch && inTimeRange && inDate && matchesService && matchesStatus
+    );
+  });
+
+  // 🔥 Sort filtered appointments
+  const sortedFiltered = [...filtered].sort((a, b) => {
+    const timeA = convertToDate(a.slot_time);
+    const timeB = convertToDate(b.slot_time);
+    return sortDirection === "asc" ? timeA - timeB : timeB - timeA;
   });
 
   const exportCSV = async () => {
@@ -213,7 +231,7 @@ export default function CRM() {
       {/* === Search + Time Filter FIRST === */}
       <div className="space-y-2">
         <label className="font-medium text-sm text-gray-400">
-          Search & Time Filter:
+          Search & Filters:
         </label>
         <input
           type="text"
@@ -256,6 +274,50 @@ export default function CRM() {
         <div className="flex justify-center w-full">
           <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
         </div>
+
+        {/* 🔥 Sort & Filter Toggle */}
+        <div className="text-center mt-2">
+          <button
+            className="text-sm text-blue-400 hover:underline transition underline"
+            onClick={() => setShowFilters((prev) => !prev)}
+          >
+            {showFilters ? "Hide Sort & Filter" : "Show Sort & Filter"}
+          </button>
+        </div>
+
+        {/* 🔥 Sort & Filter Buttons */}
+        {showFilters && (
+          <div className="flex flex-col items-center gap-2 mt-4">
+            <div className="flex flex-col items-center w-full gap-1">
+              <span className="text-sm text-gray-400">Sort:</span>
+              <SortButton
+                direction={sortDirection}
+                onToggle={() =>
+                  setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
+                }
+              />
+            </div>
+
+            <FilterButton
+              label="Filter Service:"
+              options={[
+                "all",
+                ...Array.from(
+                  new Set(appointments.map((a) => a.service))
+                ).sort(),
+              ]}
+              value={serviceFilter}
+              onChange={setServiceFilter}
+            />
+
+            <FilterButton
+              label="Filter Status:"
+              options={["all", "confirmed", "pending", "cancelled"]}
+              value={statusFilter}
+              onChange={setStatusFilter}
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex justify-center">
@@ -285,7 +347,7 @@ export default function CRM() {
             No matching bookings.
           </p>
         ) : (
-          filtered.map((a) => {
+          sortedFiltered.map((a) => {
             console.log("🕓 Appointment slot:", a.slot_day, a.slot_time);
             console.log("🌍 Timezone used:", a.freelancer_timezone);
             if (!a.freelancer_timezone) {
@@ -307,7 +369,7 @@ export default function CRM() {
                         : "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
                     }`}
                   >
-                    {a.status}
+                    {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
                   </span>
                 </div>
 
