@@ -35,8 +35,16 @@ from config import ALLOWED_ORIGINS, RESERVED_ROUTES
 freelancer_bp = Blueprint("freelancer", __name__)
 
 
-def handle_404(_):
-    return make_response(jsonify({"error": "Not found"}), 404)
+# 🔒 SECURITY: Prevent XSS and email injection attacks
+def sanitize_html(text):
+    """Convert < > & " ' to safe HTML entities to prevent XSS"""
+    if not text:
+        return text
+    import html
+    return html.escape(str(text).strip())
+
+
+def handle_404(_):    return make_response(jsonify({"error": "Not found"}), 404)
 
 
 @freelancer_bp.route("/freelancer/slots/<identifier>", methods=["GET"])
@@ -332,8 +340,9 @@ def add_service():
     print("🧪 Incoming service data:", data)
 
     # Extract and sanitize
-    name = data.get("name", "").strip()
-    description = data.get("description", "").strip()
+    # 🔒 SANITIZE service info shown to customers
+    name = sanitize_html(data.get("name", ""))
+    description = sanitize_html(data.get("description", ""))
     duration_raw = data.get("duration_minutes")
     price_raw = data.get("price_usd")
 
@@ -414,8 +423,9 @@ def update_service(service_id):
         return jsonify({"error": "Service not found"}), 404
 
     data = request.json
-    service.name = data.get("name", service.name)
-    service.description = data.get("description", service.description)
+    # 🔒 SANITIZE service updates shown to customers
+    service.name = sanitize_html(data.get("name", service.name))
+    service.description = sanitize_html(data.get("description", service.description))
     service.duration_minutes = data.get("duration_minutes", service.duration_minutes)
     service.price_usd = data.get("price_usd", service.price_usd)
 
@@ -528,8 +538,9 @@ def get_analytics():
 def send_priority_support_request():
     freelancer_id = int(get_jwt_identity())
     data = request.get_json()
-    subject = data.get("subject", "No Subject")
-    message = data.get("message", "")
+    # 🔒 SANITIZE email content to prevent HTML injection attacks on support staff
+    subject = sanitize_html(data.get("subject", "No Subject"))
+    message = sanitize_html(data.get("message", ""))
 
     freelancer = Freelancer.query.get(freelancer_id)
     if not freelancer:
@@ -579,8 +590,9 @@ def reply_to_customer():
     freelancer_id = int(get_jwt_identity())
     data = request.get_json()
     customer_email = data.get("to")
-    subject = data.get("subject", "Reply from SlotMe Support")
-    message = data.get("message", "")
+    # 🔒 SANITIZE email content to prevent HTML injection in customer emails
+    subject = sanitize_html(data.get("subject", "Reply from SlotMe Support"))
+    message = sanitize_html(data.get("message", ""))
 
     freelancer = Freelancer.query.get(freelancer_id)
     if not freelancer or freelancer.tier != "elite":
@@ -605,17 +617,31 @@ def update_freelancer_branding():
         return jsonify({"error": "auth_required"}), 401
 
     # --- allowlist updates (prevents sneaky field writes) ---
-    f.first_name = data.get("first_name", f.first_name)
-    f.last_name = data.get("last_name", f.last_name)
-    f.business_name = data.get("business_name", f.business_name)
-    f.business_address = data.get("business_address", f.business_address)
-    f.logo_url = data.get("logo_url", f.logo_url)
-    f.bio = data.get("bio", f.bio)
-    f.tagline = data.get("tagline", f.tagline)
-    f.timezone = data.get("timezone", f.timezone)
-    f.no_show_policy = data.get("no_show_policy", f.no_show_policy)
+    # 🔒 SANITIZE all text fields shown to customers
+    f.first_name = sanitize_html(data.get("first_name", f.first_name))
+    f.last_name = sanitize_html(data.get("last_name", f.last_name))
+    f.business_name = sanitize_html(data.get("business_name", f.business_name))
+    f.business_address = sanitize_html(data.get("business_address", f.business_address))
+    f.logo_url = data.get("logo_url", f.logo_url)  # URLs validated separately
+    f.bio = sanitize_html(data.get("bio", f.bio))
+    f.tagline = sanitize_html(data.get("tagline", f.tagline))
+    f.timezone = data.get("timezone", f.timezone)  # Dropdown, safe
+    f.no_show_policy = sanitize_html(data.get("no_show_policy", f.no_show_policy))
+    
+    # 🔒 SANITIZE FAQ items (nested JSON)
     if "faq_items" in data:
-        f.faq_items = data["faq_items"]
+        faq_items = data["faq_items"]
+        if isinstance(faq_items, list):
+            sanitized_faq = []
+            for item in faq_items:
+                if isinstance(item, dict) and "q" in item and "a" in item:
+                    sanitized_faq.append({
+                        "q": sanitize_html(item["q"]),
+                        "a": sanitize_html(item["a"])
+                    })
+            f.faq_items = sanitized_faq
+        else:
+            f.faq_items = []
 
     # --- custom_url: gate + validate + uniqueness ---
     if "custom_url" in data:
@@ -782,14 +808,15 @@ def update_account():
             return jsonify({"error": "Invalid phone number."}), 400
         freelancer.phone = phone
 
+    # 🔒 SANITIZE names shown to customers
     if "first_name" in data:
-        freelancer.first_name = data["first_name"].strip()
+        freelancer.first_name = sanitize_html(data["first_name"])
 
     if "last_name" in data:
-        freelancer.last_name = data["last_name"].strip()
+        freelancer.last_name = sanitize_html(data["last_name"])
 
     if "business_name" in data:
-        freelancer.business_name = data["business_name"].strip()
+        freelancer.business_name = sanitize_html(data["business_name"])
 
     # 📱 UI Preferences
     if "show_footer_navbar" in data:
@@ -938,12 +965,16 @@ def get_freelancer_profile():
 @freelancer_bp.route("/freelancer/questions/<identifier>", methods=["GET"])
 @cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def get_custom_questions(identifier):
-    freelancer = None
+    # 🔥 NEW: Priority lookup order (custom_url → public_slug → ID)
     if identifier.isdigit():
         freelancer = Freelancer.query.get(int(identifier))
     else:
+        # Try custom_url first (paid tiers)
         freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
-
+        # Try public_slug second (all users)
+        if not freelancer:
+            freelancer = Freelancer.query.filter_by(public_slug=identifier.lower()).first()
+    
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
 
@@ -966,6 +997,8 @@ def update_custom_questions():
     if not isinstance(questions, list):
         return jsonify({"error": "Questions must be a list"}), 400
 
+    # 🔒 SANITIZE custom questions shown to customers
+    sanitized_questions = []
     for q in questions:
         if "question" not in q or not isinstance(q["question"], str):
             return (
@@ -977,8 +1010,12 @@ def update_custom_questions():
                 jsonify({"error": "Each question must include a 'required' boolean"}),
                 400,
             )
+        sanitized_questions.append({
+            "question": sanitize_html(q["question"]),
+            "required": q["required"]
+        })
 
-    g.freelancer.custom_questions = questions
+    g.freelancer.custom_questions = sanitized_questions
     g.freelancer.custom_questions_enabled = enabled
     db.session.commit()
     return jsonify({"message": "Custom questions updated!"}), 200

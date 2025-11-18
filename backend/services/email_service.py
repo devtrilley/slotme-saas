@@ -54,10 +54,14 @@ def send_booking_confirmation_email(appointment, customer_timezone=None):
     if cancel_link:
         cancel_block = "🔗 Need to cancel or reschedule?\n" + cancel_link + "\n\n"
 
+    # Format price
+    price_display = f"${service.price_usd:.2f}" if service.price_usd else "Free"
+
     body = (
         f"Hi {user.first_name},\n\n"
         "Great news! Your appointment is confirmed. ✅\n\n"
         f"📋 Service: {service.name}\n"
+        f"💰 Price: {price_display}\n"
         f"⏱️ Duration: {service.duration_minutes} minutes\n"
         f"📅 Date: {local_date_display}\n"
         f"🕐 Time: {local_time_display} {timezone_abbr}\n"

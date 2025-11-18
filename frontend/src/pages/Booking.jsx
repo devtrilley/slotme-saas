@@ -827,6 +827,31 @@ export default function BookingPage({ useCustomUrl = false }) {
           <p className="text-center">Loading slots...</p>
         ) : (
           <>
+            {/* ✅ No-available-slots card ABOVE the grid */}
+            {(() => {
+              const bookableSlots = visibleSlots.filter((slot) => {
+                const isPast = isSlotInPast(slot, freelancerTimeZone);
+                return !isPast && !slot.is_booked && !slot.is_inherited_block;
+              });
+
+              const shouldShowCard =
+                filteredSlots.length === 0 || bookableSlots.length === 0;
+
+              const hasSlotsForDay = filteredSlots.length > 0;
+
+              return (
+                shouldShowCard && (
+                  <NoAvailableSlotsCard
+                    selectedDate={selectedDate}
+                    hasSlotsForDay={hasSlotsForDay}
+                    onRefresh={() => {
+                      fetchSlots();
+                      fetchFreelancerInfo();
+                    }}
+                  />
+                )
+              );
+            })()}
             <section className="grid grid-cols-2 gap-4">
               {(() => {
                 let lastTimezone = null;
@@ -984,16 +1009,6 @@ export default function BookingPage({ useCustomUrl = false }) {
                 });
               })()}
             </section>
-
-            {!loading && filteredSlots.length === 0 && (
-              <NoAvailableSlotsCard
-                selectedDate={selectedDate}
-                onRefresh={() => {
-                  fetchSlots();
-                  fetchFreelancerInfo();
-                }}
-              />
-            )}
           </>
         )}
         <section>

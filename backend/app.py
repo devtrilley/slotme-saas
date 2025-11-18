@@ -38,7 +38,6 @@ import time
 
 import pytz, os, secrets, stripe, logging, threading
 
-
 load_dotenv()
 
 # 🔒 ENV CHECK
@@ -76,6 +75,8 @@ endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 
 app = Flask(__name__)
+
+
 # Route imports
 from routes.auth_routes import auth_bp
 from routes.booking_routes import booking_bp
@@ -143,7 +144,9 @@ def get_database_url():
     if not db_url:
         # Local development fallback to SQLite with absolute path
         print("⚠️ DATABASE_URL not found - using local SQLite")
-        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance', 'scheduler.db')
+        db_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "instance", "scheduler.db"
+        )
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         return f"sqlite:///{db_path}"
 
@@ -249,4 +252,6 @@ start_pending_cleanup_loop()
 purge_old_pending()
 # -----------------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    # ✅ Only debug in development
+    is_production = os.getenv("FLASK_ENV") == "production"
+    app.run(debug=not is_production, host="0.0.0.0", port=5000)

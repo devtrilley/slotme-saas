@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, current_app
 import re  # ✅ for password validation
 from flask_cors import cross_origin
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required
@@ -23,13 +23,44 @@ from itsdangerous import BadSignature, SignatureExpired
 from utils.features import FEATURES, all_features_for_tier, normalize_tier
 from utils.decorators import require_auth  # assuming you already have this
 
+# 🔒 Simple rate limiting without external dependencies
+login_attempts = {}  # Store {ip: [timestamps]}
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+
+# 🔒 SECURITY: Prevent XSS in signup fields
+def sanitize_html(text):
+    """Convert < > & " ' to safe HTML entities to prevent XSS"""
+    if not text:
+        return text
+    import html
+
+    return html.escape(str(text).strip())
 
 
 @auth_bp.route("", methods=["POST"])
 @cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def freelancer_login():
+    # 🔒 Simple rate limit: 5 attempts per minute
+    import time
+    client_ip = request.remote_addr
+    now = time.time()
+    
+    # Clean old attempts (older than 60 seconds)
+    if client_ip in login_attempts:
+        login_attempts[client_ip] = [t for t in login_attempts[client_ip] if now - t < 60]
+    
+    # Check if limit exceeded
+    if client_ip in login_attempts and len(login_attempts[client_ip]) >= 5:
+        return jsonify({"error": "Too many login attempts. Try again in 1 minute."}), 429
+    
+    # Record this attempt
+    if client_ip not in login_attempts:
+        login_attempts[client_ip] = []
+    login_attempts[client_ip].append(now)
+    
+    # Rest of login logic
     data = request.get_json() or {}
     email = data.get("email")
     password = data.get("password")
@@ -53,7 +84,7 @@ def freelancer_login():
         jsonify(
             {
                 "access_token": access_token,
-                "refresh_token": refresh_token,  # ✅ NEW: Long-lived token for auto-refresh
+                "refresh_token": refresh_token,
                 "freelancer_id": freelancer.id,
             }
         ),
@@ -80,10 +111,11 @@ def is_strong_password(pw: str) -> bool:
 @cross_origin(origins=ALLOWED_ORIGINS)  # 👈 Add this decorator
 def signup_freelancer():
     data = request.get_json()
-    first_name = data.get("first_name")
-    last_name = data.get("last_name")
-    email = data.get("email")
-    password = data.get("password")
+    # 🔒 SANITIZE names displayed in UI/emails/profiles
+    first_name = sanitize_html(data.get("first_name"))
+    last_name = sanitize_html(data.get("last_name"))
+    email = data.get("email")  # Validated with EMAIL_RE, not sanitized
+    password = data.get("password")  # Hashed, never displayed raw
 
     if not first_name or not last_name or not email or not password:
         return jsonify({"error": "Missing required fields"}), 400

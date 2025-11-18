@@ -62,6 +62,16 @@ serializer = URLSafeTimedSerializer(os.environ.get("SECRET_KEY"))
 booking_bp = Blueprint("booking", __name__)
 
 
+# 🔒 SECURITY: Prevent XSS in customer-submitted data
+def sanitize_html(text):
+    """Convert < > & " ' to safe HTML entities to prevent XSS"""
+    if not text:
+        return text
+    import html
+
+    return html.escape(str(text).strip())
+
+
 @booking_bp.route("/book", methods=["POST"])
 @cross_origin(origins=ALLOWED_ORIGINS)
 def book_slot():
@@ -140,13 +150,22 @@ def book_slot():
     #     if data.get(key):
     #         return jsonify({"error": "Spam detected"}), 400
 
-    first_name = data.get("first_name")
-    last_name = data.get("last_name")
-    email = data.get("email")
-    phone = data.get("phone")
+    # 🔒 SANITIZE customer input to prevent XSS in CRM/emails
+    first_name = sanitize_html(data.get("first_name"))
+    last_name = sanitize_html(data.get("last_name"))
+    email = data.get("email")  # Validated with regex, not sanitized
+    phone = sanitize_html(data.get("phone"))
     slot_id = data.get("slot_id")
     service_id = data.get("service_id")
-    custom_responses = data.get("custom_responses", {})
+
+    # 🔒 SANITIZE custom question answers (nested dict)
+    raw_responses = data.get("custom_responses", {})
+    custom_responses = {}
+    if isinstance(raw_responses, dict):
+        for question, answer in raw_responses.items():
+            custom_responses[sanitize_html(question)] = sanitize_html(answer)
+    else:
+        custom_responses = {}
 
     # Validate required fields
     if not first_name or not last_name or not email or not slot_id or not service_id:
@@ -344,24 +363,31 @@ def book_slot():
     timezone_abbr = local_dt.tzname()
     local_date_display = local_dt.strftime("%A, %B %d, %Y")
 
+    # Format price for initial email
+    price_display = f"${service.price_usd:.2f}" if service.price_usd else "Free"
+
     body = f"""Hi {first_name},
+Thanks for booking with SlotMe! You're one step away from confirming your appointment.
 
-    Thanks for booking with SlotMe! You're one step away from confirming your appointment.
+⏰ IMPORTANT: This confirmation link expires in 15 minutes!
+Please confirm now to secure your appointment.
 
-    📋 Service: {service.name}
-    🗓️ Date: {local_date_display}
-    ⏰ Time: {local_time_display} {timezone_abbr}
-    👤 With: {freelancer.first_name} {freelancer.last_name}
-    🏢 Business: {freelancer.business_name or "N/A"}
+📋 Service: {service.name}
+💰 Price: {price_display}
+⏱️ Duration: {service.duration_minutes} minutes
+🗓️ Date: {local_date_display}
+⏰ Time: {local_time_display} {timezone_abbr}
+👤 With: {freelancer.first_name} {freelancer.last_name}
+🏢 Business: {freelancer.business_name or "N/A"}
 
-    ✅ Confirm your booking here:
-    {link}
+✅ Confirm your booking here:
+{link}
 
-    If you didn’t request this, feel free to ignore it.
+If you didn't request this, feel free to ignore it.
 
-    – The SlotMe Team
-    https://slotme.xyz
-    """
+– The SlotMe Team
+https://slotme.xyz
+"""
 
     ip_attempts.setdefault(client_ip, []).append(now)  # Count all booking attempts
 
@@ -956,26 +982,32 @@ def resend_confirmation_email(appointment_id):
     local_date_display = local_dt.strftime("%A, %B %d, %Y")
 
     subject = f"🔁 Resend: Confirm Your Appointment – {freelancer.business_name or freelancer.first_name}"
+    # Format price for resend email
+    price_display = f"${service.price_usd:.2f}" if service.price_usd else "Free"
+
     body = f"""Hi {user.first_name},
+Oops! Looks like our first email might've gone missing — no worries! Here's your confirmation link again so you don't miss your appointment.
 
-    Oops! Looks like our first email might’ve gone missing — no worries! Here’s your confirmation link again so you don’t miss your appointment.
+⏰ IMPORTANT: This confirmation link expires in 15 minutes!
+Please confirm now to secure your appointment.
 
-    📋 Service: {service.name}
-    🗓️ Date: {local_date_display}
-    ⏰ Time: {local_time_display} {timezone_abbr}
-    👤 With: {freelancer.first_name} {freelancer.last_name}
-    🏢 Business: {freelancer.business_name or "N/A"}
+📋 Service: {service.name}
+💰 Price: {price_display}
+⏱️ Duration: {service.duration_minutes} minutes
+🗓️ Date: {local_date_display}
+⏰ Time: {local_time_display} {timezone_abbr}
+👤 With: {freelancer.first_name} {freelancer.last_name}
+🏢 Business: {freelancer.business_name or "N/A"}
 
-    ✅ Confirm your booking here:
-    {link}
+✅ Confirm your booking here:
+{link}
 
-    Once confirmed, you’ll receive a final confirmation email with all your details.
+Once confirmed, you'll receive a final confirmation email with all your details.
+If you've already confirmed, you can safely ignore this message.
 
-    If you’ve already confirmed, you can safely ignore this message.
-
-    — The SlotMe Team
-    https://slotme.xyz
-    """
+— The SlotMe Team
+https://slotme.xyz
+"""
 
     try:
         send_branded_customer_reply(subject, body, user.email)
@@ -1088,10 +1120,18 @@ def cancel_booking_execute(cancel_token):
 @booking_bp.route("/check-booking-status/<identifier>", methods=["GET", "OPTIONS"])
 @cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def check_booking_status(identifier):
+    # 🔥 NEW: Priority lookup order (ID → custom_url → public_slug)
     if identifier.isdigit():
         freelancer_id = int(identifier)
     else:
+        # Try custom_url first (paid tiers)
         freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
+        # Try public_slug second (all users)
+        if not freelancer:
+            freelancer = Freelancer.query.filter_by(
+                public_slug=identifier.lower()
+            ).first()
+
         if not freelancer:
             return jsonify({"error": "Freelancer not found"}), 404
         freelancer_id = freelancer.id
@@ -1219,10 +1259,11 @@ def create_internal_appointment():
     data = request.get_json()
 
     # Required fields
-    first_name = data.get("first_name")
-    last_name = data.get("last_name")
-    email = data.get("email")
-    phone = data.get("phone")
+    # 🔒 SANITIZE freelancer-entered customer data to prevent copy-paste XSS
+    first_name = sanitize_html(data.get("first_name"))
+    last_name = sanitize_html(data.get("last_name"))
+    email = data.get("email")  # Validated separately
+    phone = sanitize_html(data.get("phone"))
     slot_id = data.get("slot_id")
     service_id = data.get("service_id")
 

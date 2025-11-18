@@ -21,6 +21,42 @@ export default function IconDatePicker({ selected, onChange, ...rest }) {
 
   return (
     <div className="relative w-full">
+      <style>{`
+        /* ✅ Gray out past dates */
+        .react-datepicker__day--disabled {
+          color: #4B5563 !important;
+          background-color: transparent !important;
+          cursor: not-allowed !important;
+          text-decoration: line-through;
+        }
+
+        /* ✅ Make today VERY obvious */
+        .react-datepicker__day--today {
+          background-color: #8B5CF6 !important;
+          color: white !important;
+          font-weight: bold !important;
+          border-radius: 50% !important;
+        }
+
+        /* ✅ Hover effect for selectable dates */
+        .react-datepicker__day:not(.react-datepicker__day--disabled):hover {
+          background-color: #6D28D9 !important;
+          color: white !important;
+        }
+
+        /* ✅ Selected date styling */
+        .react-datepicker__day--selected {
+          background-color: #7C3AED !important;
+          color: white !important;
+          font-weight: bold !important;
+        }
+
+        /* ✅ Make future dates more visible */
+        .react-datepicker__day:not(.react-datepicker__day--disabled):not(.react-datepicker__day--selected):not(.react-datepicker__day--today) {
+          color: #E5E7EB !important;
+        }
+      `}</style>
+
       <DatePicker
         ref={datePickerRef}
         selected={selected}
