@@ -165,7 +165,15 @@ export default function FreelancerBranding({ onUpdate }) {
     <div className="max-w-md mx-auto p-6 space-y-4">
       <h2 className="text-xl font-bold text-center">Branding Preferences</h2>
 
-      <form onSubmit={handleSave} className="space-y-4">
+      <form
+        onSubmit={handleSave}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && e.target.type !== "submit") {
+            e.preventDefault();
+          }
+        }}
+        className="space-y-4"
+      >
         <label className="label text-sm text-white">Business Name:</label>
         <input
           type="text"

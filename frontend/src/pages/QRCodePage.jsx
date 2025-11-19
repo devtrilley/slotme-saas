@@ -25,7 +25,7 @@ export default function QRCodePage() {
         );
         const data = await res.json();
 
-        const base = import.meta.env.VITE_PUBLIC_URL;
+        const base = import.meta.env.VITE_PUBLIC_URL || window.location.origin;
         const link = data.custom_url
           ? `${base}/${data.custom_url}`
           : data.public_slug
