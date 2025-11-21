@@ -17,6 +17,7 @@ import {
   formatSlotTimePartsFromUTC,
   formatSlotTimePartsFromLocal,
 } from "../utils/timezoneHelpers";
+import SafeLoader from "../components/Layout/SafeLoader";
 
 export default function CRM() {
   const { freelancer } = useFreelancer();
@@ -223,323 +224,317 @@ export default function CRM() {
   };
 
   return (
-    <main className="max-w-md mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold text-center">
-        Freelancer CRM: Bookings
-      </h1>
+    <SafeLoader loading={loading} error={error} onRetry={handleRefresh}>
+      <main className="max-w-md mx-auto p-6 space-y-6">
+        <h1 className="text-2xl font-bold text-center">
+          Freelancer CRM: Bookings
+        </h1>
 
-      {/* === Search + Time Filter FIRST === */}
-      <div className="space-y-2">
-        <label className="font-medium text-sm text-gray-400">
-          Search & Filters:
-        </label>
-        <input
-          type="text"
-          placeholder="Search by name or email"
-          className="input input-bordered w-full"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <select
-          className="select select-bordered w-full"
-          value={timeFilter}
-          onChange={(e) => setTimeFilter(e.target.value)}
-        >
-          <option value="all">All Times</option>
-          <option value="morning">Morning (Before 12PM)</option>
-          <option value="afternoon">Afternoon (12PM–4PM)</option>
-          <option value="evening">Evening (After 4PM)</option>
-        </select>
-      </div>
+        {/* === Search + Time Filter FIRST === */}
+        <div className="space-y-2">
+          <label className="font-medium text-sm text-gray-400">
+            Search & Filters:
+          </label>
+          <input
+            type="text"
+            placeholder="Search by name or email"
+            className="input input-bordered w-full"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <select
+            className="select select-bordered w-full"
+            value={timeFilter}
+            onChange={(e) => setTimeFilter(e.target.value)}
+          >
+            <option value="all">All Times</option>
+            <option value="morning">Morning (Before 12PM)</option>
+            <option value="afternoon">Afternoon (12PM–4PM)</option>
+            <option value="evening">Evening (After 4PM)</option>
+          </select>
+        </div>
 
-      {/* === Filter by Booking Date BELOW that === */}
-      <div className="space-y-2">
-        <label className="font-medium text-sm text-gray-400">
-          Filter by Booking Date:
-        </label>
+        {/* === Filter by Booking Date BELOW that === */}
+        <div className="space-y-2">
+          <label className="font-medium text-sm text-gray-400">
+            Filter by Booking Date:
+          </label>
 
-        {/* ✅ Wrap the picker in a div that controls the width */}
-        <div className="w-full">
-          <IconDatePicker
-            selected={selectedDate}
-            onChange={(date) => setSelectedDate(date)}
-            dateFormat="MMMM d, yyyy"
-            placeholderText="Choose a date"
-            className="input input-bordered w-full pl-10" // style the input
-            wrapperClassName="w-full" // style the outer wrapper
+          {/* ✅ Wrap the picker in a div that controls the width */}
+          <div className="w-full">
+            <IconDatePicker
+              selected={selectedDate}
+              onChange={(date) => setSelectedDate(date)}
+              dateFormat="MMMM d, yyyy"
+              placeholderText="Choose a date"
+              className="input input-bordered w-full pl-10" // style the input
+              wrapperClassName="w-full" // style the outer wrapper
+            />
+          </div>
+
+          {/* ✅ Make sure this button uses w-full and consistent size */}
+          <div className="flex justify-center w-full">
+            <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
+          </div>
+
+          {/* 🔥 Sort & Filter Toggle */}
+          <div className="text-center mt-2">
+            <button
+              className="text-sm text-blue-400 hover:underline transition underline"
+              onClick={() => setShowFilters((prev) => !prev)}
+            >
+              {showFilters ? "Hide Sort & Filter" : "Show Sort & Filter"}
+            </button>
+          </div>
+
+          {/* 🔥 Sort & Filter Buttons */}
+          {showFilters && (
+            <div className="flex flex-col items-center gap-2 mt-4">
+              <div className="flex flex-col items-center w-full gap-1">
+                <span className="text-sm text-gray-400">Sort:</span>
+                <SortButton
+                  direction={sortDirection}
+                  onToggle={() =>
+                    setSortDirection((prev) =>
+                      prev === "asc" ? "desc" : "asc"
+                    )
+                  }
+                />
+              </div>
+
+              <FilterButton
+                label="Filter Service:"
+                options={[
+                  "all",
+                  ...Array.from(
+                    new Set(appointments.map((a) => a.service))
+                  ).sort(),
+                ]}
+                value={serviceFilter}
+                onChange={setServiceFilter}
+              />
+
+              <FilterButton
+                label="Filter Status:"
+                options={["all", "confirmed", "pending", "cancelled"]}
+                value={statusFilter}
+                onChange={setStatusFilter}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-center">
+          <RefreshButton
+            onRefresh={handleRefresh}
+            className="btn-sm"
+            toastMessage="Refreshing bookings..."
           />
         </div>
 
-        {/* ✅ Make sure this button uses w-full and consistent size */}
-        <div className="flex justify-center w-full">
-          <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
-        </div>
+        {/* === Appointment Cards === */}
+        <div className="space-y-4">
+          {filtered.length === 0 ? (
+            <p className="text-center text-gray-400 pt-4">
+              No matching bookings.
+            </p>
+          ) : (
+            sortedFiltered.map((a) => {
+              console.log("🕓 Appointment slot:", a.slot_day, a.slot_time);
+              console.log("🌍 Timezone used:", a.freelancer_timezone);
+              if (!a.freelancer_timezone) {
+                console.warn("❌ Missing timezone on appointment:", a);
+              }
+              return (
+                <div
+                  key={a.id}
+                  className="p-5 rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 shadow-md border border-slate-700 hover:shadow-lg hover:-translate-y-[1px] transition-all duration-150"
+                >
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs text-gray-500">#{a.id}</p>
+                    <span
+                      className={`px-2 py-0.5 text-xs rounded-full ${
+                        a.status === "confirmed"
+                          ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                          : a.status === "cancelled"
+                          ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                          : "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
+                      }`}
+                    >
+                      {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
+                    </span>
+                  </div>
 
-        {/* 🔥 Sort & Filter Toggle */}
-        <div className="text-center mt-2">
-          <button
-            className="text-sm text-blue-400 hover:underline transition underline"
-            onClick={() => setShowFilters((prev) => !prev)}
-          >
-            {showFilters ? "Hide Sort & Filter" : "Show Sort & Filter"}
-          </button>
-        </div>
+                  <h2 className="text-lg font-semibold text-white mt-1">
+                    {a.name || "Unknown"}
+                  </h2>
+                  <p className="text-sm text-gray-400">{a.email || "N/A"}</p>
 
-        {/* 🔥 Sort & Filter Buttons */}
-        {showFilters && (
-          <div className="flex flex-col items-center gap-2 mt-4">
-            <div className="flex flex-col items-center w-full gap-1">
-              <span className="text-sm text-gray-400">Sort:</span>
-              <SortButton
-                direction={sortDirection}
-                onToggle={() =>
-                  setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
-                }
-              />
-            </div>
-
-            <FilterButton
-              label="Filter Service:"
-              options={[
-                "all",
-                ...Array.from(
-                  new Set(appointments.map((a) => a.service))
-                ).sort(),
-              ]}
-              value={serviceFilter}
-              onChange={setServiceFilter}
-            />
-
-            <FilterButton
-              label="Filter Status:"
-              options={["all", "confirmed", "pending", "cancelled"]}
-              value={statusFilter}
-              onChange={setStatusFilter}
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="flex justify-center">
-        <RefreshButton
-          onRefresh={handleRefresh}
-          className="btn-sm"
-          toastMessage="Refreshing bookings..."
-        />
-      </div>
-
-      {/* === Appointment Cards === */}
-      <div className="space-y-4">
-        {loading ? (
-          <p className="text-center text-sm text-gray-500 italic">Loading...</p>
-        ) : error ? (
-          <div className="text-center text-red-400 space-y-2 pt-4">
-            <p>{error}</p>
-            <button
-              onClick={fetchAppointments}
-              className="btn btn-sm btn-outline"
-            >
-              🔁 Try Again
-            </button>
-          </div>
-        ) : filtered.length === 0 ? (
-          <p className="text-center text-gray-400 pt-4">
-            No matching bookings.
-          </p>
-        ) : (
-          sortedFiltered.map((a) => {
-            console.log("🕓 Appointment slot:", a.slot_day, a.slot_time);
-            console.log("🌍 Timezone used:", a.freelancer_timezone);
-            if (!a.freelancer_timezone) {
-              console.warn("❌ Missing timezone on appointment:", a);
-            }
-            return (
-              <div
-                key={a.id}
-                className="p-5 rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 shadow-md border border-slate-700 hover:shadow-lg hover:-translate-y-[1px] transition-all duration-150"
-              >
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-gray-500">#{a.id}</p>
-                  <span
-                    className={`px-2 py-0.5 text-xs rounded-full ${
+                  <div className="mt-3 text-sm space-y-1">
+                    <p>
+                      🗓{" "}
+                      <span className="text-gray-300">
+                        {formatDate(a.slot_day)}
+                      </span>
+                    </p>
+                    <p>
+                      ⏰{" "}
+                      <span className="text-gray-300">
+                        {a.slot_time}{" "}
+                        <span className="text-xs text-gray-500">
+                          {a.timezone_abbr}
+                        </span>
+                      </span>
+                    </p>
+                    <p>
+                      💈{" "}
+                      <span className="text-gray-300">
+                        {a.service || "N/A"}
+                      </span>{" "}
+                      <span className="text-gray-500">
+                        ({a.service_duration_minutes || "?"} min)
+                      </span>
+                    </p>
+                  </div>
+                  <p
+                    className={`text-sm font-medium ${
                       a.status === "confirmed"
-                        ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                        ? "text-success"
                         : a.status === "cancelled"
-                        ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                        : "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
+                        ? "text-error"
+                        : "text-warning"
                     }`}
                   >
-                    {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
-                  </span>
-                </div>
-
-                <h2 className="text-lg font-semibold text-white mt-1">
-                  {a.name || "Unknown"}
-                </h2>
-                <p className="text-sm text-gray-400">{a.email || "N/A"}</p>
-
-                <div className="mt-3 text-sm space-y-1">
-                  <p>
-                    🗓{" "}
-                    <span className="text-gray-300">
-                      {formatDate(a.slot_day)}
-                    </span>
-                  </p>
-                  <p>
-                    ⏰{" "}
-                    <span className="text-gray-300">
-                      {a.slot_time}{" "}
-                      <span className="text-xs text-gray-500">
-                        {a.timezone_abbr}
-                      </span>
-                    </span>
-                  </p>
-                  <p>
-                    💈{" "}
-                    <span className="text-gray-300">{a.service || "N/A"}</span>{" "}
-                    <span className="text-gray-500">
-                      ({a.service_duration_minutes || "?"} min)
-                    </span>
-                  </p>
-                </div>
-                <p
-                  className={`text-sm font-medium ${
-                    a.status === "confirmed"
-                      ? "text-success"
+                    {a.status === "confirmed"
+                      ? "✔ Confirmed"
                       : a.status === "cancelled"
-                      ? "text-error"
-                      : "text-warning"
-                  }`}
-                >
-                  {a.status === "confirmed"
-                    ? "✔ Confirmed"
-                    : a.status === "cancelled"
-                    ? "✖ Cancelled"
-                    : "⚠ Pending"}
-                </p>
+                      ? "✖ Cancelled"
+                      : "⚠ Pending"}
+                  </p>
 
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <button
-                    className="btn btn-primary btn-sm flex-1"
-                    onClick={() => setSelectedAppointment(a)}
-                  >
-                    View Details
-                  </button>
-
-                  {a.status === "confirmed" && (
+                  <div className="flex flex-wrap gap-2 pt-2">
                     <button
-                      className="btn btn-error btn-sm flex-1"
-                      onClick={(e) => {
-                        e.stopPropagation(); // prevent opening view modal
-                        setCancelTargetId(a.id);
-                        setShowConfirmModal(true);
-                      }}
+                      className="btn btn-primary btn-sm flex-1"
+                      onClick={() => setSelectedAppointment(a)}
                     >
-                      Cancel
+                      View Details
                     </button>
-                  )}
+
+                    {a.status === "confirmed" && (
+                      <button
+                        className="btn btn-error btn-sm flex-1"
+                        onClick={(e) => {
+                          e.stopPropagation(); // prevent opening view modal
+                          setCancelTargetId(a.id);
+                          setShowConfirmModal(true);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+              );
+            })
+          )}
+        </div>
 
-      {/* === Export Section === */}
-      <div className="space-y-2 pt-6">
-        <label className="font-medium text-sm text-gray-400">
-          Export Bookings:
-        </label>
+        {/* === Export Section === */}
+        <div className="space-y-2 pt-6">
+          <label className="font-medium text-sm text-gray-400">
+            Export Bookings:
+          </label>
 
-        {!canExport && (
-          <a
-            href={`/upgrade#elite?need=pro&next=${encodeURIComponent(next)}`}
-            className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full
+          {!canExport && (
+            <a
+              href={`/upgrade#elite?need=pro&next=${encodeURIComponent(next)}`}
+              className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full
                bg-primary text-white border border-none shadow-inner
                hover:bg-primary transition mb-1.5"
-          >
-            🔒 Requires PRO (also in ELITE)
-          </a>
-        )}
-        <div className="relative">
-          {!canExport && (
-            <button
-              type="button"
-              className="absolute inset-0 z-10 cursor-not-allowed rounded-lg"
-              aria-label="Upgrade to enable CSV export"
-              onClick={() =>
-                showToast(
-                  <span>
-                    CSV export is a PRO/ELITE feature.{" "}
-                    <a
-                      href={`/upgrade#elite?need=pro&next=${encodeURIComponent(
-                        next
-                      )}`}
-                      className="underline font-medium"
-                    >
-                      Upgrade →
-                    </a>
-                  </span>,
-                  "error"
-                )
-              }
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  showToast("CSV export requires PRO or ELITE.", "warning");
-                }
-              }}
-            />
+            >
+              🔒 Requires PRO (also in ELITE)
+            </a>
           )}
+          <div className="relative">
+            {!canExport && (
+              <button
+                type="button"
+                className="absolute inset-0 z-10 cursor-not-allowed rounded-lg"
+                aria-label="Upgrade to enable CSV export"
+                onClick={() =>
+                  showToast(
+                    <span>
+                      CSV export is a PRO/ELITE feature.{" "}
+                      <a
+                        href={`/upgrade#elite?need=pro&next=${encodeURIComponent(
+                          next
+                        )}`}
+                        className="underline font-medium"
+                      >
+                        Upgrade →
+                      </a>
+                    </span>,
+                    "error"
+                  )
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    showToast("CSV export requires PRO or ELITE.", "warning");
+                  }
+                }}
+              />
+            )}
 
-          <select
-            className="select select-bordered w-full"
-            value={exportRange}
-            onChange={(e) => setExportRange(e.target.value)}
-            disabled={!canExport}
-            aria-disabled={!canExport}
-            title={!canExport ? "Upgrade to enable CSV export" : undefined}
-          >
-            <option value="selected_date">📌 Exact Day (selected)</option>
-            <option value="this_month">📆 This Month</option>
-            <option value="last_month">🕰️ Last Month</option>
-            <option value="upcoming">📈 Upcoming</option>
-            <option value="all">🌍 All Bookings</option>
-          </select>
+            <select
+              className="select select-bordered w-full"
+              value={exportRange}
+              onChange={(e) => setExportRange(e.target.value)}
+              disabled={!canExport}
+              aria-disabled={!canExport}
+              title={!canExport ? "Upgrade to enable CSV export" : undefined}
+            >
+              <option value="selected_date">📌 Exact Day (selected)</option>
+              <option value="this_month">📆 This Month</option>
+              <option value="last_month">🕰️ Last Month</option>
+              <option value="upcoming">📈 Upcoming</option>
+              <option value="all">🌍 All Bookings</option>
+            </select>
 
-          <button
-            onClick={exportCSV}
-            className="btn btn-outline w-full mt-2"
-            disabled={!canExport}
-            aria-disabled={!canExport}
-            title={!canExport ? "Upgrade to enable CSV export" : undefined}
-          >
-            📄 Export to CSV
-          </button>
+            <button
+              onClick={exportCSV}
+              className="btn btn-outline w-full mt-2"
+              disabled={!canExport}
+              aria-disabled={!canExport}
+              title={!canExport ? "Upgrade to enable CSV export" : undefined}
+            >
+              📄 Export to CSV
+            </button>
+          </div>
         </div>
-      </div>
 
-      {selectedAppointment && (
-        <ViewBookingModal
-          appointment={selectedAppointment}
-          onClose={() => setSelectedAppointment(null)}
-          onCancel={handleCancel}
-        />
-      )}
+        {selectedAppointment && (
+          <ViewBookingModal
+            appointment={selectedAppointment}
+            onClose={() => setSelectedAppointment(null)}
+            onCancel={handleCancel}
+          />
+        )}
 
-      {showConfirmModal && (
-        <ConfirmModal
-          title="Cancel Appointment?"
-          message="Are you sure you want to cancel this appointment?"
-          confirmText="Yes, Cancel It"
-          cancelText="Keep Booking"
-          onConfirm={handleCancel}
-          onClose={() => {
-            setCancelTargetId(null);
-            setShowConfirmModal(false);
-          }}
-        />
-      )}
-    </main>
+        {showConfirmModal && (
+          <ConfirmModal
+            title="Cancel Appointment?"
+            message="Are you sure you want to cancel this appointment?"
+            confirmText="Yes, Cancel It"
+            cancelText="Keep Booking"
+            onConfirm={handleCancel}
+            onClose={() => {
+              setCancelTargetId(null);
+              setShowConfirmModal(false);
+            }}
+          />
+        )}
+      </main>
+    </SafeLoader>
   );
 }

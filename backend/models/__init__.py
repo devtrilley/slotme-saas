@@ -53,7 +53,8 @@ class Freelancer(db.Model):
 
     # ✅ New contact fields
     contact_email = db.Column(db.String(120), unique=True, nullable=False)
-    phone = db.Column(db.String(50), nullable=True)
+    phone = db.Column(db.String(50), nullable=True)  # Personal phone (private)
+    business_phone = db.Column(db.String(50), nullable=True)  # Business phone (public)
     instagram_url = db.Column(db.String(200), nullable=True)
     twitter_url = db.Column(db.String(200), nullable=True)
 

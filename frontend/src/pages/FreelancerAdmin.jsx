@@ -546,7 +546,9 @@ export default function AdminPage() {
                   Copy Link
                 </button>
                 <button
-                  onClick={() => navigate(shareUrl.replace(window.location.origin, ''))}
+                  onClick={() =>
+                    navigate(shareUrl.replace(window.location.origin, ""))
+                  }
                   className="btn btn-xs btn-primary"
                 >
                   Go to Booking Page

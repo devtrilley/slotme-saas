@@ -128,6 +128,7 @@ def seed_freelancer(
     bio,
     logo_url,
     phone,
+    business_phone,  # 🔥 NEW: Add business_phone parameter
     contact_email,
     instagram_url,
     twitter_url,
@@ -136,7 +137,7 @@ def seed_freelancer(
     booking_instructions,
     preferred_payment_methods,
     location,
-    timezone="America/New_York",  # ✅ Add this line
+    timezone="America/New_York",
     tier=None,
     early_access=False,
     is_verified=True,
@@ -161,6 +162,7 @@ def seed_freelancer(
     freelancer.bio = bio
     freelancer.logo_url = logo_url
     freelancer.phone = phone
+    freelancer.business_phone = business_phone  # 🔥 NEW
     freelancer.contact_email = contact_email
     freelancer.instagram_url = instagram_url
     freelancer.twitter_url = twitter_url

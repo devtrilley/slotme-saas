@@ -1,53 +1,32 @@
 // src/pages/SignupSuccess.jsx
-import { MailCheck, ThumbsUp, RefreshCcw } from "lucide-react";
+import { MailCheck, ThumbsUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
 import axios from "axios";
 import { API_BASE } from "../utils/constants";
-import { showToast } from "../utils/toast"; // ✅ use SlotMe's toast
+import { showToast } from "../utils/toast";
+import ResendButton from "../components/Buttons/ResendButton";
 
 export default function SignupSuccess() {
   const navigate = useNavigate();
-  const [cooldown, setCooldown] = useState(0);
-  const [isSending, setIsSending] = useState(false);
-
-  // countdown for resend delay
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [cooldown]);
-
   const handleResend = async () => {
-    if (cooldown > 0 || isSending) return;
     const email = localStorage.getItem("pendingEmail");
     if (!email) {
       showToast("No signup email found. Please sign up again.", "error");
-      return;
+      throw new Error("No email");
     }
-
-    setIsSending(true);
-    try {
-      const res = await axios.post(`${API_BASE}/auth/resend-verification`, {
-        email,
-      });
-
-      // ✅ Handle already-verified case
-      if (res.data.message?.includes("already verified")) {
-        showToast("Already verified! Redirecting to login...", "success");
-        localStorage.removeItem("pendingEmail"); // Clean up
-        setTimeout(() => navigate("/auth"), 2000);
-        return;
-      }
-
-      showToast("Verification email resent. Check your inbox!", "success");
-      setCooldown(60);
-    } catch (err) {
-      console.error(err);
-      showToast("Failed to resend. Try again shortly.", "error");
-    } finally {
-      setIsSending(false);
+  
+    const res = await axios.post(`${API_BASE}/auth/resend-verification`, {
+      email,
+    });
+  
+    if (res.data.message?.includes("already verified")) {
+      showToast("Already verified! Redirecting to login...", "success");
+      localStorage.removeItem("pendingEmail");
+      setTimeout(() => navigate("/auth"), 2000);
+      throw new Error("Already verified");
     }
+  
+    showToast("Verification email resent. Check your inbox!", "success");
   };
 
   return (
@@ -68,20 +47,7 @@ export default function SignupSuccess() {
           <span>Didn’t get it? Check your spam folder.</span>
         </div>
 
-        <button
-          onClick={handleResend}
-          disabled={cooldown > 0 || isSending}
-          className={`btn btn-primary w-full ${
-            cooldown > 0 || isSending ? "btn-disabled opacity-70" : ""
-          }`}
-        >
-          <RefreshCcw className="w-4 h-4" />
-          {isSending
-            ? "Resending..."
-            : cooldown > 0
-            ? `Try again in ${cooldown}s`
-            : "Resend Verification Email"}
-        </button>
+        <ResendButton onResend={handleResend} cooldownSeconds={60} />
       </div>
 
       {/* 🔥 Email Platform Quick Links */}

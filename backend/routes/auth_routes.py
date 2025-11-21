@@ -44,22 +44,28 @@ def sanitize_html(text):
 def freelancer_login():
     # 🔒 Simple rate limit: 5 attempts per minute
     import time
+
     client_ip = request.remote_addr
     now = time.time()
-    
+
     # Clean old attempts (older than 60 seconds)
     if client_ip in login_attempts:
-        login_attempts[client_ip] = [t for t in login_attempts[client_ip] if now - t < 60]
-    
+        login_attempts[client_ip] = [
+            t for t in login_attempts[client_ip] if now - t < 60
+        ]
+
     # Check if limit exceeded
     if client_ip in login_attempts and len(login_attempts[client_ip]) >= 5:
-        return jsonify({"error": "Too many login attempts. Try again in 1 minute."}), 429
-    
+        return (
+            jsonify({"error": "Too many login attempts. Try again in 1 minute."}),
+            429,
+        )
+
     # Record this attempt
     if client_ip not in login_attempts:
         login_attempts[client_ip] = []
     login_attempts[client_ip].append(now)
-    
+
     # Rest of login logic
     data = request.get_json() or {}
     email = data.get("email")
@@ -181,6 +187,11 @@ def verify_email():
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
 
+    # 🔥 IDEMPOTENT: If already confirmed, just return success (no error)
+    if freelancer.email_confirmed:
+        return jsonify({"message": "Email confirmed successfully!"}), 200
+
+    # First time confirming - update database
     freelancer.email_confirmed = True
     freelancer.confirmation_token = None
     db.session.commit()
@@ -420,15 +431,23 @@ def confirm_email_change():
     if not freelancer_id or not new_email:
         return jsonify({"error": "Invalid token payload"}), 400
 
-    # Email must still be free at confirm time
-    if Freelancer.query.filter_by(email=new_email).first():
-        return jsonify({"error": "Email already in use"}), 400
-
     freelancer = Freelancer.query.get(freelancer_id)
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
 
-    # Swap emails
+    # 🔥 IDEMPOTENT: If this freelancer already has the new email, just return success
+    if freelancer.email == new_email:
+        return (
+            jsonify({"message": "Email updated. Please log in with your new email."}),
+            200,
+        )
+
+    # Check if email is taken by ANOTHER freelancer
+    existing = Freelancer.query.filter_by(email=new_email).first()
+    if existing and existing.id != freelancer.id:
+        return jsonify({"error": "Email already in use"}), 400
+
+    # First time changing - update database
     freelancer.email = new_email
     freelancer.contact_email = new_email  # keep contact_email in sync if you use it
     db.session.commit()

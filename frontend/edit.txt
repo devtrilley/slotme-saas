@@ -1,32 +1,10 @@
-Favicon for site ✅
+Backend:
 
-Fixed index.html to use slotme-favicon.png
-ACTION NEEDED: Move slotme-favicon.png to frontend/public/ folder first
+backend/routes/freelancer_routes.py - PATCH /freelancer/branding endpoint
+backend/models/__init__.py - Freelancer model schema
+backend/routes/public_routes.py - Public profile data fetch
 
+Frontend:
 
-Signup flow ✅
-
-Confirmed working (no code changes needed)
-
-
-Auth page labels ✅
-
-Added labels above all inputs
-Changed placeholders to example text
-
-
-iPhone horizontal scroll ✅
-
-Fixed viewport meta tag
-Fixed input zoom prevention (16px minimum)
-Fixed container width constraints
-
-
-Footer navbar gap ✅
-
-Fixed bottom overlap with -1px positioning
-
-
-.ics calendar download ✅ (needs backend deploy to test)
-
-Fixed ICS whitespace formatting in booking_routes.py
+frontend/src/components/Forms/FreelancerBranding.jsx - The form (current state)
+frontend/src/pages/FreelancerProfile.jsx - Public profile page that displays data

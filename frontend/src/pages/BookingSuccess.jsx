@@ -1,14 +1,19 @@
 import { MailCheck, Smile } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useEffect } from "react";
 import axios from "../utils/axiosInstance";
+import { showToast } from "../utils/toast";
+import { API_BASE } from "../utils/constants";
+import ResendButton from "../components/Buttons/ResendButton";
 
 export default function BookingSuccess() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const appointmentId = searchParams.get("appointment_id");
 
   useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
     const token = searchParams.get("token");
 
     if (token) {
@@ -22,6 +27,16 @@ export default function BookingSuccess() {
         });
     }
   }, [location.search]);
+
+  const handleResend = async () => {
+    if (!appointmentId) {
+      showToast("Appointment ID missing. Please try booking again.", "error");
+      throw new Error("No appointment ID");
+    }
+
+    await axios.post(`${API_BASE}/resend-confirmation/${appointmentId}`);
+    showToast("Confirmation email resent! Check your inbox.", "success");
+  };
 
   return (
     <main className="max-w-md mx-auto p-6 space-y-6 text-center text-white">
@@ -42,11 +57,18 @@ export default function BookingSuccess() {
         </p>
 
         <div className="flex flex-col items-center space-y-2 text-sm text-white/60">
-          <span>Haven’t received it? Check your spam folder.</span>
+          <span>Haven't received it? Check your spam folder.</span>
           <MailCheck className="w-5 h-5 text-white/60" />
         </div>
 
-        {/* 🔁 Email platform buttons (mapped) */}
+        {/* Resend Button */}
+        {appointmentId && (
+          <div className="w-full mt-4">
+            <ResendButton onResend={handleResend} cooldownSeconds={60} />
+          </div>
+        )}
+
+        {/* 📫 Email platform buttons (mapped) */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4 w-full">
           {[
             {

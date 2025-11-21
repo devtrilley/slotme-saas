@@ -37,14 +37,23 @@ freelancer_bp = Blueprint("freelancer", __name__)
 
 # 🔒 SECURITY: Prevent XSS and email injection attacks
 def sanitize_html(text):
-    """Convert < > & " ' to safe HTML entities to prevent XSS"""
+    """
+    Convert < > & " ' to safe HTML entities to prevent XSS.
+    Handles re-saves gracefully by decoding first to prevent double-escaping.
+    """
     if not text:
         return text
     import html
-    return html.escape(str(text).strip())
+
+    # Decode any existing HTML entities first (prevents double-escaping on re-saves)
+    decoded = html.unescape(str(text))
+
+    # Then escape for safe storage
+    return html.escape(decoded.strip())
 
 
-def handle_404(_):    return make_response(jsonify({"error": "Not found"}), 404)
+def handle_404(_):
+    return make_response(jsonify({"error": "Not found"}), 404)
 
 
 @freelancer_bp.route("/freelancer/slots/<identifier>", methods=["GET"])
@@ -225,7 +234,7 @@ def get_public_freelancer_info(identifier):
             "timezone": freelancer.timezone,
             "is_verified": freelancer.tier in ["pro", "elite"],
             "email": freelancer.contact_email,
-            "phone": freelancer.phone,
+            "phone": freelancer.business_phone,  # 🔥 CHANGED: Return business phone only
             "instagram_url": freelancer.instagram_url,
             "twitter_url": freelancer.twitter_url,
             "no_show_policy": freelancer.no_show_policy,
@@ -233,7 +242,7 @@ def get_public_freelancer_info(identifier):
                 freelancer.created_at.isoformat() if freelancer.created_at else None
             ),
             "tier": freelancer.tier,
-            "services": service_data,  # ✅ ADD THIS
+            "services": service_data,
             "location": freelancer.location,
             "booking_instructions": freelancer.booking_instructions,
             "preferred_payment_methods": freelancer.preferred_payment_methods,
@@ -275,28 +284,28 @@ def public_freelancer_profile(identifier):
     ]
 
     return jsonify(
-        {
-            "id": freelancer.id,
-            "first_name": freelancer.first_name,
-            "last_name": freelancer.last_name,
-            "business_name": freelancer.business_name,
-            "logo_url": freelancer.logo_url,
-            "tagline": freelancer.tagline,
-            "bio": freelancer.bio,
-            "timezone": freelancer.timezone,
-            "email": freelancer.contact_email,  # <-- This one if you're using a separate public email
-            "phone": freelancer.phone,
-            "instagram_url": freelancer.instagram_url,
-            "twitter_url": freelancer.twitter_url,
-            "is_verified": freelancer.tier in ["pro", "elite"],
-            "joined": freelancer.id,
-            "services": service_data,
-            "faq_items": freelancer.faq_items,
-            "location": freelancer.location,
-            "booking_instructions": freelancer.booking_instructions,
-            "preferred_payment_methods": freelancer.preferred_payment_methods,
-        }
-    )
+    {
+        "id": freelancer.id,
+        "first_name": freelancer.first_name,
+        "last_name": freelancer.last_name,
+        "business_name": freelancer.business_name,
+        "logo_url": freelancer.logo_url,
+        "tagline": freelancer.tagline,
+        "bio": freelancer.bio,
+        "timezone": freelancer.timezone,
+        "email": freelancer.contact_email,
+        "phone": freelancer.business_phone,  # 🔥 CHANGED: Return business phone only
+        "instagram_url": freelancer.instagram_url,
+        "twitter_url": freelancer.twitter_url,
+        "is_verified": freelancer.tier in ["pro", "elite"],
+        "joined": freelancer.id,
+        "services": service_data,
+        "faq_items": freelancer.faq_items,
+        "location": freelancer.location,
+        "booking_instructions": freelancer.booking_instructions,
+        "preferred_payment_methods": freelancer.preferred_payment_methods,
+    }
+)
 
 
 @freelancer_bp.route("/freelancer/services", methods=["GET", "OPTIONS"])
@@ -608,7 +617,6 @@ def reply_to_customer():
 
 @freelancer_bp.route("/freelancer/branding", methods=["PATCH"])
 @require_auth
-# @require_tier("custom_url")
 def update_freelancer_branding():
     print("🔥 Incoming PATCH payload:", request.json)
     data = request.get_json() or {}
@@ -616,30 +624,61 @@ def update_freelancer_branding():
     if not f:
         return jsonify({"error": "auth_required"}), 401
 
-    # --- allowlist updates (prevents sneaky field writes) ---
-    # 🔒 SANITIZE all text fields shown to customers
-    f.first_name = sanitize_html(data.get("first_name", f.first_name))
-    f.last_name = sanitize_html(data.get("last_name", f.last_name))
-    f.business_name = sanitize_html(data.get("business_name", f.business_name))
-    f.business_address = sanitize_html(data.get("business_address", f.business_address))
-    f.logo_url = data.get("logo_url", f.logo_url)  # URLs validated separately
-    f.bio = sanitize_html(data.get("bio", f.bio))
-    f.tagline = sanitize_html(data.get("tagline", f.tagline))
-    f.timezone = data.get("timezone", f.timezone)  # Dropdown, safe
-    f.no_show_policy = sanitize_html(data.get("no_show_policy", f.no_show_policy))
-    
-    # 🔒 SANITIZE FAQ items (nested JSON)
+    # 🔒 SANITIZE all user-facing content to prevent XSS
+    if "first_name" in data:
+        f.first_name = sanitize_html(data["first_name"])
+    if "last_name" in data:
+        f.last_name = sanitize_html(data["last_name"])
+    if "business_name" in data:
+        f.business_name = sanitize_html(data["business_name"])
+    if "business_address" in data:
+        f.business_address = sanitize_html(data["business_address"])
+    if "logo_url" in data:
+        f.logo_url = data["logo_url"]  # URLs validated separately
+    if "bio" in data:
+        f.bio = sanitize_html(data["bio"])
+    if "tagline" in data:
+        f.tagline = sanitize_html(data["tagline"])
+    if "timezone" in data:
+        f.timezone = data["timezone"]  # Dropdown, safe
+    if "no_show_policy" in data:
+        f.no_show_policy = sanitize_html(data["no_show_policy"])
+
+    # 🔥 FIX: Contact & booking fields (THESE WERE MISSING)
+    if "location" in data:
+        f.location = sanitize_html(data["location"])
+    if "booking_instructions" in data:
+        f.booking_instructions = sanitize_html(data["booking_instructions"])
+    if "preferred_payment_methods" in data:  # 🔥 THIS WAS MISSING ENTIRELY
+        f.preferred_payment_methods = sanitize_html(data["preferred_payment_methods"])
+    if "contact_email" in data:
+        f.contact_email = data["contact_email"].strip()  # Email, validated elsewhere
+    if "business_phone" in data:  # 🔥 CHANGED: Save to business_phone, not phone
+        f.business_phone = sanitize_html(data["business_phone"])
+    if "instagram_url" in data:
+        f.instagram_url = data["instagram_url"].strip()  # URL, validated elsewhere
+    if "twitter_url" in data:
+        f.twitter_url = data["twitter_url"].strip()  # URL, validated elsewhere
+
+    # 🔥 FIX: FAQ structure - frontend sends "question"/"answer", NOT "q"/"a"
     if "faq_items" in data:
         faq_items = data["faq_items"]
         if isinstance(faq_items, list):
             sanitized_faq = []
             for item in faq_items:
-                if isinstance(item, dict) and "q" in item and "a" in item:
-                    sanitized_faq.append({
-                        "q": sanitize_html(item["q"]),
-                        "a": sanitize_html(item["a"])
-                    })
+                # Frontend sends { question: "...", answer: "..." }
+                if isinstance(item, dict) and "question" in item and "answer" in item:
+                    q = sanitize_html(item["question"])
+                    a = sanitize_html(item["answer"])
+                    if q and a:  # Only save non-empty FAQs
+                        sanitized_faq.append(
+                            {
+                                "question": q,  # 🔥 FIXED KEY (was "q")
+                                "answer": a,  # 🔥 FIXED KEY (was "a")
+                            }
+                        )
             f.faq_items = sanitized_faq
+            print(f"💾 Saved {len(sanitized_faq)} FAQs")
         else:
             f.faq_items = []
 
@@ -649,7 +688,6 @@ def update_freelancer_branding():
         proposed = re.sub(
             r"[^a-z0-9_-]", "", (data.get("custom_url") or "").strip().lower()
         )
-
         # If changing the slug, enforce feature gate
         if proposed != current:
             tier = (g.user or {}).get("tier", "free")
@@ -664,22 +702,20 @@ def update_freelancer_branding():
                     ),
                     403,
                 )
-
         # Validate format (allow empty string to mean "clear it")
         if proposed and not re.match(r"^[a-z0-9_-]{3,30}$", proposed):
             return (
                 jsonify({"error": "Custom URL must be 3-30 chars (a-z, 0-9, _ , -)"}),
                 422,
             )
-
         # Uniqueness (only if actually changing & not empty)
         if proposed and proposed != current:
             if Freelancer.query.filter(Freelancer.custom_url == proposed).first():
                 return jsonify({"error": "Custom URL is already taken."}), 422
-
         f.custom_url = proposed or None  # store as NULL if empty
 
     db.session.commit()
+    print("✅ Branding updated successfully")
     return jsonify({"message": "Branding updated"}), 200
 
 
@@ -719,6 +755,11 @@ def get_freelancer_info():
                 "booking_instructions": f.booking_instructions,
                 "preferred_payment_methods": f.preferred_payment_methods,
                 "show_footer_navbar": f.show_footer_navbar,
+                "contact_email": f.contact_email,
+                "phone": f.phone,  # Personal phone (for Settings page)
+                "business_phone": f.business_phone,  # 🔥 NEW: Business phone (for Branding form)
+                "instagram_url": f.instagram_url,
+                "twitter_url": f.twitter_url,
             }
         ),
         200,
@@ -973,8 +1014,10 @@ def get_custom_questions(identifier):
         freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
         # Try public_slug second (all users)
         if not freelancer:
-            freelancer = Freelancer.query.filter_by(public_slug=identifier.lower()).first()
-    
+            freelancer = Freelancer.query.filter_by(
+                public_slug=identifier.lower()
+            ).first()
+
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
 
@@ -1010,10 +1053,9 @@ def update_custom_questions():
                 jsonify({"error": "Each question must include a 'required' boolean"}),
                 400,
             )
-        sanitized_questions.append({
-            "question": sanitize_html(q["question"]),
-            "required": q["required"]
-        })
+        sanitized_questions.append(
+            {"question": sanitize_html(q["question"]), "required": q["required"]}
+        )
 
     g.freelancer.custom_questions = sanitized_questions
     g.freelancer.custom_questions_enabled = enabled

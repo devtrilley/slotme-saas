@@ -59,8 +59,8 @@ export default function FreelancerCard({
   return (
     <div
       className={`relative rounded-xl p-[2px] ${
-        tier === "elite"
-          ? "bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-300 animate-[shine_3s_infinite]"
+        tier === "elite" || tier === "pro"
+  ? "bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-600"
           : tier === "pro"
           ? "bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-600"
           : "border-2 border-white/40"

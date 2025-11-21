@@ -271,6 +271,7 @@ def create_freelancer():
         tier=tier,
         timezone=timezone,
         phone=phone,
+        business_phone=data.get("business_phone", ""),  # 🔥 NEW
         is_verified=is_verified,
         logo_url=data.get("logo_url", ""),
         tagline=data.get("tagline", ""),
@@ -424,7 +425,8 @@ def seed_everything():
                 "with personalized strategies and practice plans."
             ),
             logo_url="https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=987&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-            phone="555-786-0923",
+            phone="555-786-0923",  # Personal phone (for freelancer's account)
+            business_phone="111-786-0923",  # 🔥 NEW: Business phone (public)
             contact_email="emily@sattutorpro.com",
             instagram_url="https://instagram.com/smartstart.sat",
             twitter_url="https://twitter.com/satwizemily",
@@ -507,6 +509,7 @@ def seed_everything():
             ),
             logo_url="https://images.unsplash.com/photo-1567894340315-735d7c361db0?q=80&w=1474&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
             phone="555-902-3344",
+            business_phone="111-902-3344",
             contact_email="malik@fadekings.com",
             instagram_url="https://instagram.com/fadesbymalik",
             twitter_url="https://twitter.com/malikcuts",
@@ -577,6 +580,7 @@ def seed_everything():
             password="jade123",
             force_bookings=True,
             phone="555-982-7782",
+            business_phone="111-982-7782",
             contact_email="jade@glowskinbar.com",
             tagline="Glow up. Show up. Repeat.",
             bio=(
@@ -668,6 +672,7 @@ def seed_everything():
             bio="Tech Bro Meets Fitness 🏋️💪 Calisthenics & Home Workouts 🏠 HIT Training 🔥 Get Fit, No Excuses 🚫 Free App coming soon 📲",
             logo_url="https://slotme-profile-photos.s3.us-east-2.amazonaws.com/freelancers/4/logo.jpg",
             phone="704-555-0199",
+            business_phone="111-555-0199",  # 🔥 ADD THIS LINE
             contact_email="tamsirrilley@gmail.com",
             instagram_url="https://www.instagram.com/montyfitapp/",
             twitter_url="",

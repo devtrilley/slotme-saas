@@ -7,6 +7,13 @@ import LogoUploadModal from "../Modals/LogoUploadModal";
 
 import { useFreelancer } from "../../context/FreelancerContext"; // Add at the top if not already
 
+const decodeHTMLEntities = (text) => {
+  if (!text) return text;
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = text;
+  return textarea.value;
+};
+
 export default function FreelancerBranding({ onUpdate }) {
   const [form, setForm] = useState({
     business_name: "",
@@ -18,13 +25,11 @@ export default function FreelancerBranding({ onUpdate }) {
     faq_items: [],
     custom_url: "",
     business_address: "",
-
-    // add these so fields aren’t undefined before the first load
     booking_instructions: "",
     preferred_payment_methods: "",
     location: "",
     contact_email: "",
-    phone: "",
+    business_phone: "", // 🔥 CHANGED: Use business_phone instead of phone
     instagram_url: "",
     twitter_url: "",
   });
@@ -51,24 +56,28 @@ export default function FreelancerBranding({ onUpdate }) {
       .get(`${API_BASE}/freelancer-info`)
       .then((res) => {
         const data = res.data;
-        // console.log("🔍 Loaded branding data:", data); // debug log
 
+        // 🔥 Decode HTML entities when loading into form
         setForm({
-          business_name: data.business_name || "",
+          business_name: decodeHTMLEntities(data.business_name) || "",
           logo_url: data.logo_url || "",
-          bio: data.bio || "",
-          tagline: data.tagline || "",
+          bio: decodeHTMLEntities(data.bio) || "",
+          tagline: decodeHTMLEntities(data.tagline) || "",
           timezone: data.timezone || "America/New_York",
-          no_show_policy: data.no_show_policy || "",
-          faq_items: data.faq_items || [],
+          no_show_policy: decodeHTMLEntities(data.no_show_policy) || "",
+          faq_items: (data.faq_items || []).map((item) => ({
+            question: decodeHTMLEntities(item.question),
+            answer: decodeHTMLEntities(item.answer),
+          })),
           custom_url: data.custom_url || "",
-          business_address: data.business_address || "",
-
-          booking_instructions: data.booking_instructions || "",
-          preferred_payment_methods: data.preferred_payment_methods || "",
-          location: data.location || "",
+          business_address: decodeHTMLEntities(data.business_address) || "",
+          booking_instructions:
+            decodeHTMLEntities(data.booking_instructions) || "",
+          preferred_payment_methods:
+            decodeHTMLEntities(data.preferred_payment_methods) || "",
+          location: decodeHTMLEntities(data.location) || "",
           contact_email: data.contact_email || data.email || "",
-          phone: data.phone || "",
+          business_phone: data.business_phone || "", // 🔥 CHANGED: Load business_phone
           instagram_url: data.instagram_url || "",
           twitter_url: data.twitter_url || "",
         });
@@ -141,7 +150,7 @@ export default function FreelancerBranding({ onUpdate }) {
           preferred_payment_methods: form.preferred_payment_methods,
           location: form.location,
           contact_email: form.contact_email,
-          phone: form.phone,
+          business_phone: form.business_phone, // 🔥 CHANGED: Update business_phone
           instagram_url: form.instagram_url,
           twitter_url: form.twitter_url,
         }));
@@ -164,7 +173,6 @@ export default function FreelancerBranding({ onUpdate }) {
   return (
     <div className="max-w-md mx-auto p-6 space-y-4">
       <h2 className="text-xl font-bold text-center">Branding Preferences</h2>
-
       <form
         onSubmit={handleSave}
         onKeyDown={(e) => {
@@ -194,17 +202,16 @@ export default function FreelancerBranding({ onUpdate }) {
           placeholder="e.g. 123 Main St, Atlanta, GA"
           className="input input-bordered w-full"
         />
-        <div className="space-y-0.5">
-          <label className="label text-sm text-white !py-0">
+        <div className="space-y-1.5">
+          <label className="label text-sm text-white !py-0 block">
             Custom Booking URL
           </label>
-
           {!canEditCustomURL && (
             <Link
               to={`/upgrade#elite?need=pro&next=${encodeURIComponent(next)}`}
-              className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full
-               bg-primary text-white border border-none
-               shadow-inner hover:bg-primary transition mb-1.5"
+              className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full
+                 bg-primary text-white border-none
+                 shadow-sm hover:bg-primary/90 transition"
             >
               <span aria-hidden>🔒</span>
               <span>Requires PRO (also in ELITE)</span>
@@ -332,11 +339,13 @@ export default function FreelancerBranding({ onUpdate }) {
           placeholder="you@domain.com"
           className="input input-bordered w-full"
         />
-        <label className="label text-sm text-white">Phone (optional):</label>
+        <label className="label text-sm text-white">
+          Business Phone (Public):
+        </label>
         <input
           type="tel"
-          name="phone"
-          value={form.phone}
+          name="business_phone"
+          value={form.business_phone}
           onChange={handleChange}
           placeholder="+1 (555) 123‑4567"
           className="input input-bordered w-full"
@@ -396,67 +405,78 @@ export default function FreelancerBranding({ onUpdate }) {
           placeholder="Card (Stripe), PayPal, CashApp"
           className="input input-bordered w-full"
         />
-        <div className="space-y-3">
-          <label className="label text-sm text-white block">FAQs:</label>
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-white">FAQs</h3>
 
-          <div className="space-y-3">
-            {form.faq_items.map((item, index) => (
-              <div key={index} className="rounded-lg p-3 bg-base-300 space-y-2">
-                <label className="text-xs opacity-80">Question</label>
-                <input
-                  type="text"
-                  value={item.question}
-                  onChange={(e) => {
-                    const updated = [...form.faq_items];
-                    updated[index].question = e.target.value;
-                    setForm({ ...form, faq_items: updated });
-                  }}
-                  placeholder="Question"
-                  className="input input-bordered w-full"
-                />
-
-                <label className="text-xs opacity-80">Answer</label>
-                <textarea
-                  value={item.answer}
-                  onChange={(e) => {
-                    const updated = [...form.faq_items];
-                    updated[index].answer = e.target.value;
-                    setForm({ ...form, faq_items: updated });
-                  }}
-                  placeholder="Answer"
-                  className="textarea textarea-bordered w-full"
-                />
-
-                <button
-                  type="button"
-                  className="btn btn-sm btn-error"
-                  onClick={() => {
-                    const updated = form.faq_items.filter(
-                      (_, i) => i !== index
-                    );
-                    setForm({ ...form, faq_items: updated });
-                  }}
+          {form.faq_items.length === 0 ? (
+            <div className="text-center py-6 text-gray-400 text-sm">
+              No FAQs yet. Add one to help customers!
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {form.faq_items.map((item, index) => (
+                <div
+                  key={index}
+                  className="bg-base-200/50 border border-gray-700 rounded-lg p-4 space-y-3"
                 >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                      Question {index + 1}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-xs bg-red-600 hover:bg-red-700 text-white border-none"
+                      onClick={() => {
+                        const updated = form.faq_items.filter(
+                          (_, i) => i !== index
+                        );
+                        setForm({ ...form, faq_items: updated });
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
 
-          <div>
-            <button
-              type="button"
-              className="btn btn-sm btn-success"
-              onClick={() =>
-                setForm({
-                  ...form,
-                  faq_items: [...form.faq_items, { question: "", answer: "" }],
-                })
-              }
-            >
-              + Add FAQ
-            </button>
-          </div>
+                  <input
+                    type="text"
+                    value={item.question}
+                    onChange={(e) => {
+                      const updated = [...form.faq_items];
+                      updated[index].question = e.target.value;
+                      setForm({ ...form, faq_items: updated });
+                    }}
+                    placeholder="Question"
+                    className="input input-bordered w-full bg-base-100"
+                  />
+
+                  <textarea
+                    value={item.answer}
+                    onChange={(e) => {
+                      const updated = [...form.faq_items];
+                      updated[index].answer = e.target.value;
+                      setForm({ ...form, faq_items: updated });
+                    }}
+                    placeholder="Answer"
+                    rows={3}
+                    className="textarea textarea-bordered w-full bg-base-100 resize-none"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="btn btn-sm bg-emerald-600 hover:bg-emerald-700 text-white border-none w-full"
+            onClick={() =>
+              setForm({
+                ...form,
+                faq_items: [...form.faq_items, { question: "", answer: "" }],
+              })
+            }
+          >
+            + Add FAQ
+          </button>
         </div>
         <button type="submit" className="btn btn-primary w-full">
           Save Changes

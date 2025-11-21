@@ -444,7 +444,22 @@ def confirm_booking_email(token):
         return redirect(f"{FRONTEND_URL}/invalid")
 
     appointment = Appointment.query.get(appointment_id)
-    if appointment and appointment.status == "pending":
+
+    if not appointment:
+        return redirect(f"{FRONTEND_URL}/invalid")
+
+    # 🔥 IDEMPOTENT: If already confirmed, just show confirmed page again
+    if appointment.status == "confirmed":
+        return redirect(
+            f"{FRONTEND_URL}/booking-confirmed?appointment_id={appointment.id}"
+        )
+
+    # If cancelled, show appropriate message
+    if appointment.status == "cancelled":
+        return redirect(f"{FRONTEND_URL}/booking-cancelled")
+
+    # Only process if status is "pending"
+    if appointment.status == "pending":
         slot = appointment.slot
 
         # 🔥 FIX #7: Check if slot time has already passed (using appointment's frozen timezone)
@@ -583,7 +598,8 @@ def confirm_booking_email(token):
             f"{FRONTEND_URL}/booking-confirmed?appointment_id={appointment.id}"
         )
 
-    return redirect(f"{FRONTEND_URL}/not-found")
+    # Fallback for any other unexpected status
+    return redirect(f"{FRONTEND_URL}/invalid")
 
 
 @booking_bp.route("/download-ics/<int:appointment_id>")

@@ -80,7 +80,7 @@ export default function Settings() {
             <strong>Email:</strong> {freelancer?.email || "—"}
           </p>
           <p>
-            <strong>Phone:</strong> {freelancer?.phone || "—"}
+            <strong>Personal Phone:</strong> {freelancer?.phone || "—"}
           </p>
           <p>
             <strong>Business Name:</strong> {freelancer?.business_name || "—"}
@@ -91,31 +91,32 @@ export default function Settings() {
         <div className="bg-base-100 p-6 rounded-xl border border-gray-700 shadow-md space-y-4">
           <h2 className="text-lg font-semibold text-center">Update Info</h2>
 
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            className="input input-bordered w-full"
-            placeholder="New email"
-          />
+          <div>
+            <label className="text-sm text-white font-medium block mb-1.5">
+              Personal Phone Number (Private):
+            </label>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+              placeholder="New phone"
+            />
+          </div>
 
-          <input
-            type="tel"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            className="input input-bordered w-full"
-            placeholder="New phone"
-          />
-
-          <input
-            name="business_name"
-            value={formData.business_name}
-            onChange={handleChange}
-            className="input input-bordered w-full"
-            placeholder="New business name"
-          />
+          <div>
+            <label className="text-sm text-white font-medium block mb-1.5">
+              Business Name
+            </label>
+            <input
+              name="business_name"
+              value={formData.business_name}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+              placeholder="New business name"
+            />
+          </div>
 
           <button
             onClick={async () => {
@@ -138,6 +139,7 @@ export default function Settings() {
                       "new_password",
                       "first_name",
                       "last_name",
+                      "email", // 🔥 Don't save email from this form
                     ].includes(key)
                   )
                     return;
@@ -146,14 +148,6 @@ export default function Settings() {
 
                 if (Object.keys(updatedData).length === 0) {
                   showToast("No changes to save.", "info");
-                  return;
-                }
-
-                if (
-                  updatedData.email &&
-                  !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updatedData.email)
-                ) {
-                  showToast("Enter a valid email address.", "warning");
                   return;
                 }
 
@@ -219,8 +213,10 @@ export default function Settings() {
         subtitle="Customize your interface"
       >
         <div className="bg-base-100 p-6 rounded-xl border border-gray-700 shadow-md space-y-4">
-          <h2 className="text-lg font-semibold text-center">Mobile Navigation</h2>
-          
+          <h2 className="text-lg font-semibold text-center">
+            Mobile Navigation
+          </h2>
+
           <label className="flex items-start gap-3 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -231,16 +227,16 @@ export default function Settings() {
                   await axios.patch("/freelancer/account", {
                     show_footer_navbar: newValue,
                   });
-                  
+
                   // Update context
                   setFreelancer((prev) => ({
                     ...prev,
                     show_footer_navbar: newValue,
                   }));
-                  
+
                   showToast(
-                    newValue 
-                      ? "Footer navbar enabled" 
+                    newValue
+                      ? "Footer navbar enabled"
                       : "Footer navbar disabled",
                     "success"
                   );
@@ -267,27 +263,44 @@ export default function Settings() {
         <div className="bg-base-100 p-6 rounded-xl border border-gray-700 shadow-md space-y-4 mb-4">
           <h2 className="text-lg font-semibold text-center">Change Email</h2>
 
-          <input
-            type="email"
-            className="input input-bordered w-full"
-            placeholder="New email"
-            value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
-          />
-          <input
-            type="email"
-            className="input input-bordered w-full"
-            placeholder="Confirm new email"
-            value={confirmNewEmail}
-            onChange={(e) => setConfirmNewEmail(e.target.value)}
-          />
-          <input
-            type="password"
-            className="input input-bordered w-full"
-            placeholder="Current password"
-            value={currentPwForEmail}
-            onChange={(e) => setCurrentPwForEmail(e.target.value)}
-          />
+          <div>
+            <label className="text-sm text-white font-medium block mb-1.5">
+              New Email
+            </label>
+            <input
+              type="email"
+              className="input input-bordered w-full"
+              placeholder="your.new.email@example.com"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm text-white font-medium block mb-1.5">
+              Confirm New Email
+            </label>
+            <input
+              type="email"
+              className="input input-bordered w-full"
+              placeholder="your.new.email@example.com"
+              value={confirmNewEmail}
+              onChange={(e) => setConfirmNewEmail(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm text-white font-medium block mb-1.5">
+              Current Password
+            </label>
+            <input
+              type="password"
+              className="input input-bordered w-full"
+              placeholder="Enter your current password"
+              value={currentPwForEmail}
+              onChange={(e) => setCurrentPwForEmail(e.target.value)}
+            />
+          </div>
 
           <button
             disabled={sendingEmailChange}
@@ -350,46 +363,61 @@ export default function Settings() {
         <div className="bg-base-100 p-6 rounded-xl border border-gray-700 shadow-md space-y-4">
           <h2 className="text-lg font-semibold text-center">Change Password</h2>
 
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            className="input input-bordered w-full"
-            placeholder="Current password"
-          />
-
-          <div className="space-y-1">
+          <div>
+            <label className="text-sm text-white font-medium block mb-1.5">
+              Current Password
+            </label>
             <input
               type="password"
-              name="new_password"
-              value={formData.new_password}
-              onFocus={() => setShowPasswordChecklist(true)}
+              name="password"
+              value={formData.password}
               onChange={handleChange}
-              onBlur={() => {
-                if (formData.new_password.length === 0)
-                  setShowPasswordChecklist(false);
-              }}
               className="input input-bordered w-full"
-              placeholder="New password"
+              placeholder="Enter your current password"
             />
-
-            {showPasswordChecklist && (
-              <PasswordChecklist
-                password={formData.new_password}
-                confirmPassword={formData.confirm_new_password}
-              />
-            )}
           </div>
 
-          <input
-            type="password"
-            name="confirm_new_password"
-            value={formData.confirm_new_password}
-            onChange={handleChange}
-            className="input input-bordered w-full"
-            placeholder="Confirm new password"
-          />
+          <div>
+            <label className="text-sm text-white font-medium block mb-1.5">
+              New Password
+            </label>
+            <div className="space-y-1">
+              <input
+                type="password"
+                name="new_password"
+                value={formData.new_password}
+                onFocus={() => setShowPasswordChecklist(true)}
+                onChange={handleChange}
+                onBlur={() => {
+                  if (formData.new_password.length === 0)
+                    setShowPasswordChecklist(false);
+                }}
+                className="input input-bordered w-full"
+                placeholder="Enter new password"
+              />
+
+              {showPasswordChecklist && (
+                <PasswordChecklist
+                  password={formData.new_password}
+                  confirmPassword={formData.confirm_new_password}
+                />
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm text-white font-medium block mb-1.5">
+              Confirm New Password
+            </label>
+            <input
+              type="password"
+              name="confirm_new_password"
+              value={formData.confirm_new_password}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+              placeholder="Re-enter new password"
+            />
+          </div>
 
           <button
             onClick={async () => {
