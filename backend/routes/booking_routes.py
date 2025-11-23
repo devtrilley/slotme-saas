@@ -676,13 +676,16 @@ def get_appointments():
     result = []
 
     for a in appointments:
+        # 🔥 SKIP orphaned appointments (slot was deleted)
+        if not a.slot:
+            print(f"⚠️ Skipping orphaned appointment {a.id} - slot was deleted")
+            continue
+        
         user = a.user
-
         # ✅ Convert UTC slot time to appointment's frozen timezone
         try:
             # 🔥 Use the frozen timezone from when appointment was created
             frozen_tz = ZoneInfo(a.freelancer_timezone or "America/New_York")
-
             # Parse the UTC time stored in the DB
             slot_date = datetime.strptime(a.slot.day, "%Y-%m-%d").date()
             utc_time = dt_time.fromisoformat(a.slot.master_time.time_24h)

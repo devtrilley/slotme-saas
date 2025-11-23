@@ -212,29 +212,31 @@ export default function FooterNavbar() {
         </button>
 
         {/* Booking Page */}
-        <button
-          onClick={() => {
-            if (!isLoaded || !freelancer) return;
-            const path = freelancer.custom_url
-              ? `/${freelancer.custom_url}`
-              : freelancer.public_slug
-              ? `/${freelancer.public_slug}`
-              : `/book/${freelancer.id}`;
-            sessionStorage.setItem(FLAG_KEY, "push");
-            navigate(path);
-          }}
-          disabled={!isLoaded || !freelancer}
-          className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all duration-200 ${
-            !isLoaded || !freelancer
-              ? "opacity-30 cursor-not-allowed"
-              : `active:scale-95 ${
-                  location.pathname.startsWith("/book/")
-                    ? "bg-primary/10 text-primary shadow-lg shadow-primary/20"
-                    : "hover:bg-base-200"
-                }`
-          }`}
-          aria-label="Booking Page"
-        >
+<button
+  onClick={() => {
+    if (!isLoaded || !freelancer) return;
+    const path = freelancer.custom_url
+      ? `/${freelancer.custom_url}`
+      : freelancer.public_slug
+      ? `/${freelancer.public_slug}`
+      : `/book/${freelancer.id}`;
+    sessionStorage.setItem(FLAG_KEY, "push");
+    navigate(path);
+  }}
+  disabled={!isLoaded || !freelancer}
+  className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all duration-200 ${
+    !isLoaded || !freelancer
+      ? "opacity-30 cursor-not-allowed"
+      : `active:scale-95 ${
+          location.pathname.startsWith("/book/") ||
+          (freelancer?.custom_url && location.pathname === `/${freelancer.custom_url}`) ||
+          (freelancer?.public_slug && location.pathname === `/${freelancer.public_slug}`)
+            ? "bg-primary/10 text-primary shadow-lg shadow-primary/20"
+            : "hover:bg-base-200"
+        }`
+  }`}
+  aria-label="Booking Page"
+>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"

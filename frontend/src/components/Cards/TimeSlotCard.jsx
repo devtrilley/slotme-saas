@@ -63,34 +63,14 @@ export default function TimeSlotCard({
                 {slot.appointment.name} ({slot.appointment.email})
               </button>
             </div>
-            {showButton && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClick({ ...slot, _deleteAction: true });
-                }}
-                className="btn btn-sm btn-error w-full"
-              >
-                🗑️ Delete Slot
-              </button>
-            )}
+            {/* 🔥 REMOVED DELETE BUTTON - must cancel appointment first */}
           </div>
         ) : (
           <>
             <p className="text-sm text-primary italic">
               Booked (part of earlier appointment)
             </p>
-            {showButton && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClick({ ...slot, _deleteAction: true });
-                }}
-                className="btn btn-sm btn-error mt-2 w-full"
-              >
-                🗑️ Delete Slot
-              </button>
-            )}
+            {/* 🔥 REMOVED DELETE BUTTON - inherited blocks can't be deleted */}
           </>
         )
       ) : isPast ? (

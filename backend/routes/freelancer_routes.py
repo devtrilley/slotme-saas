@@ -127,9 +127,43 @@ def get_public_time_slots(identifier):
         )
         .filter_by(freelancer_id=freelancer_id)
         .join(MasterTimeSlot, TimeSlot.master_time_id == MasterTimeSlot.id)
-        .order_by(TimeSlot.day.asc(), MasterTimeSlot.time_24h.asc())
+        .order_by(
+            TimeSlot.timezone.asc(),
+            TimeSlot.day.asc(),  # ← Move day BEFORE time
+            MasterTimeSlot.time_24h.asc(),
+        )
         .all()
     )
+
+    # 🔥 DEBUG: Log timezone distribution
+    from collections import defaultdict
+
+    tz_groups = defaultdict(int)
+    for slot in slots:
+        tz_groups[slot.timezone or "NULL"] += 1
+
+    print(
+        f"\n🌍 BACKEND: Fetched {len(slots)} total slots for freelancer {freelancer_id}"
+    )
+    print(f"📊 TIMEZONE DISTRIBUTION:")
+    for tz, count in sorted(tz_groups.items()):
+        print(f"   {tz}: {count} slots")
+
+    # 🔥 DEBUG: Show first 20 slots as returned by query
+    print(f"\n🔍 FIRST 20 SLOTS (as ordered by SQL):")
+    for i, slot in enumerate(slots[:20]):
+        print(
+            f"   #{i+1}: day={slot.day}, tz={slot.timezone}, time={slot.master_time.time_24h}, id={slot.id}"
+        )
+
+    # 🔥 SELF-HEALING: Auto-fix any NULL timezone slots (from old seeds/migrations)
+    freelancer = Freelancer.query.get(freelancer_id)
+    null_timezone_slots = [s for s in slots if not s.timezone]
+    if null_timezone_slots and freelancer:
+        print(f"🔄 Fixing {len(null_timezone_slots)} slots with NULL timezone")
+        for slot in null_timezone_slots:
+            slot.timezone = freelancer.timezone
+        db.session.commit()
 
     result = []
     for slot in slots:
@@ -175,6 +209,13 @@ def get_public_time_slots(identifier):
                 "duration_minutes": duration_minutes,
                 "timezone": slot.timezone,  # 🔥 NEW: Send frozen timezone
             }
+        )
+
+    # 🔥 DEBUG: Print sorted slots
+    print("\n🔍 SORTED SLOTS DEBUG:")
+    for slot in slots[:20]:  # Print first 20 slots
+        print(
+            f"  day={slot.day}, timezone={slot.timezone}, time_24h={slot.master_time.time_24h}, id={slot.id}"
         )
 
     return jsonify(result)
@@ -284,28 +325,28 @@ def public_freelancer_profile(identifier):
     ]
 
     return jsonify(
-    {
-        "id": freelancer.id,
-        "first_name": freelancer.first_name,
-        "last_name": freelancer.last_name,
-        "business_name": freelancer.business_name,
-        "logo_url": freelancer.logo_url,
-        "tagline": freelancer.tagline,
-        "bio": freelancer.bio,
-        "timezone": freelancer.timezone,
-        "email": freelancer.contact_email,
-        "phone": freelancer.business_phone,  # 🔥 CHANGED: Return business phone only
-        "instagram_url": freelancer.instagram_url,
-        "twitter_url": freelancer.twitter_url,
-        "is_verified": freelancer.tier in ["pro", "elite"],
-        "joined": freelancer.id,
-        "services": service_data,
-        "faq_items": freelancer.faq_items,
-        "location": freelancer.location,
-        "booking_instructions": freelancer.booking_instructions,
-        "preferred_payment_methods": freelancer.preferred_payment_methods,
-    }
-)
+        {
+            "id": freelancer.id,
+            "first_name": freelancer.first_name,
+            "last_name": freelancer.last_name,
+            "business_name": freelancer.business_name,
+            "logo_url": freelancer.logo_url,
+            "tagline": freelancer.tagline,
+            "bio": freelancer.bio,
+            "timezone": freelancer.timezone,
+            "email": freelancer.contact_email,
+            "phone": freelancer.business_phone,  # 🔥 CHANGED: Return business phone only
+            "instagram_url": freelancer.instagram_url,
+            "twitter_url": freelancer.twitter_url,
+            "is_verified": freelancer.tier in ["pro", "elite"],
+            "joined": freelancer.id,
+            "services": service_data,
+            "faq_items": freelancer.faq_items,
+            "location": freelancer.location,
+            "booking_instructions": freelancer.booking_instructions,
+            "preferred_payment_methods": freelancer.preferred_payment_methods,
+        }
+    )
 
 
 @freelancer_bp.route("/freelancer/services", methods=["GET", "OPTIONS"])
@@ -1139,7 +1180,9 @@ def create_batch_slots_v2():
 
         # Iterate through UTC times
         while current_utc < end_utc:
-            utc_time_label = current_utc.strftime("%I:%M %p")
+            utc_time_label = current_utc.strftime(
+                "%I:%M %p"
+            )  # 🔥 FIXED: Keep leading zero to match master times
             utc_day = current_utc.strftime("%Y-%m-%d")
 
             master_time = label_to_master.get(utc_time_label)
@@ -1147,14 +1190,20 @@ def create_batch_slots_v2():
                 current_utc += timedelta(minutes=interval)
                 continue
 
-            # 🔥 FIX: Check if slot already exists WITH SAME TIMEZONE
-            # This allows different timezones to have independent slots at the same UTC time
+            # 🔥 FIX: Check for duplicates within the SAME timezone only
             existing_slot = TimeSlot.query.filter_by(
                 freelancer_id=freelancer_id,
                 day=utc_day,
                 master_time_id=master_time.id,
-                timezone=freelancer.timezone,  # 🔥 NEW: Include timezone in duplicate check
+                timezone=freelancer.timezone,  # 🔥 ADD TIMEZONE TO DUPLICATE CHECK
             ).first()
+
+            # If slot exists but has NULL timezone, update it to current timezone
+            if existing_slot and not existing_slot.timezone:
+                existing_slot.timezone = freelancer.timezone
+                print(
+                    f"🔄 Updated NULL timezone to {freelancer.timezone} for slot {existing_slot.id}"
+                )
 
             if not existing_slot:
                 new_slot = TimeSlot(

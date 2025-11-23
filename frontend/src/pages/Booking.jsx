@@ -56,6 +56,23 @@ export default function BookingPage({ useCustomUrl = false }) {
 
   // Full public profile data for the freelancer being booked or viewed.
   const [freelancerTimeZone, setFreelancerTimeZone] = useState("EST");
+
+  const sortSlots = (slots) => {
+    return [...slots].sort((a, b) => {
+      // 🔥 FIRST: Sort by day
+      if (a.day !== b.day) {
+        return a.day.localeCompare(b.day);
+      }
+      // 🔥 SECOND: Sort by timezone (use freelancerTimeZone as fallback)
+      const tzA = a.timezone || freelancerTimeZone;
+      const tzB = b.timezone || freelancerTimeZone;
+      if (tzA !== tzB) {
+        return tzA.localeCompare(tzB);
+      }
+      // 🔥 THIRD: Sort by UTC time within same timezone
+      return a.time_24h.localeCompare(b.time_24h);
+    });
+  };
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
   const [services, setServices] = useState([]);
@@ -93,17 +110,6 @@ export default function BookingPage({ useCustomUrl = false }) {
   const getRequiredBlocks = (durationMinutes) =>
     Math.ceil(durationMinutes / 15);
 
-  const sortSlots = (slots) => {
-    return [...slots].sort((a, b) => {
-      // 🔥 FIRST: Sort by day (YYYY-MM-DD format)
-      if (a.day !== b.day) {
-        return a.day.localeCompare(b.day);
-      }
-      // 🔥 SECOND: Sort by time_24h (HH:mm format like "09:00", "18:00")
-      return a.time_24h.localeCompare(b.time_24h);
-    });
-  };
-
   const handleRetry = () => {
     setError("");
     setLoading(true);
@@ -118,7 +124,7 @@ export default function BookingPage({ useCustomUrl = false }) {
         axios.get(`${API_BASE}/freelancer/slots/${freelancerId}`),
         axios.get(`${API_BASE}/freelancer/public-info/${freelancerId}`),
       ]);
-      setSlots(sortSlots(slotsRes.data));
+      setSlots(slotsRes.data); // 🔥 REMOVED sortSlots()
       const data = infoRes.data;
       setFreelancerDetails({
         ...data,
@@ -318,7 +324,7 @@ export default function BookingPage({ useCustomUrl = false }) {
       const res = await axios.get(
         `${API_BASE}/freelancer/slots/${freelancerId}`
       );
-      setSlots(sortSlots(res.data));
+      setSlots(res.data); // 🔥 REMOVED sortSlots() - backend already sorted!
     } catch (err) {
       console.error("❌ Failed to fetch slots", err);
       setError("Booking page unavailable.");
@@ -532,12 +538,12 @@ export default function BookingPage({ useCustomUrl = false }) {
 
   // Claude said to replace above with this
   const filteredSlots = slots.filter((s) =>
-    isSlotOnDate(s, selectedDate, freelancerTimeZone)
+    isSlotOnDate(s, selectedDate, s.timezone || freelancerTimeZone)
   );
 
   // ⏱ Drop past unbooked slots, keep booked or inherited ones (shows popularity)
   const visibleSlots = filteredSlots.filter((slot) => {
-    const isPast = isSlotInPast(slot, freelancerTimeZone);
+    const isPast = isSlotInPast(slot, slot.timezone || freelancerTimeZone);
 
     if (isPast && !slot.is_booked && !slot.is_inherited_block) {
       return false;
@@ -785,43 +791,10 @@ export default function BookingPage({ useCustomUrl = false }) {
             </div>
           )}
 
-          {/* 🧭 Dynamic timezone label */}
-          {(() => {
-            // Collect unique timezones from visible slots
-            const uniqueZones = [
-              ...new Set(
-                visibleSlots.map((s) => s.timezone || freelancerTimeZone)
-              ),
-            ];
-
-            // If more than one timezone, show plural message
-            if (uniqueZones.length > 1) {
-              return (
-                <p className="text-sm text-gray-400 text-center mt-2 italic">
-                  *Slots shown in each freelancer timezone (e.g.{" "}
-                  {uniqueZones.map((z, i) => (
-                    <span key={z}>
-                      {getTimezoneAbbreviation(z)}
-                      {i < uniqueZones.length - 1 ? ", " : ""}
-                    </span>
-                  ))}
-                  )*
-                </p>
-              );
-            }
-
-            // Otherwise, single timezone
-            const tz = uniqueZones[0];
-            return (
-              <p className="text-sm text-gray-400 text-center mt-2 italic">
-                *All times shown in {getTimezoneFullName(tz)}{" "}
-                <span className="text-gray-500">
-                  ({getTimezoneAbbreviation(tz)})
-                </span>
-                *
-              </p>
-            );
-          })()}
+          {/* 🧭 Simplified timezone note */}
+          <p className="text-sm text-gray-400 text-center mt-2 italic">
+            *Times grouped by timezone below*
+          </p>
         </section>
         {loading ? (
           <p className="text-center">Loading slots...</p>
@@ -830,7 +803,10 @@ export default function BookingPage({ useCustomUrl = false }) {
             {/* ✅ No-available-slots card ABOVE the grid */}
             {(() => {
               const bookableSlots = visibleSlots.filter((slot) => {
-                const isPast = isSlotInPast(slot, freelancerTimeZone);
+                const isPast = isSlotInPast(
+                  slot,
+                  slot.timezone || freelancerTimeZone
+                ); // 🔥 Use slot's own timezone
                 return !isPast && !slot.is_booked && !slot.is_inherited_block;
               });
 
@@ -855,9 +831,30 @@ export default function BookingPage({ useCustomUrl = false }) {
             <section className="grid grid-cols-2 gap-4">
               {(() => {
                 let lastTimezone = null;
+
+                // 🔥 DEBUG: Log all visible slots before rendering
+                console.log(
+                  "🔍 VISIBLE SLOTS:",
+                  visibleSlots.map((s) => ({
+                    id: s.id,
+                    day: s.day,
+                    time: s.time_24h,
+                    timezone: s.timezone,
+                    is_booked: s.is_booked,
+                  }))
+                );
+
                 return visibleSlots.map((slot, index) => {
                   const slotTimezone = slot.timezone || freelancerTimeZone;
                   const showHeader = slotTimezone !== lastTimezone;
+
+                  // 🔥 DEBUG: Log when headers are rendered
+                  if (showHeader) {
+                    console.log(
+                      `🏷️ RENDERING HEADER: ${slotTimezone} (previous was: ${lastTimezone})`
+                    );
+                  }
+
                   lastTimezone = slotTimezone;
 
                   const isSelected = selectedSlotId === slot.id;
@@ -926,9 +923,17 @@ export default function BookingPage({ useCustomUrl = false }) {
                       {showHeader && (
                         <div className="col-span-2 mt-4 mb-2 text-center w-full">
                           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                            {slotTimezone
-                              .replace("America/", "")
-                              .replace("_", " ")}{" "}
+                            {slotTimezone === "America/New_York"
+                              ? "Eastern"
+                              : slotTimezone === "America/Chicago"
+                              ? "Central"
+                              : slotTimezone === "America/Denver"
+                              ? "Mountain"
+                              : slotTimezone === "America/Los_Angeles"
+                              ? "Pacific"
+                              : slotTimezone
+                                  .replace("America/", "")
+                                  .replace("_", " ")}{" "}
                             Timezone
                           </span>
                         </div>
@@ -975,7 +980,10 @@ export default function BookingPage({ useCustomUrl = false }) {
                         >
                           {(() => {
                             const { formattedTime, abbreviation } =
-                              formatSlotTimeParts(slot, freelancerTimeZone);
+                              formatSlotTimeParts(
+                                slot,
+                                slot.timezone || freelancerTimeZone
+                              );
                             return (
                               <span className="text-xs w-full text-center flex justify-center items-center gap-1">
                                 <span>{formattedTime}</span>

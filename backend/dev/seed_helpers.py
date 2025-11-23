@@ -73,6 +73,7 @@ def add_appointment(freelancer, user, service, start_label_local, day):
             master_time_id=mt_start.id,
             freelancer_id=freelancer.id,
             is_booked=True,
+            timezone=freelancer.timezone,  # 🔥 FREEZE timezone at creation
         )
         db.session.add(start_slot)
         db.session.commit()
@@ -93,6 +94,7 @@ def add_appointment(freelancer, user, service, start_label_local, day):
                         freelancer_id=freelancer.id,
                         master_time_id=mt.id,
                         is_booked=True,
+                        timezone=freelancer.timezone,  # 🔥 FREEZE timezone at creation
                     )
                 )
 
@@ -222,6 +224,7 @@ def seed_freelancer(
                     freelancer_id=freelancer.id,
                     master_time_id=mt.id,
                     is_booked=False,
+                    timezone=freelancer.timezone,  # 🔥 FREEZE timezone at creation
                 )
             )
             print(

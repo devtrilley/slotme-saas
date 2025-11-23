@@ -50,25 +50,19 @@ export default function ViewBookingModal({ appointment, onClose, onCancel }) {
           <strong>Email:</strong> {email || "N/A"}
         </p>
         <p>
-          <strong>Date:</strong> {slot_day}
+          <strong>Date:</strong>{" "}
+          {new Date(slot_day + "T00:00:00").toLocaleDateString("en-US", {
+            month: "2-digit",
+            day: "2-digit",
+            year: "2-digit",
+          })}
         </p>
-        {(() => {
-          const timezone =
-            freelancerDetails?.timezone ||
-            appointment.freelancer_timezone ||
-            "America/New_York";
-          const { formattedTime, abbreviation } = formatSlotTimePartsFromLocal(
-            { day: slot_day, time: slot_time },
-            timezone
-          );
-
-          return (
-            <p>
-              <strong>Time:</strong> {formattedTime}
-              <span className="ml-1 text-xs text-gray-400">{abbreviation}</span>
-            </p>
-          );
-        })()}
+        <p>
+          <strong>Time:</strong> {slot_time}
+          <span className="ml-1 text-xs text-gray-400">
+            {appointment.timezone_abbr || "EST"}
+          </span>
+        </p>
         <p>
           <strong>Service:</strong> {service || "N/A"}
         </p>
