@@ -34,27 +34,39 @@ export default function Navbar() {
     showToast("Logged out successfully.", "success");
   };
 
+  // 🔥 ADD THIS FUNCTION before renderLinks
+  const closeDropdown = () => {
+    // Close dropdown by removing focus from the label
+    if (document.activeElement) {
+      document.activeElement.blur();
+    }
+  };
+
   const renderLinks = () => (
     <>
       {/* Section 1: General Public Links */}
       <li className="menu-title text-xs text-gray-400 px-2">Public Tabs</li>
       <li>
-        <NavLink className={navLinkClass} to="/">
+        <NavLink className={navLinkClass} to="/" onClick={closeDropdown}>
           Home
         </NavLink>
       </li>
       <li>
-        <NavLink className={navLinkClass} to="/upgrade">
+        <NavLink className={navLinkClass} to="/upgrade" onClick={closeDropdown}>
           Upgrade
         </NavLink>
       </li>
       <li>
-        <NavLink className={navLinkClass} to="/terms">
+        <NavLink className={navLinkClass} to="/terms" onClick={closeDropdown}>
           Terms & Privacy
         </NavLink>
       </li>
       <li>
-        <NavLink className={navLinkClass} to="/feedback">
+        <NavLink
+          className={navLinkClass}
+          to="/feedback"
+          onClick={closeDropdown}
+        >
           Feedback
         </NavLink>
       </li>
@@ -82,22 +94,35 @@ export default function Navbar() {
             My Account Tabs
           </li>
           <li>
-            <NavLink className={navLinkClass} to="/freelancer-admin">
+            <NavLink
+              className={navLinkClass}
+              to="/freelancer-admin"
+              onClick={closeDropdown}
+            >
               Dashboard
             </NavLink>
           </li>
           <li>
-            <NavLink className={navLinkClass} to="/freelancer-bookings">
+            <NavLink
+              className={navLinkClass}
+              to="/freelancer-bookings"
+              onClick={closeDropdown}
+            >
               CRM
             </NavLink>
           </li>
           <li>
-            <NavLink className={navLinkClass} to="/qr-code">
+            <NavLink
+              className={navLinkClass}
+              to="/qr-code"
+              onClick={closeDropdown}
+            >
               QR Code
             </NavLink>
           </li>
           <li>
             <NavLink
+              onClick={closeDropdown}
               className={navLinkClass}
               to={
                 freelancer?.custom_url
@@ -112,6 +137,7 @@ export default function Navbar() {
           </li>
           <li>
             <NavLink
+              onClick={closeDropdown}
               className={navLinkClass}
               to={
                 freelancer?.custom_url
@@ -125,17 +151,29 @@ export default function Navbar() {
             </NavLink>
           </li>
           <li>
-            <NavLink className={navLinkClass} to="/freelancer-analytics">
+            <NavLink
+              className={navLinkClass}
+              to="/freelancer-analytics"
+              onClick={closeDropdown}
+            >
               Analytics
             </NavLink>
           </li>
           <li>
-            <NavLink className={navLinkClass} to="/priority-support">
+            <NavLink
+              className={navLinkClass}
+              to="/priority-support"
+              onClick={closeDropdown}
+            >
               Priority Support
             </NavLink>
           </li>
           <li>
-            <NavLink className={navLinkClass} to="/settings">
+            <NavLink
+              className={navLinkClass}
+              to="/settings"
+              onClick={closeDropdown}
+            >
               Settings
             </NavLink>
           </li>
@@ -158,7 +196,11 @@ export default function Navbar() {
             Developer Tabs
           </li>
           <li>
-            <NavLink className={navLinkClass} to="/dev-admin">
+            <NavLink
+              className={navLinkClass}
+              to="/dev-admin"
+              onClick={closeDropdown}
+            >
               Dev Panel
             </NavLink>
           </li>
@@ -210,6 +252,7 @@ export default function Navbar() {
           to="/"
           className="flex items-center h-full px-2"
           aria-label="SlotMe Home"
+          onClick={closeDropdown}
         >
           <img
             src={slotmeLogo}
@@ -228,6 +271,7 @@ export default function Navbar() {
             <div className="hidden lg:flex items-center gap-5">
               <NavLink
                 to="/freelancer-admin"
+                onClick={closeDropdown}
                 className={({ isActive }) =>
                   `hover:text-primary transition ${
                     isActive
@@ -241,6 +285,7 @@ export default function Navbar() {
 
               <NavLink
                 to="/freelancer-bookings"
+                onClick={closeDropdown}
                 className={({ isActive }) =>
                   `hover:text-primary transition ${
                     isActive
@@ -253,6 +298,7 @@ export default function Navbar() {
               </NavLink>
 
               <NavLink
+                onClick={closeDropdown}
                 to={
                   freelancer?.custom_url
                     ? `/freelancers/${freelancer.custom_url}`
@@ -272,6 +318,7 @@ export default function Navbar() {
               </NavLink>
 
               <NavLink
+                onClick={closeDropdown}
                 to={
                   freelancer?.custom_url
                     ? `/${freelancer.custom_url}`
@@ -291,6 +338,7 @@ export default function Navbar() {
               </NavLink>
 
               <NavLink
+                onClick={closeDropdown}
                 to="/upgrade"
                 className={({ isActive }) =>
                   `hover:text-primary transition ${
@@ -304,6 +352,7 @@ export default function Navbar() {
               </NavLink>
 
               <NavLink
+                onClick={closeDropdown}
                 to="/settings"
                 className={({ isActive }) =>
                   `hover:text-primary transition ${

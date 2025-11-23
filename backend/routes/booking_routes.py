@@ -62,16 +62,6 @@ serializer = URLSafeTimedSerializer(os.environ.get("SECRET_KEY"))
 booking_bp = Blueprint("booking", __name__)
 
 
-# 🔒 SECURITY: Prevent XSS in customer-submitted data
-def sanitize_html(text):
-    """Convert < > & " ' to safe HTML entities to prevent XSS"""
-    if not text:
-        return text
-    import html
-
-    return html.escape(str(text).strip())
-
-
 @booking_bp.route("/book", methods=["POST"])
 @cross_origin(origins=ALLOWED_ORIGINS)
 def book_slot():
@@ -150,21 +140,17 @@ def book_slot():
     #     if data.get(key):
     #         return jsonify({"error": "Spam detected"}), 400
 
-    # 🔒 SANITIZE customer input to prevent XSS in CRM/emails
-    first_name = sanitize_html(data.get("first_name"))
-    last_name = sanitize_html(data.get("last_name"))
-    email = data.get("email")  # Validated with regex, not sanitized
-    phone = sanitize_html(data.get("phone"))
+    # Store raw text - React escapes in UI, plain text emails are XSS-safe
+    first_name = data.get("first_name", "").strip()
+    last_name = data.get("last_name", "").strip()
+    email = data.get("email", "").strip()
+    phone = data.get("phone", "").strip()
     slot_id = data.get("slot_id")
     service_id = data.get("service_id")
 
-    # 🔒 SANITIZE custom question answers (nested dict)
-    raw_responses = data.get("custom_responses", {})
-    custom_responses = {}
-    if isinstance(raw_responses, dict):
-        for question, answer in raw_responses.items():
-            custom_responses[sanitize_html(question)] = sanitize_html(answer)
-    else:
+    # Store custom responses as-is - React handles escaping
+    custom_responses = data.get("custom_responses", {})
+    if not isinstance(custom_responses, dict):
         custom_responses = {}
 
     # Validate required fields
@@ -680,7 +666,7 @@ def get_appointments():
         if not a.slot:
             print(f"⚠️ Skipping orphaned appointment {a.id} - slot was deleted")
             continue
-        
+
         user = a.user
         # ✅ Convert UTC slot time to appointment's frozen timezone
         try:
@@ -1074,7 +1060,8 @@ def get_public_appointment(appointment_id):
     return jsonify(
         {
             "first_name": appt.user.first_name,
-            "freelancer_name": appt.freelancer.business_name or "your freelancer",
+            "freelancer_name": appt.freelancer.business_name
+            or f"{appt.freelancer.first_name} {appt.freelancer.last_name}",
             "day": appt.slot.day,
             "time": local_time_display,  # ✅ LOCAL TIME
             "timezone": timezone_abbr,  # ✅ EDT/PST/etc
@@ -1278,11 +1265,11 @@ def create_internal_appointment():
     data = request.get_json()
 
     # Required fields
-    # 🔒 SANITIZE freelancer-entered customer data to prevent copy-paste XSS
-    first_name = sanitize_html(data.get("first_name"))
-    last_name = sanitize_html(data.get("last_name"))
-    email = data.get("email")  # Validated separately
-    phone = sanitize_html(data.get("phone"))
+    # Store raw text - React escapes in UI, plain text emails are XSS-safe
+    first_name = data.get("first_name", "").strip()
+    last_name = data.get("last_name", "").strip()
+    email = data.get("email", "").strip()
+    phone = data.get("phone", "").strip()
     slot_id = data.get("slot_id")
     service_id = data.get("service_id")
 

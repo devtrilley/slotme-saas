@@ -621,7 +621,7 @@ export default function BookingPage({ useCustomUrl = false }) {
         {services.length > 0 && (
           <section className="mt-4">
             <h3 className="text-center text-sm text-white mb-2 mt-6 font-medium">
-              Available Services
+              Available Services Slider
             </h3>
 
             {/* ✅ No gap - buttons touch carousel */}
@@ -1034,16 +1034,25 @@ export default function BookingPage({ useCustomUrl = false }) {
               placeholder="First name"
               className="input input-bordered w-full"
               value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFirstName(
+                  val.charAt(0).toUpperCase() + val.slice(1).toLowerCase()
+                );
+              }}
               required
             />
-
             <input
               type="text"
               placeholder="Last name"
               className="input input-bordered w-full"
               value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setLastName(
+                  val.charAt(0).toUpperCase() + val.slice(1).toLowerCase()
+                );
+              }}
               required
             />
 

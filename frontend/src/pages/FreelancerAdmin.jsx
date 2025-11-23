@@ -789,7 +789,7 @@ export default function AdminPage() {
             <CustomQuestionsForm />
           </section>
         </AccordionSection>
-        <AccordionSection title="Branding" subtitle="Logo, bio, tagline">
+        <AccordionSection title="Branding" subtitle="Logo, bio, tagline, etc">
           <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
             <FreelancerBranding
               onUpdate={() => setFreelancerDetailsUpdated((n) => n + 1)}

@@ -68,6 +68,8 @@ export default function IconDatePicker({ selected, onChange, ...rest }) {
         minDate={new Date()}
         withPortal
         portalId="root-portal"
+        autoComplete="off"
+        inputMode="none" // 🔥 Prevents mobile keyboard WITHOUT breaking calendar
         {...rest}
       />
       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">

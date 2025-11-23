@@ -35,6 +35,20 @@ export default function ViewBookingModal({ appointment, onClose, onCancel }) {
 
   const customQuestionsEnabled = freelancerDetails?.custom_questions_enabled;
 
+  // 🔥 Status color mapping
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "confirmed":
+        return "text-green-400";
+      case "pending":
+        return "text-yellow-400";
+      case "cancelled":
+        return "text-red-400";
+      default:
+        return "text-gray-400";
+    }
+  };
+
   return (
     <BaseModal
       title="Booking Details"
@@ -48,6 +62,17 @@ export default function ViewBookingModal({ appointment, onClose, onCancel }) {
         </p>
         <p>
           <strong>Email:</strong> {email || "N/A"}
+        </p>
+        <p>
+          <strong>Phone:</strong> {appointment.phone || "N/A"}
+        </p>
+        <p>
+          <strong>Status:</strong>{" "}
+          <span className={`font-semibold ${getStatusColor(status)}`}>
+            {status
+              ? status.charAt(0).toUpperCase() + status.slice(1)
+              : "Unknown"}
+          </span>
         </p>
         <p>
           <strong>Date:</strong>{" "}

@@ -35,23 +35,6 @@ from config import ALLOWED_ORIGINS, RESERVED_ROUTES
 freelancer_bp = Blueprint("freelancer", __name__)
 
 
-# 🔒 SECURITY: Prevent XSS and email injection attacks
-def sanitize_html(text):
-    """
-    Convert < > & " ' to safe HTML entities to prevent XSS.
-    Handles re-saves gracefully by decoding first to prevent double-escaping.
-    """
-    if not text:
-        return text
-    import html
-
-    # Decode any existing HTML entities first (prevents double-escaping on re-saves)
-    decoded = html.unescape(str(text))
-
-    # Then escape for safe storage
-    return html.escape(decoded.strip())
-
-
 def handle_404(_):
     return make_response(jsonify({"error": "Not found"}), 404)
 
@@ -390,9 +373,9 @@ def add_service():
     print("🧪 Incoming service data:", data)
 
     # Extract and sanitize
-    # 🔒 SANITIZE service info shown to customers
-    name = sanitize_html(data.get("name", ""))
-    description = sanitize_html(data.get("description", ""))
+    # Store raw text - React escapes in UI, plain text emails are XSS-safe
+    name = data.get("name", "").strip()
+    description = data.get("description", "").strip()
     duration_raw = data.get("duration_minutes")
     price_raw = data.get("price_usd")
 
@@ -473,9 +456,9 @@ def update_service(service_id):
         return jsonify({"error": "Service not found"}), 404
 
     data = request.json
-    # 🔒 SANITIZE service updates shown to customers
-    service.name = sanitize_html(data.get("name", service.name))
-    service.description = sanitize_html(data.get("description", service.description))
+    # Store raw text - React escapes in UI, plain text emails are XSS-safe
+    service.name = data.get("name", service.name).strip() if "name" in data else service.name
+    service.description = data.get("description", service.description).strip() if "description" in data else service.description
     service.duration_minutes = data.get("duration_minutes", service.duration_minutes)
     service.price_usd = data.get("price_usd", service.price_usd)
 
@@ -588,9 +571,9 @@ def get_analytics():
 def send_priority_support_request():
     freelancer_id = int(get_jwt_identity())
     data = request.get_json()
-    # 🔒 SANITIZE email content to prevent HTML injection attacks on support staff
-    subject = sanitize_html(data.get("subject", "No Subject"))
-    message = sanitize_html(data.get("message", ""))
+    # Store raw text - plain text emails are XSS-safe
+    subject = data.get("subject", "No Subject").strip()
+    message = data.get("message", "").strip()
 
     freelancer = Freelancer.query.get(freelancer_id)
     if not freelancer:
@@ -640,9 +623,9 @@ def reply_to_customer():
     freelancer_id = int(get_jwt_identity())
     data = request.get_json()
     customer_email = data.get("to")
-    # 🔒 SANITIZE email content to prevent HTML injection in customer emails
-    subject = sanitize_html(data.get("subject", "Reply from SlotMe Support"))
-    message = sanitize_html(data.get("message", ""))
+    # Store raw text - plain text emails are XSS-safe
+    subject = data.get("subject", "Reply from SlotMe Support").strip()
+    message = data.get("message", "").strip()
 
     freelancer = Freelancer.query.get(freelancer_id)
     if not freelancer or freelancer.tier != "elite":
@@ -665,37 +648,35 @@ def update_freelancer_branding():
     if not f:
         return jsonify({"error": "auth_required"}), 401
 
-    # 🔒 SANITIZE all user-facing content to prevent XSS
+    # Store raw text - React escapes in UI, plain text emails are XSS-safe
     if "first_name" in data:
-        f.first_name = sanitize_html(data["first_name"])
+        f.first_name = data["first_name"].strip()
     if "last_name" in data:
-        f.last_name = sanitize_html(data["last_name"])
+        f.last_name = data["last_name"].strip()
     if "business_name" in data:
-        f.business_name = sanitize_html(data["business_name"])
+        f.business_name = data["business_name"].strip()
     if "business_address" in data:
-        f.business_address = sanitize_html(data["business_address"])
+        f.business_address = data["business_address"].strip()
     if "logo_url" in data:
-        f.logo_url = data["logo_url"]  # URLs validated separately
+        f.logo_url = data["logo_url"].strip()
     if "bio" in data:
-        f.bio = sanitize_html(data["bio"])
+        f.bio = data["bio"].strip()
     if "tagline" in data:
-        f.tagline = sanitize_html(data["tagline"])
+        f.tagline = data["tagline"].strip()
     if "timezone" in data:
-        f.timezone = data["timezone"]  # Dropdown, safe
+        f.timezone = data["timezone"]
     if "no_show_policy" in data:
-        f.no_show_policy = sanitize_html(data["no_show_policy"])
-
-    # 🔥 FIX: Contact & booking fields (THESE WERE MISSING)
+        f.no_show_policy = data["no_show_policy"].strip()
     if "location" in data:
-        f.location = sanitize_html(data["location"])
+        f.location = data["location"].strip()
     if "booking_instructions" in data:
-        f.booking_instructions = sanitize_html(data["booking_instructions"])
-    if "preferred_payment_methods" in data:  # 🔥 THIS WAS MISSING ENTIRELY
-        f.preferred_payment_methods = sanitize_html(data["preferred_payment_methods"])
+        f.booking_instructions = data["booking_instructions"].strip()
+    if "preferred_payment_methods" in data:
+        f.preferred_payment_methods = data["preferred_payment_methods"].strip()
     if "contact_email" in data:
-        f.contact_email = data["contact_email"].strip()  # Email, validated elsewhere
-    if "business_phone" in data:  # 🔥 CHANGED: Save to business_phone, not phone
-        f.business_phone = sanitize_html(data["business_phone"])
+        f.contact_email = data["contact_email"].strip()
+    if "business_phone" in data:
+        f.business_phone = data["business_phone"].strip()
     if "instagram_url" in data:
         f.instagram_url = data["instagram_url"].strip()  # URL, validated elsewhere
     if "twitter_url" in data:
@@ -705,21 +686,15 @@ def update_freelancer_branding():
     if "faq_items" in data:
         faq_items = data["faq_items"]
         if isinstance(faq_items, list):
-            sanitized_faq = []
+            clean_faq = []
             for item in faq_items:
-                # Frontend sends { question: "...", answer: "..." }
                 if isinstance(item, dict) and "question" in item and "answer" in item:
-                    q = sanitize_html(item["question"])
-                    a = sanitize_html(item["answer"])
+                    q = item["question"].strip()
+                    a = item["answer"].strip()
                     if q and a:  # Only save non-empty FAQs
-                        sanitized_faq.append(
-                            {
-                                "question": q,  # 🔥 FIXED KEY (was "q")
-                                "answer": a,  # 🔥 FIXED KEY (was "a")
-                            }
-                        )
-            f.faq_items = sanitized_faq
-            print(f"💾 Saved {len(sanitized_faq)} FAQs")
+                        clean_faq.append({"question": q, "answer": a})
+            f.faq_items = clean_faq
+            print(f"💾 Saved {len(clean_faq)} FAQs")
         else:
             f.faq_items = []
 
@@ -890,15 +865,13 @@ def update_account():
             return jsonify({"error": "Invalid phone number."}), 400
         freelancer.phone = phone
 
-    # 🔒 SANITIZE names shown to customers
+    # Store raw text - React escapes in UI, plain text emails are XSS-safe
     if "first_name" in data:
-        freelancer.first_name = sanitize_html(data["first_name"])
-
+        freelancer.first_name = data["first_name"].strip()
     if "last_name" in data:
-        freelancer.last_name = sanitize_html(data["last_name"])
-
+        freelancer.last_name = data["last_name"].strip()
     if "business_name" in data:
-        freelancer.business_name = sanitize_html(data["business_name"])
+        freelancer.business_name = data["business_name"].strip()
 
     # 📱 UI Preferences
     if "show_footer_navbar" in data:
@@ -1081,8 +1054,8 @@ def update_custom_questions():
     if not isinstance(questions, list):
         return jsonify({"error": "Questions must be a list"}), 400
 
-    # 🔒 SANITIZE custom questions shown to customers
-    sanitized_questions = []
+    # Store raw text - React escapes in UI, plain text emails are XSS-safe
+    clean_questions = []
     for q in questions:
         if "question" not in q or not isinstance(q["question"], str):
             return (
@@ -1094,11 +1067,11 @@ def update_custom_questions():
                 jsonify({"error": "Each question must include a 'required' boolean"}),
                 400,
             )
-        sanitized_questions.append(
-            {"question": sanitize_html(q["question"]), "required": q["required"]}
+        clean_questions.append(
+            {"question": q["question"].strip(), "required": q["required"]}
         )
 
-    g.freelancer.custom_questions = sanitized_questions
+    g.freelancer.custom_questions = clean_questions
     g.freelancer.custom_questions_enabled = enabled
     db.session.commit()
     return jsonify({"message": "Custom questions updated!"}), 200

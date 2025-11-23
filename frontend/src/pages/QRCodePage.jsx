@@ -74,7 +74,7 @@ export default function QRCodePage() {
   return (
     <main className="max-w-sm mx-auto mt-10 p-6 py-2 bg-base-200 rounded-xl shadow-lg space-y-6 text-center">
       <h1 className="text-xl font-semibold tracking-tight text-primary">
-        📱 Book Me Instantly
+        📱 Scan To Book Instantly!
       </h1>
 
       <div

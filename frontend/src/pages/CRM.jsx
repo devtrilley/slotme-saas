@@ -508,7 +508,7 @@ export default function CRM() {
               aria-disabled={!canExport}
               title={!canExport ? "Upgrade to enable CSV export" : undefined}
             >
-              📄 Export to CSV
+              ⬇️ Export to CSV
             </button>
           </div>
         </div>

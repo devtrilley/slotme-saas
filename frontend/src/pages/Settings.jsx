@@ -196,7 +196,7 @@ export default function Settings() {
       {/* 🎨 BRANDING */}
       <AccordionSection
         title="Business Profile & Branding"
-        subtitle="Logo, bio, tagline"
+        subtitle="Logo, bio, tagline, etc"
       >
         <div className="bg-base-100 p-6 rounded-xl border border-gray-700 shadow-md">
           <FreelancerBranding

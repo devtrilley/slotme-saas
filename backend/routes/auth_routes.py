@@ -28,17 +28,6 @@ login_attempts = {}  # Store {ip: [timestamps]}
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
-
-# 🔒 SECURITY: Prevent XSS in signup fields
-def sanitize_html(text):
-    """Convert < > & " ' to safe HTML entities to prevent XSS"""
-    if not text:
-        return text
-    import html
-
-    return html.escape(str(text).strip())
-
-
 @auth_bp.route("", methods=["POST"])
 @cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def freelancer_login():
@@ -117,10 +106,10 @@ def is_strong_password(pw: str) -> bool:
 @cross_origin(origins=ALLOWED_ORIGINS)  # 👈 Add this decorator
 def signup_freelancer():
     data = request.get_json()
-    # 🔒 SANITIZE names displayed in UI/emails/profiles
-    first_name = sanitize_html(data.get("first_name"))
-    last_name = sanitize_html(data.get("last_name"))
-    email = data.get("email")  # Validated with EMAIL_RE, not sanitized
+    # Store raw text - React escapes in UI, plain text emails are XSS-safe
+    first_name = data.get("first_name", "").strip()
+    last_name = data.get("last_name", "").strip()
+    email = data.get("email")  
     password = data.get("password")  # Hashed, never displayed raw
 
     if not first_name or not last_name or not email or not password:
