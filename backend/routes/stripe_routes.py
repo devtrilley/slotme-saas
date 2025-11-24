@@ -24,9 +24,16 @@ def create_checkout_session():
     if plan not in ["pro", "elite"]:
         return jsonify({"error": "Invalid plan"}), 400
 
+    # Test Price Lookup
+    # price_lookup = {
+    #     "pro": "price_1RaRhqE05eQPvycWs9mHnfIQ",  # 🟪 from Doonga sandbox
+    #     "elite": "price_1RaRi8E05eQPvycWOvwxPwpV",  # 🟪 from Doonga sandbox
+    # }
+
+    # REAL PRICE LOOKUP
     price_lookup = {
-        "pro": "price_1RaRhqE05eQPvycWs9mHnfIQ",  # 🟪 from Doonga sandbox
-        "elite": "price_1RaRi8E05eQPvycWOvwxPwpV",  # 🟪 from Doonga sandbox
+        "pro": "price_1SX3uzCao129FRPLFDvvvRBZ",  # 🟪 LIVE - $0.01 (test price)
+        "elite": "price_1SX3zeCao129FRPLteY154eF",  # 🟪 LIVE - $0.02 (test price)
     }
 
     try:
@@ -187,31 +194,33 @@ def stripe_webhook():
 def cancel_subscription():
     """Cancel user's subscription at end of billing period"""
     freelancer_id = int(get_jwt_identity())
-    
+
     try:
         freelancer = Freelancer.query.get(freelancer_id)
-        
+
         if not freelancer:
             return jsonify({"error": "Freelancer not found"}), 404
-            
+
         if freelancer.tier == "free":
             return jsonify({"error": "No active subscription to cancel"}), 400
-            
+
         if not freelancer.stripe_subscription_id:
             return jsonify({"error": "No subscription ID found"}), 400
-        
+
         # Cancel at period end (user keeps access until billing cycle ends)
         subscription = stripe.Subscription.modify(
-            freelancer.stripe_subscription_id,
-            cancel_at_period_end=True
+            freelancer.stripe_subscription_id, cancel_at_period_end=True
         )
-        
-        print(f"✅ Subscription {subscription.id} set to cancel at period end for freelancer {freelancer_id}")
-        
-        return jsonify({
-            "message": "Subscription will cancel at end of billing period"
-        }), 200
-        
+
+        print(
+            f"✅ Subscription {subscription.id} set to cancel at period end for freelancer {freelancer_id}"
+        )
+
+        return (
+            jsonify({"message": "Subscription will cancel at end of billing period"}),
+            200,
+        )
+
     except stripe.error.StripeError as e:
         print(f"❌ Stripe error canceling subscription: {e}")
         return jsonify({"error": "Failed to cancel subscription"}), 500
