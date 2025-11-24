@@ -39,60 +39,15 @@ def create_checkout_session():
     try:
         freelancer = Freelancer.query.get(freelancer_id)
 
-        # 🔥 NEW: Check if user already has active subscription
+        # 🔥 If user has existing subscription, cancel it first
         if freelancer.stripe_subscription_id:
-            print(
-                f"🔄 Upgrading existing subscription {freelancer.stripe_subscription_id} to {plan}"
-            )
-            print(f"🔍 BEFORE: tier={freelancer.tier}, id={freelancer.id}")
-            
-            # Get current subscription to find the item to update
-            subscription = stripe.Subscription.retrieve(
-                freelancer.stripe_subscription_id
-            )
-            
-            # Update subscription in place (Stripe handles proration automatically)
-            updated_sub = stripe.Subscription.modify(
-                freelancer.stripe_subscription_id,
-                items=[
-                    {
-                        "id": subscription["items"]["data"][0].id,  # Update first item
-                        "price": price_lookup[plan],
-                    }
-                ],
-                proration_behavior="always_invoice",  # Charge/credit difference immediately
-                metadata={"tier": plan},
-            )
-            
-            # Update tier in database
-            print(f"🔍 ASSIGNING: tier = {plan}")
-            freelancer.tier = plan
-            db.session.flush()  # Force write to database
-            print(f"🔍 AFTER FLUSH: tier={freelancer.tier}")
-            db.session.commit()
-            print(f"🔍 AFTER COMMIT: tier={freelancer.tier}")
-            
-            # Verify by re-querying
-            verified = Freelancer.query.get(freelancer.id)
-            print(f"🔍 VERIFIED FROM DB: tier={verified.tier}, id={verified.id}")
-            
-            if verified.tier != plan:
-                print(f"❌ DATABASE UPDATE FAILED! Expected {plan}, got {verified.tier}")
-                return jsonify({"error": "Database update failed"}), 500
-            
-            print(f"✅ Subscription upgraded to {plan.upper()} with proration")
-            
-            # Return success without redirect (no checkout needed)
-            return (
-                jsonify(
-                    {
-                        "message": "Subscription upgraded successfully",
-                        "tier": plan,
-                        "no_redirect": True,  # Signal frontend not to redirect
-                    }
-                ),
-                200,
-            )
+            print(f"🔴 Canceling old subscription {freelancer.stripe_subscription_id}")
+            try:
+                stripe.Subscription.delete(freelancer.stripe_subscription_id)
+                print(f"✅ Old subscription canceled")
+            except stripe.error.StripeError as e:
+                print(f"⚠️ Error canceling old subscription: {e}")
+                # Continue anyway - webhook will handle it
 
 
         # 🔥 ELSE: Create new subscription via Checkout (first time)

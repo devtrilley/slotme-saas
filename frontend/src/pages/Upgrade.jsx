@@ -163,12 +163,8 @@ export default function Upgrade() {
 
       const data = res.data;
 
-      if (data.no_redirect) {
-        // Instant upgrade (Pro ↔ Elite switching)
-        showToast(`Upgraded to ${plan.toUpperCase()}!`, "success");
-        setTimeout(() => window.location.reload(), 1000);
-      } else if (data.url) {
-        // First-time checkout
+      if (data.url) {
+        // Always go through Stripe Checkout
         showToast("Redirecting to Stripe...", "info", 4000);
         setTimeout(() => {
           window.location.href = data.url;
