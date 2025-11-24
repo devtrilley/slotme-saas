@@ -37,7 +37,51 @@ def create_checkout_session():
     }
 
     try:
-        # Support optional frontend override of success_url
+        freelancer = Freelancer.query.get(freelancer_id)
+
+        # 🔥 NEW: Check if user already has active subscription
+        if freelancer.stripe_subscription_id:
+            print(
+                f"🔄 Upgrading existing subscription {freelancer.stripe_subscription_id} to {plan}"
+            )
+
+            # Get current subscription to find the item to update
+            subscription = stripe.Subscription.retrieve(
+                freelancer.stripe_subscription_id
+            )
+
+            # Update subscription in place (Stripe handles proration automatically)
+            updated_sub = stripe.Subscription.modify(
+                freelancer.stripe_subscription_id,
+                items=[
+                    {
+                        "id": subscription["items"]["data"][0].id,  # Update first item
+                        "price": price_lookup[plan],
+                    }
+                ],
+                proration_behavior="always_invoice",  # Charge/credit difference immediately
+                metadata={"tier": plan},
+            )
+
+            # Update tier in database
+            freelancer.tier = plan
+            db.session.commit()
+
+            print(f"✅ Subscription upgraded to {plan.upper()} with proration")
+
+            # Return success without redirect (no checkout needed)
+            return (
+                jsonify(
+                    {
+                        "message": "Subscription upgraded successfully",
+                        "tier": plan,
+                        "no_redirect": True,  # Signal frontend not to redirect
+                    }
+                ),
+                200,
+            )
+
+        # 🔥 ELSE: Create new subscription via Checkout (first time)
         success_url = data.get("success_url")
         if success_url:
             if "session_id=" not in success_url:
@@ -49,7 +93,6 @@ def create_checkout_session():
             success_url = (
                 f"{FRONTEND_URL}/upgrade-success?session_id={{CHECKOUT_SESSION_ID}}"
             )
-        freelancer = Freelancer.query.get(freelancer_id)
 
         session = stripe.checkout.Session.create(
             **(
@@ -65,6 +108,7 @@ def create_checkout_session():
             metadata={"freelancer_id": str(freelancer_id), "tier": plan},
         )
         return jsonify({"url": session.url})
+
     except Exception as e:
         print("❌ Stripe session error:", e)
         return jsonify({"error": "Failed to create checkout session"}), 500
