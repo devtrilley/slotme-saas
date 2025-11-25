@@ -110,7 +110,7 @@ export default function FreelancerBranding({ onUpdate }) {
 
   const handleSave = (e) => {
     e.preventDefault();
-    console.log("🔁 Submitting form:", form);
+    
 
     if (form.custom_url && !isValidSlug(form.custom_url)) {
       showToast(
@@ -168,7 +168,7 @@ export default function FreelancerBranding({ onUpdate }) {
       });
   };
 
-  // console.log("🧪 Final form state before render:", form);
+  
 
   return (
     <div className="max-w-md mx-auto p-6 space-y-4">

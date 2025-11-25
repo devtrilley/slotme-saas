@@ -15,7 +15,7 @@ export default function UpgradeSuccess() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log("🔥 checkTier useEffect ran");
+    
     const checkTier = async () => {
       const sessionId = new URLSearchParams(window.location.search).get(
         "session_id"
@@ -39,11 +39,11 @@ export default function UpgradeSuccess() {
           if (data.access_token && data.refresh_token) {
             localStorage.setItem("access_token", data.access_token);
             localStorage.setItem("refresh_token", data.refresh_token); // ✅ NEW
-            console.log("🔑 Updated both tokens after payment verification");
+            
           } else if (data.access_token) {
             // Fallback for old backend (shouldn't happen after deploy)
             localStorage.setItem("access_token", data.access_token);
-            console.log("⚠️ Only access token received (refresh missing)");
+            
           }
 
           // 🔄 Refetch full freelancer info and update localStorage

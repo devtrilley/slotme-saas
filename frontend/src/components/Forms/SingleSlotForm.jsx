@@ -78,11 +78,7 @@ export default function SingleSlotForm({
       return;
     }
 
-    console.log("📤 Submitting slot:", {
-      day: utcDateStr,
-      master_time_id: match.id,
-      timezone,
-    });
+    
 
     axios
       .post(`${API_BASE}/slots`, {

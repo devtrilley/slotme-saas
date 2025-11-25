@@ -19,9 +19,6 @@ export default function BookingSuccess() {
     if (token) {
       axios
         .get(`${import.meta.env.VITE_API_BASE}/confirm-booking/${token}`)
-        .then(() => {
-          console.log("✅ Booking confirmed.");
-        })
         .catch((err) => {
           console.error("❌ Booking confirmation failed:", err);
         });

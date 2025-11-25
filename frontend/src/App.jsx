@@ -109,7 +109,7 @@ export default function App() {
       const { type, payload } = e.data;
 
       if (type === MESSAGE_TYPES.TOKEN_REFRESH && payload) {
-        console.log("📡 Token updated from another tab");
+        
         localStorage.setItem("access_token", payload);
       }
 

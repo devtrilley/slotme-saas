@@ -2,7 +2,6 @@
 let navigateFn;
 
 export const setNavigator = (navigate) => {
-  // console.log("🧭 Navigator initialized");
   navigateFn = navigate;
 };
 

@@ -64,21 +64,6 @@ export default function CRM() {
       setError("");
       const res = await axios.get("/appointments");
 
-      // 🔥 DEBUG LOGGING
-      console.log("═══════════════════════════════════");
-      console.log("🔥 RAW APPOINTMENTS FROM API:");
-      console.log("Total count:", res.data.length);
-      res.data.forEach((a, i) => {
-        console.log(`\n[${i + 1}] Appointment #${a.id}:`);
-        console.log("  - Name:", a.name);
-        console.log("  - Email:", a.email);
-        console.log("  - Date:", a.slot_day);
-        console.log("  - Time:", a.slot_time, a.timezone_abbr);
-        console.log("  - Status:", a.status);
-        console.log("  - Service:", a.service);
-      });
-      console.log("═══════════════════════════════════\n");
-
       const sorted = [...res.data].sort(
         (a, b) => convertToDate(a.slot_time) - convertToDate(b.slot_time)
       );
@@ -340,8 +325,6 @@ export default function CRM() {
             </p>
           ) : (
             sortedFiltered.map((a) => {
-              console.log("🕓 Appointment slot:", a.slot_day, a.slot_time);
-              console.log("🌍 Timezone used:", a.freelancer_timezone);
               if (!a.freelancer_timezone) {
                 console.warn("❌ Missing timezone on appointment:", a);
               }

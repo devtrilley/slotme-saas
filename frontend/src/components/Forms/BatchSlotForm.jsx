@@ -86,11 +86,7 @@ export default function BatchSlotForm({
     const localStartTime = formatTimeForAPI(startHour, startMinute, startAMPM);
     const localEndTime = formatTimeForAPI(endHour, endMinute, endAMPM);
 
-    console.log("🕐 Sending LOCAL times to backend:", {
-      start: localStartTime,
-      end: localEndTime,
-      timezone: freelancerTimezone,
-    });
+    
 
     // Validate the LOCAL times for user experience
     const start = DateTime.fromFormat(localStartTime, "hh:mm a");
@@ -128,7 +124,7 @@ export default function BatchSlotForm({
       freelancer_timezone: freelancerTimezone,
     };
 
-    console.log("📤 Final payload to backend:", payload);
+    
 
     if (crossesMidnight) {
       const nextDayString = DateTime.fromJSDate(selectedDate)
@@ -178,7 +174,7 @@ export default function BatchSlotForm({
         return;
       }
 
-      console.log("🚀 Sending batch slots payload:", payload);
+      
 
       const res = await axios.post(
         `${API_BASE}/freelancer/batch-slots-v2`,

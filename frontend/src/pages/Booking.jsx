@@ -368,7 +368,7 @@ export default function BookingPage({ useCustomUrl = false }) {
     const lastBookingTime = localStorage.getItem("last_booking_time");
     const now = Date.now();
 
-    const COOLDOWN_MS = 20000; // 🧪 TESTING: Change to 20000 for 20s, 90000 for 90s
+    const COOLDOWN_MS = 90000; // 🧪 TESTING: Change to 20000 for 20s, 90000 for 90s
     if (lastBookingTime && now - lastBookingTime < COOLDOWN_MS) {
       showToast("Wait before booking again.", "warning");
       setSubmitting(false);
@@ -832,28 +832,9 @@ export default function BookingPage({ useCustomUrl = false }) {
               {(() => {
                 let lastTimezone = null;
 
-                // 🔥 DEBUG: Log all visible slots before rendering
-                console.log(
-                  "🔍 VISIBLE SLOTS:",
-                  visibleSlots.map((s) => ({
-                    id: s.id,
-                    day: s.day,
-                    time: s.time_24h,
-                    timezone: s.timezone,
-                    is_booked: s.is_booked,
-                  }))
-                );
-
                 return visibleSlots.map((slot, index) => {
                   const slotTimezone = slot.timezone || freelancerTimeZone;
                   const showHeader = slotTimezone !== lastTimezone;
-
-                  // 🔥 DEBUG: Log when headers are rendered
-                  if (showHeader) {
-                    console.log(
-                      `🏷️ RENDERING HEADER: ${slotTimezone} (previous was: ${lastTimezone})`
-                    );
-                  }
 
                   lastTimezone = slotTimezone;
 

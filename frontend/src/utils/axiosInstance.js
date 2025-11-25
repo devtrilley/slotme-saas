@@ -15,7 +15,7 @@ const publicEndpoints = [
   "/appointment/",
   "/download-ics",
   "/feedback",
-  "/auth/signup",  // ✅ Keep only specific public auth routes
+  "/auth/signup", // ✅ Keep only specific public auth routes
   "/auth/verify-email",
   "/auth/refresh",
   "/auth/forgot-password",
@@ -148,7 +148,7 @@ axiosInstance.interceptors.response.use(
           throw new Error("No refresh token available");
         }
 
-        console.log("🔄 Access token expired, attempting refresh...");
+        
 
         // Call refresh endpoint with refresh token
         const refreshResponse = await axios.post(
@@ -163,7 +163,7 @@ axiosInstance.interceptors.response.use(
 
         // ✅ Store new access token
         localStorage.setItem("access_token", newAccessToken);
-        console.log("✅ Token refreshed successfully");
+        
 
         // Update original request with new token
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
@@ -182,10 +182,7 @@ axiosInstance.interceptors.response.use(
         // Refresh token expired or invalid - log user out
         if (!hasShownSessionExpired) {
           hasShownSessionExpired = true;
-          showToast(
-            "Session expired. Logging out...",
-            "warning"
-          );
+          showToast("Session expired. Logging out...", "warning");
 
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");

@@ -53,14 +53,7 @@ export function formatSlotDate(slot, freelancerTimezone) {
     // Convert UTC to target timezone
     const freelancerTime = utcDateTime.setZone(targetTimezone);
 
-    // 🔥 DEBUG: Remove after testing
-    // console.log("🕐 Slot conversion:", {
-    //   rawDay: slot.day,
-    //   rawTime: slot.time_24h || slot.time,
-    //   utc: utcDateTime.toISO(),
-    //   local: freelancerTime.toFormat("yyyy-MM-dd hh:mm a ZZZZ"),
-    //   timezone: freelancerTimezone,
-    // });
+    
 
     // Format as "Wed, Oct 14"
     return freelancerTime.toFormat("EEE, MMM d");
@@ -238,18 +231,7 @@ export function isSlotInPast(slot, freelancerTimezone) {
 
     const isPast = slotInFreelancerTZ < nowInFreelancerTZ;
 
-    // Debug logging for troubleshooting
-    if (process.env.NODE_ENV === "development") {
-      // console.log(`Slot time check:`, {
-      //   slotDay: slot.day,
-      //   slotTimeRaw: slot.time_24h || slot.time_12h || slot.time,
-      //   slotUTC: slotDateTimeUTC.toISO(),
-      //   slotLocal: slotInFreelancerTZ.toFormat("yyyy-MM-dd hh:mm a ZZZZ"),
-      //   nowLocal: nowInFreelancerTZ.toFormat("yyyy-MM-dd hh:mm a ZZZZ"),
-      //   isPast,
-      //   freelancerTZ: freelancerTimezone,
-      // });
-    }
+    
 
     return isPast;
   } catch (error) {
