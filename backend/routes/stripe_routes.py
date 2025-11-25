@@ -32,8 +32,10 @@ def create_checkout_session():
 
     # REAL PRICE LOOKUP
     price_lookup = {
-        "pro": "price_1SX3uzCao129FRPLFDvvvRBZ",  # 🟪 LIVE - $0.01 (test price)
-        "elite": "price_1SX3zeCao129FRPLteY154eF",  # 🟪 LIVE - $0.02 (test price)
+        # "pro": "price_1SX3uzCao129FRPLFDvvvRBZ",  # 🟪 LIVE - $0.01 (test price)
+        # "elite": "price_1SX3zeCao129FRPLteY154eF",  # 🟪 LIVE - $0.02 (test price),
+        "pro": "price_1Ra4Q7Cao129FRPLhW781Pum",  # 🟪 LIVE - $5 (real price)
+        "elite": "price_1Ra4SSCao129FRPLofSSMdhl",  # 🟪 LIVE - $10 (real price),
     }
 
     try:
@@ -48,7 +50,6 @@ def create_checkout_session():
             except stripe.error.StripeError as e:
                 print(f"⚠️ Error canceling old subscription: {e}")
                 # Continue anyway - webhook will handle it
-
 
         # 🔥 ELSE: Create new subscription via Checkout (first time)
         success_url = data.get("success_url")
