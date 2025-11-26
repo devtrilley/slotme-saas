@@ -109,7 +109,6 @@ export default function App() {
       const { type, payload } = e.data;
 
       if (type === MESSAGE_TYPES.TOKEN_REFRESH && payload) {
-        
         localStorage.setItem("access_token", payload);
       }
 
@@ -171,7 +170,7 @@ export default function App() {
               }
             />
             <Route
-              path="/freelancer-bookings"
+              path="/crm"
               element={
                 <RequireFreelancerAuth>
                   <CRM />

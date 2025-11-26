@@ -103,11 +103,7 @@ export default function Navbar() {
             </NavLink>
           </li>
           <li>
-            <NavLink
-              className={navLinkClass}
-              to="/freelancer-bookings"
-              onClick={closeDropdown}
-            >
+            <NavLink className={navLinkClass} to="/crm" onClick={closeDropdown}>
               CRM
             </NavLink>
           </li>
@@ -284,7 +280,7 @@ export default function Navbar() {
               </NavLink>
 
               <NavLink
-                to="/freelancer-bookings"
+                to="/crm"
                 onClick={closeDropdown}
                 className={({ isActive }) =>
                   `hover:text-primary transition ${
