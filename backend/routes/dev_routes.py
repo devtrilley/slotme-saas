@@ -365,7 +365,7 @@ def delete_freelancer(freelancer_id):
 def reset_database():
     """⚠️ NUCLEAR: Drops and recreates all tables"""
     auth_header = request.headers.get("X-Dev-Auth")
-    if auth_header != "secret123":
+    if auth_header != os.getenv("DEV_PASSWORD"):
         return jsonify({"error": "Unauthorized"}), 401
 
     try:
@@ -416,7 +416,7 @@ def seed_everything():
             first_name="Emily",
             last_name="Carson",
             business_name="SmartStart Tutoring",
-            password="emily123",
+            password=os.getenv("EMILY_PASSWORD", "emily123"),
             tagline="Score higher. Stress less.",
             force_bookings=True,
             bio=(
@@ -500,7 +500,7 @@ def seed_everything():
             first_name="Malik",
             last_name="Jones",
             business_name="Fade Kings",
-            password="malik123",
+            password=os.getenv("MALIK_PASSWORD", "malik123"),
             tagline="Fresh fades. Clean lines. Always sharp.",
             force_bookings=True,
             bio=(
@@ -577,7 +577,7 @@ def seed_everything():
             first_name="Jade",
             last_name="Bryant",
             business_name="Glow Skin Bar",
-            password="jade123",
+            password=os.getenv("JADE_PASSWORD", "jade123"),
             force_bookings=True,
             phone="555-982-7782",
             business_phone="111-982-7782",
@@ -666,7 +666,7 @@ def seed_everything():
             first_name="Tom",
             last_name="Rilley",
             business_name="Monty Fitness",
-            password="tom123",
+            password=os.getenv("MONTY_PASSWORD", "tom123"),
             tagline="Transform Your Body, Elevate Your Mind",
             force_bookings=True,
             bio="Tech Bro Meets Fitness 🏋️💪 Calisthenics & Home Workouts 🏠 HIT Training 🔥 Get Fit, No Excuses 🚫 Free App coming soon 📲",
