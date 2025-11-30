@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import React from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import axios from "../utils/axiosInstance";
 import { API_BASE } from "../utils/constants";
@@ -84,6 +85,17 @@ export default function DevFreelancerSlots() {
       )
     : slots;
 
+  // 🔥 NEW: Calculate which dates have available slots (for green highlighting)
+  const availableDates = React.useMemo(() => {
+    const dates = new Set();
+    slots.forEach((slot) => {
+      if (!slot.is_booked && !slot.is_inherited_block) {
+        dates.add(slot.day); // slot.day is already YYYY-MM-DD
+      }
+    });
+    return Array.from(dates);
+  }, [slots]);
+
   const groupedSlots = filteredSlots.reduce((acc, slot) => {
     const dateKey = formatSlotDate(slot, freelancerTimezone);
     if (!acc[dateKey]) acc[dateKey] = [];
@@ -119,7 +131,11 @@ export default function DevFreelancerSlots() {
 
       <div className="flex flex-col items-center gap-2">
         <label className="text-sm text-gray-400">Select Date:</label>
-        <IconDatePicker selected={selectedDate} onChange={setSelectedDate} />
+        <IconDatePicker
+          selected={selectedDate}
+          onChange={setSelectedDate}
+          availableDates={availableDates}
+        />
         <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
       </div>
 

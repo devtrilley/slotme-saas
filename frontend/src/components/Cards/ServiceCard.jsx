@@ -77,36 +77,36 @@ export default function ServiceCard({
   return (
     <>
       <li
-  onClick={() => {
-    if (isPublicView && onClick) {
-      setIsFlashing(true);
-      onClick();
-      const wrapper = document.getElementById("service-select-wrapper");
-      if (wrapper) {
-        wrapper.classList.add(
-          "ring-2",
-          "ring-blue-400",
-          "ring-offset-2",
-          "ring-offset-black"
-        );
-        setTimeout(() => {
-          wrapper.classList.remove(
-            "ring-2",
-            "ring-blue-400",
-            "ring-offset-2",
-            "ring-offset-black"
-          );
-        }, 1000);
-      }
-      setTimeout(() => setIsFlashing(false), 1000);
-    }
-  }}
-  className={`w-full h-full bg-white/10 backdrop-blur-md rounded-xl px-4 py-4 list-none space-y-2 cursor-pointer transition-all duration-300 border ${
-    isFlashing
-      ? "border-blue-400 ring-2 ring-blue-400 ring-offset-2 ring-offset-black"
-      : "border-white/20 hover:shadow-md"
-  }`}
->
+        onClick={() => {
+          if (isPublicView && onClick) {
+            setIsFlashing(true);
+            onClick();
+            const wrapper = document.getElementById("service-select-wrapper");
+            if (wrapper) {
+              wrapper.classList.add(
+                "ring-2",
+                "ring-blue-400",
+                "ring-offset-2",
+                "ring-offset-black"
+              );
+              setTimeout(() => {
+                wrapper.classList.remove(
+                  "ring-2",
+                  "ring-blue-400",
+                  "ring-offset-2",
+                  "ring-offset-black"
+                );
+              }, 1000);
+            }
+            setTimeout(() => setIsFlashing(false), 1000);
+          }
+        }}
+        className={`w-full h-full bg-white/10 backdrop-blur-md rounded-xl px-4 py-4 list-none space-y-2 cursor-pointer transition-all duration-300 border ${
+          isFlashing
+            ? "border-blue-400 ring-2 ring-blue-400 ring-offset-2 ring-offset-black"
+            : "border-white/20 hover:shadow-md"
+        }`}
+      >
         {editing ? (
           <div className="space-y-2">
             <input
@@ -147,8 +147,10 @@ export default function ServiceCard({
               <p className="text-xs text-gray-400 mt-3">
                 Duration: {form.duration_minutes} mins
               </p>
-              <p className="text-xs text-green-400">
-                ${parseFloat(form.price_usd || 0).toFixed(2)}
+              <p className="text-xs text-green-400 font-semibold">
+                {parseFloat(form.price_usd || 0) === 0
+                  ? "FREE"
+                  : `$${parseFloat(form.price_usd || 0).toFixed(2)}`}
               </p>
               {!isPublicView && !isEnabled && (
                 <p className="text-xs text-red-400 font-medium">Disabled</p>
@@ -223,8 +225,10 @@ export default function ServiceCard({
               <p className="font-semibold text-white">{form.name}</p>
               <p>{form.description}</p>
               <p className="text-xs">Duration: {form.duration_minutes} mins</p>
-              <p className="text-xs text-green-400">
-                ${parseFloat(form.price_usd || 0).toFixed(2)}
+              <p className="text-xs text-green-400 font-semibold">
+                {parseFloat(form.price_usd || 0) === 0
+                  ? "FREE"
+                  : `$${parseFloat(form.price_usd || 0).toFixed(2)}`}
               </p>
               {!isEnabled && (
                 <p className="text-xs text-red-400 font-medium">

@@ -13,6 +13,9 @@ export default function FooterNavbar() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
 
+  // 🔥 Check if user is dev admin (more reliable than URL pattern matching)
+  const isDevAdmin = localStorage.getItem("dev_logged_in") === "true";
+
   // Initialize stacks
   useEffect(() => {
     const backStack = JSON.parse(sessionStorage.getItem(BACK_KEY) || "[]");
@@ -93,9 +96,13 @@ export default function FooterNavbar() {
   const isBookingPageActive = () =>
     location.pathname.startsWith("/freelancers/");
 
-  // Don't render if user disabled it
-  if (freelancer?.show_footer_navbar === false) {
-    return null;
+  // Always show footer on dev admin routes
+  if (isDevAdmin) {
+    /* force show */
+  } else {
+    if (freelancer?.show_footer_navbar === false) {
+      return null;
+    }
   }
 
   return (
@@ -171,16 +178,32 @@ export default function FooterNavbar() {
           </svg>
         </button>
 
-        {/* Dashboard (requires login) */}
+        {/* Dashboard (requires login OR dev admin) */}
         <button
           onClick={() => {
+            // 🔥 Dev admin mode: go to dev-admin panel
+            if (isDevAdmin) {
+              sessionStorage.setItem(FLAG_KEY, "push");
+              navigate("/dev-admin", { replace: false });
+              return;
+            }
+
+            // 🔥 Freelancer mode: go to freelancer-admin
             if (!isLoaded || !freelancer) return;
             sessionStorage.setItem(FLAG_KEY, "push");
             navigate("/freelancer-admin", { replace: false });
           }}
-          disabled={!isLoaded || !freelancer}
+          disabled={!isDevAdmin && (!isLoaded || !freelancer)}
           className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all duration-200 ${
-            !isLoaded || !freelancer
+            // 🔥 Dev admin mode: button always active
+            isDevAdmin
+              ? `active:scale-95 hover:bg-base-200 ${
+                  location.pathname === "/dev-admin"
+                    ? "bg-primary/10 text-primary shadow-lg shadow-primary/20"
+                    : ""
+                }`
+              : // 🔥 Freelancer mode
+              !isLoaded || !freelancer
               ? "opacity-30 cursor-not-allowed"
               : `active:scale-95 ${
                   isActive("/freelancer-admin")

@@ -1170,14 +1170,17 @@ def check_booking_status(identifier):
 @require_tier("csv_export")
 def export_appointments_csv():
     f = g.freelancer
-
     appointments = Appointment.query.filter_by(freelancer_id=f.id).all()
 
     import csv
+    import json
     from io import StringIO
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
 
     output = StringIO()
     writer = csv.writer(output)
+
     writer.writerow(
         [
             "Appointment ID",
@@ -1185,28 +1188,71 @@ def export_appointments_csv():
             "Last Name",
             "Email",
             "Phone",
-            "Date",
-            "Time",
+            "Service Date",
+            "Service Time",
+            "Timezone",
             "Status",
             "Service",
             "Duration (min)",
+            "Custom Responses",
+            "Booked On",
         ]
     )
 
     for a in appointments:
         user = a.user
+        slot = a.slot
+
+        # 🔥 Convert UTC to slot's local timezone
+        slot_timezone = slot.timezone or f.timezone or "America/New_York"
+
+        # Parse UTC datetime from database
+        utc_datetime_str = f"{slot.day} {slot.master_time.time_24h}"
+        utc_datetime = datetime.strptime(utc_datetime_str, "%Y-%m-%d %H:%M").replace(
+            tzinfo=ZoneInfo("UTC")
+        )
+
+        # Convert to slot's local timezone
+        local_datetime = utc_datetime.astimezone(ZoneInfo(slot_timezone))
+        local_date = local_datetime.strftime("%Y-%m-%d")  # 2025-11-29
+        local_time = local_datetime.strftime("%I:%M %p")  # 06:00 PM
+
+        # Get timezone abbreviation (EST, PST, etc.)
+        timezone_abbr = local_datetime.strftime("%Z")
+
+        # 🔥 Format custom responses as readable text
+        custom_responses_str = ""
+        if a.custom_responses:
+            try:
+                responses = (
+                    json.loads(a.custom_responses)
+                    if isinstance(a.custom_responses, str)
+                    else a.custom_responses
+                )
+                custom_responses_str = "; ".join(
+                    [f"{q}: {ans}" for q, ans in responses.items()]
+                )
+            except:
+                custom_responses_str = str(a.custom_responses)
+
+        # 🔥 Booking created date
+        booked_on = a.timestamp.strftime("%Y-%m-%d %H:%M:%S") if a.timestamp else ""
+
         writer.writerow(
             [
                 a.id,
                 user.first_name,
                 user.last_name,
                 user.email,
-                user.phone,
-                a.slot.day,
-                a.slot.master_time.label,
+                user.phone or "",
+                local_date,  # 🔥 LOCAL date (Nov 29, not Nov 30)
+                local_time,  # 🔥 LOCAL time (6:00 PM, not 2:00 AM)
+                timezone_abbr,  # 🔥 PST/EST/etc
                 a.status,
                 a.service.name if a.service else "",
                 a.service.duration_minutes if a.service else "",
+                custom_responses_str,  # 🔥 Custom Q&A
+                booked_on,  # 🔥 When they booked
             ]
         )
 

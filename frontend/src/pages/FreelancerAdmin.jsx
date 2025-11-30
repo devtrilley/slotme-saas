@@ -1,3 +1,4 @@
+import React from "react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../utils/axiosInstance";
@@ -16,6 +17,7 @@ import { API_BASE } from "../utils/constants";
 import ErrorCard from "../components/Cards/ErrorCard";
 import SafeLoader from "../components/Layout/SafeLoader";
 import RefreshButton from "../components/Buttons/RefreshButton";
+import ReturnToTodayButton from "../components/Buttons/ReturnToTodayButton";
 import SortButton from "../components/Buttons/SortButton";
 import FilterButton from "../components/Buttons/FilterButton";
 import AccordionSection from "../components/Layout/AccordionSection";
@@ -113,7 +115,10 @@ export default function AdminPage() {
   const [services, setServices] = useState([]);
   const [sortDirection, setSortDirection] = useState("asc");
 
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(() => {
+    const saved = localStorage.getItem("admin_show_filters");
+    return saved === null ? true : saved === "true";
+  });
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [timezoneFilter, setTimezoneFilter] = useState("all"); // 🔥 NEW: Timezone filter
@@ -139,23 +144,45 @@ export default function AdminPage() {
   const filteredSlots = slots.filter((slot) => {
     const isSameDay = isSlotOnDate(slot, selectedDate, freelancerTimezone);
     if (!isSameDay) return false;
-
     const isPast = isSlotInPast(slot, freelancerTimezone, true);
     const isBooked = slot.is_booked || slot.is_inherited_block;
-
     // 🔥 NEW: Timezone filter
     if (timezoneFilter !== "all" && slot.timezone !== timezoneFilter) {
       return false;
     }
-
     // Status filter
     if (statusFilter === "all") return true;
     if (statusFilter === "available" && !isBooked && !isPast) return true;
     if (statusFilter === "booked" && isBooked) return true;
     if (statusFilter === "passed" && !isBooked && isPast) return true;
-
     return false;
   });
+
+  // 🔥 NEW: Calculate which dates have available slots (for green highlighting)
+  const availableDates = React.useMemo(() => {
+    const dates = new Set();
+    slots.forEach((slot) => {
+      const slotTimezone = slot.timezone || freelancerTimezone;
+      const isPast = isSlotInPast(slot, slotTimezone);
+
+      if (!isPast && !slot.is_booked && !slot.is_inherited_block) {
+        // Convert UTC to local timezone to get correct date
+        const utcDateTime = DateTime.fromFormat(
+          `${slot.day} ${slot.time_24h}`,
+          "yyyy-MM-dd HH:mm",
+          { zone: "UTC" }
+        );
+
+        if (utcDateTime.isValid) {
+          const localDate = utcDateTime
+            .setZone(slotTimezone)
+            .toFormat("yyyy-MM-dd");
+          dates.add(localDate);
+        }
+      }
+    });
+    return Array.from(dates);
+  }, [slots, freelancerTimezone]);
 
   // 🔥 NEW: Group by timezone, then sort chronologically within each group
   const sortedFilteredSlots = [...filteredSlots].sort((a, b) => {
@@ -433,6 +460,10 @@ export default function AdminPage() {
     }
   }, [freelancer?.id, freelancerDetailsUpdated]);
 
+  useEffect(() => {
+    localStorage.setItem("admin_show_filters", showFilters.toString());
+  }, [showFilters]);
+
   if (!isLoaded) {
     return <SafeLoader loading={true} />;
   }
@@ -563,12 +594,13 @@ export default function AdminPage() {
         >
           <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
             <AddSlotForm
-              onAdd={quietFetchSlots} // 🔥 FIXED: No more loading spinner/refresh
+              onAdd={quietFetchSlots}
               syncWith={syncDates ? selectedDate : null}
               setSyncDate={syncDates ? setSelectedDate : null}
               mode={slotTab}
               setMode={updateSlotTab}
               freelancerTimezone={freelancerTimezone}
+              availableDates={availableDates} // 🔥 NEW: Pass available dates
             />
           </section>
         </AccordionSection>
@@ -608,7 +640,8 @@ export default function AdminPage() {
             </h3>
 
             <label className="text-sm text-gray-400 block text-center">
-              Select a date to view / edit your time slots:
+              Select a date to view / edit your time slots:{" "}
+              <span className="text-green-400">(Green = Slots Available)</span>
             </label>
             <div className="flex justify-center">
               <RefreshButton
@@ -624,10 +657,16 @@ export default function AdminPage() {
                 wrapperClassName="w-full"
                 dateFormat="MMMM d, yyyy"
                 placeholderText="Choose a date"
+                availableDates={availableDates}
               />
               <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
                 📅
               </span>
+            </div>
+
+            {/* 🔥 NEW: Return to Today button */}
+            <div className="flex justify-center w-full">
+              <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
             </div>
 
             <div className="flex flex-col items-center gap-2 mt-4">

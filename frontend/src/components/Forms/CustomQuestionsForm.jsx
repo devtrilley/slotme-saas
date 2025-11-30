@@ -39,12 +39,22 @@ export default function CustomQuestionsForm() {
   };
 
   const handleSave = () => {
+    // Check if any questions are empty
+    const hasEmptyQuestions = questions.some((q) => q.question.trim() === "");
+    
+    if (hasEmptyQuestions) {
+      showToast("Please fill in all questions or remove empty ones before saving.", "error");
+      return;
+    }
+
     axios
       .patch(`${API_BASE}/freelancer/questions`, {
         custom_questions: questions,
-        custom_questions_enabled: enabled, // ← send to backend
+        custom_questions_enabled: enabled,
       })
-      .then(() => showToast("Questions saved!", "success"))
+      .then(() => {
+        showToast("Questions saved!", "success");
+      })
       .catch(() => showToast("Couldn't save. Try again.", "error"));
   };
 

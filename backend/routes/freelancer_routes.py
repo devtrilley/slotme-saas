@@ -457,8 +457,14 @@ def update_service(service_id):
 
     data = request.json
     # Store raw text - React escapes in UI, plain text emails are XSS-safe
-    service.name = data.get("name", service.name).strip() if "name" in data else service.name
-    service.description = data.get("description", service.description).strip() if "description" in data else service.description
+    service.name = (
+        data.get("name", service.name).strip() if "name" in data else service.name
+    )
+    service.description = (
+        data.get("description", service.description).strip()
+        if "description" in data
+        else service.description
+    )
     service.duration_minutes = data.get("duration_minutes", service.duration_minutes)
     service.price_usd = data.get("price_usd", service.price_usd)
 
@@ -670,7 +676,23 @@ def update_freelancer_branding():
     if "location" in data:
         f.location = data["location"].strip()
     if "booking_instructions" in data:
-        f.booking_instructions = data["booking_instructions"].strip()
+        instructions = data["booking_instructions"]
+        if isinstance(instructions, list):
+            # Clean each instruction
+            clean_instructions = []
+            for item in instructions:
+                if isinstance(item, str):
+                    cleaned = item.strip()
+                    if cleaned:  # Only keep non-empty
+                        clean_instructions.append(cleaned)
+            f.booking_instructions = clean_instructions
+        elif isinstance(instructions, str):
+            # Backwards compatibility: convert old string to array
+            f.booking_instructions = (
+                [instructions.strip()] if instructions.strip() else []
+            )
+        else:
+            f.booking_instructions = []
     if "preferred_payment_methods" in data:
         f.preferred_payment_methods = data["preferred_payment_methods"].strip()
     if "contact_email" in data:
@@ -1067,9 +1089,21 @@ def update_custom_questions():
                 jsonify({"error": "Each question must include a 'required' boolean"}),
                 400,
             )
-        clean_questions.append(
-            {"question": q["question"].strip(), "required": q["required"]}
-        )
+
+        question_text = q["question"].strip()
+
+        # Reject empty questions
+        if not question_text:
+            return (
+                jsonify(
+                    {
+                        "error": "Custom questions cannot be empty. Please fill in all questions or remove them."
+                    }
+                ),
+                422,
+            )
+
+        clean_questions.append({"question": question_text, "required": q["required"]})
 
     g.freelancer.custom_questions = clean_questions
     g.freelancer.custom_questions_enabled = enabled

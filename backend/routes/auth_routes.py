@@ -28,6 +28,7 @@ login_attempts = {}  # Store {ip: [timestamps]}
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
+
 @auth_bp.route("", methods=["POST"])
 @cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def freelancer_login():
@@ -109,7 +110,7 @@ def signup_freelancer():
     # Store raw text - React escapes in UI, plain text emails are XSS-safe
     first_name = data.get("first_name", "").strip()
     last_name = data.get("last_name", "").strip()
-    email = data.get("email")  
+    email = data.get("email")
     password = data.get("password")  # Hashed, never displayed raw
 
     if not first_name or not last_name or not email or not password:
@@ -372,9 +373,16 @@ def request_email_change():
     if new_email == freelancer.email:
         return jsonify({"error": "New email must be different"}), 400
 
-    # Ensure uniqueness
+    # 🔥 Ensure uniqueness - check if email already exists
     if Freelancer.query.filter_by(email=new_email).first():
-        return jsonify({"error": "That email is already in use"}), 400
+        return (
+            jsonify(
+                {
+                    "error": "This email is already in use. Please choose a different email or log in."
+                }
+            ),
+            400,
+        )
 
     # Create stateless token with freelancer_id and new_email
     token_payload = {"freelancer_id": str(freelancer.id), "new_email": new_email}

@@ -12,6 +12,7 @@ export default function AddSlotForm({
   setSyncDate,
   mode,
   setMode,
+  availableDates = [], // 🔥 NEW: Accept from AdminPage
 }) {
   const [selectedDate, setSelectedDate] = useState(syncWith || new Date());
 
@@ -127,6 +128,7 @@ export default function AddSlotForm({
           masterTimes={masterTimes}
           userChangedDate={userChangedDate}
           setUserChangedDate={setUserChangedDate}
+          availableDates={availableDates} // 🔥 NEW: Pass down
         />
       )}
 
@@ -138,7 +140,8 @@ export default function AddSlotForm({
             setSelectedDate(newDate);
             if (setSyncDate) setSyncDate(newDate);
           }}
-          freelancerTimezone={timezone} // ✅ pass down the freelancer's timezone
+          freelancerTimezone={timezone}
+          availableDates={availableDates} // 🔥 NEW: Pass down
         />
       )}
     </div>

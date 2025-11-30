@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "../../utils/axiosInstance";
 import { showToast } from "../../utils/toast";
 import IconDatePicker from "../Inputs/IconDatePicker";
+import ReturnToTodayButton from "../Buttons/ReturnToTodayButton";
 import { DateTime } from "luxon";
 import "react-datepicker/dist/react-datepicker.css";
 import { API_BASE } from "../../utils/constants";
@@ -22,7 +23,8 @@ export default function BatchSlotForm({
   onBatchAdd,
   selectedDate,
   setSelectedDate,
-  freelancerTimezone, // ✅ add this prop
+  freelancerTimezone,
+  availableDates = [], // 🔥 NEW: Accept from AddSlotForm
 }) {
   const [startHour, setStartHour] = useState(
     () => localStorage.getItem("slot_hour") || "12"
@@ -86,8 +88,6 @@ export default function BatchSlotForm({
     const localStartTime = formatTimeForAPI(startHour, startMinute, startAMPM);
     const localEndTime = formatTimeForAPI(endHour, endMinute, endAMPM);
 
-    
-
     // Validate the LOCAL times for user experience
     const start = DateTime.fromFormat(localStartTime, "hh:mm a");
     const end = DateTime.fromFormat(localEndTime, "hh:mm a");
@@ -123,8 +123,6 @@ export default function BatchSlotForm({
       interval: Number(interval),
       freelancer_timezone: freelancerTimezone,
     };
-
-    
 
     if (crossesMidnight) {
       const nextDayString = DateTime.fromJSDate(selectedDate)
@@ -174,8 +172,6 @@ export default function BatchSlotForm({
         return;
       }
 
-      
-
       const res = await axios.post(
         `${API_BASE}/freelancer/batch-slots-v2`,
         payload
@@ -218,8 +214,8 @@ export default function BatchSlotForm({
 
       // Regular error handling
       const msg =
-  err.response?.data?.error || "Couldn't create slots. Try again.";
-showToast(msg, "error");
+        err.response?.data?.error || "Couldn't create slots. Try again.";
+      showToast(msg, "error");
       setError("");
     } finally {
       setLoading(false);
@@ -263,8 +259,21 @@ showToast(msg, "error");
         </p>
 
         <div>
-          <label className="label text-xs text-gray-400 mb-1">Date</label>
-          <IconDatePicker selected={selectedDate} onChange={setSelectedDate} />
+          <label className="label text-xs text-gray-400 mb-1 block">
+            Date:
+            <span className="text-green-400 text-xs ml-1">
+              (Green = Slots Available)
+            </span>
+          </label>
+          <IconDatePicker
+            selected={selectedDate}
+            onChange={setSelectedDate}
+            availableDates={availableDates}
+          />
+          {/* 🔥 NEW: Return to Today button */}
+          <div className="flex justify-center w-full">
+            <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
+          </div>
         </div>
 
         <div>

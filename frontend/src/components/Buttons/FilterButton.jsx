@@ -1,5 +1,4 @@
 // src/components/FilterButton.jsx
-
 export default function FilterButton({
   label = "Filter:",
   options = [],
@@ -7,6 +6,23 @@ export default function FilterButton({
   onChange,
 }) {
   const getLabel = (option) => {
+    // 🔥 NEW: Timezone mapping (add this at the top)
+    const timezoneMap = {
+      "America/New_York": "🕐 Eastern (EST)",
+      "America/Chicago": "🕑 Central (CST)",
+      "America/Denver": "🕒 Mountain (MST)",
+      "America/Phoenix": "🕒 Mountain (No DST)",
+      "America/Los_Angeles": "🕓 Pacific (PST)",
+      "America/Anchorage": "🕔 Alaska (AKST)",
+      "America/Adak": "🕕 Hawaii-Aleutian (HST)",
+    };
+
+    // Check if it's a timezone first
+    if (timezoneMap[option]) {
+      return timezoneMap[option];
+    }
+
+    // Then check status filters
     switch (option) {
       case "all":
         return "📋 All";

@@ -25,7 +25,7 @@ export default function FreelancerBranding({ onUpdate }) {
     faq_items: [],
     custom_url: "",
     business_address: "",
-    booking_instructions: "",
+    booking_instructions: [], // 🔥 CHANGED: "" → []
     preferred_payment_methods: "",
     location: "",
     contact_email: "",
@@ -71,8 +71,11 @@ export default function FreelancerBranding({ onUpdate }) {
           })),
           custom_url: data.custom_url || "",
           business_address: decodeHTMLEntities(data.business_address) || "",
-          booking_instructions:
-            decodeHTMLEntities(data.booking_instructions) || "",
+          booking_instructions: Array.isArray(data.booking_instructions)
+            ? data.booking_instructions.map((i) => decodeHTMLEntities(i))
+            : data.booking_instructions
+            ? [decodeHTMLEntities(data.booking_instructions)]
+            : [],
           preferred_payment_methods:
             decodeHTMLEntities(data.preferred_payment_methods) || "",
           location: decodeHTMLEntities(data.location) || "",
@@ -110,7 +113,6 @@ export default function FreelancerBranding({ onUpdate }) {
 
   const handleSave = (e) => {
     e.preventDefault();
-    
 
     if (form.custom_url && !isValidSlug(form.custom_url)) {
       showToast(
@@ -168,10 +170,8 @@ export default function FreelancerBranding({ onUpdate }) {
       });
   };
 
-  
-
   return (
-    <div className="max-w-md mx-auto p-6 space-y-4">
+    <div className="max-w-md mx-auto p-2 space-y-4">
       <h2 className="text-xl font-bold text-center">Branding Preferences</h2>
       <form
         onSubmit={handleSave}
@@ -384,16 +384,70 @@ export default function FreelancerBranding({ onUpdate }) {
           placeholder="Atlanta, GA or Remote"
           className="input input-bordered w-full"
         />
-        <label className="label text-sm text-white">
-          Booking Instructions:
-        </label>
-        <textarea
-          name="booking_instructions"
-          value={form.booking_instructions}
-          onChange={handleChange}
-          placeholder="What to prepare, how to join the call, repo access, etc."
-          className="textarea textarea-bordered w-full"
-        />
+        {/* Booking Instructions - Array-based like FAQs */}
+        <div className="space-y-4">
+          <h3 className="text-base font-semibold text-white">
+            Booking Instructions
+          </h3>
+          <p className="text-xs text-gray-400">
+            Each instruction becomes a bullet point on your booking page
+          </p>
+          {form.booking_instructions.length === 0 ? (
+            <div className="text-center py-6 text-gray-400 text-sm">
+              No instructions yet. Add one to help clients prepare!
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {form.booking_instructions.map((instruction, index) => (
+                <div
+                  key={index}
+                  className="bg-base-200/50 border border-gray-700 rounded-lg p-4 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                      Instruction {index + 1}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-xs bg-red-600 hover:bg-red-700 text-white border-none"
+                      onClick={() => {
+                        const updated = form.booking_instructions.filter(
+                          (_, i) => i !== index
+                        );
+                        setForm({ ...form, booking_instructions: updated });
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <textarea
+                    value={instruction}
+                    onChange={(e) => {
+                      const updated = [...form.booking_instructions];
+                      updated[index] = e.target.value;
+                      setForm({ ...form, booking_instructions: updated });
+                    }}
+                    placeholder="e.g., Arrive 5 minutes early"
+                    rows={2}
+                    className="textarea textarea-bordered w-full bg-base-100 resize-none text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            className="btn btn-sm bg-emerald-600 hover:bg-emerald-700 text-white border-none w-full"
+            onClick={() =>
+              setForm({
+                ...form,
+                booking_instructions: [...form.booking_instructions, ""],
+              })
+            }
+          >
+            + Add Instruction
+          </button>
+        </div>
         <label className="label text-sm text-white">
           Preferred Payment Methods:
         </label>
@@ -406,7 +460,7 @@ export default function FreelancerBranding({ onUpdate }) {
           className="input input-bordered w-full"
         />
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-white">FAQs</h3>
+          <h3 className="text-base font-semibold text-white">FAQs</h3>
 
           {form.faq_items.length === 0 ? (
             <div className="text-center py-6 text-gray-400 text-sm">

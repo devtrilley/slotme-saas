@@ -3,6 +3,7 @@ import axios from "../../utils/axiosInstance";
 import { showToast } from "../../utils/toast";
 import "react-datepicker/dist/react-datepicker.css";
 import IconDatePicker from "../Inputs/IconDatePicker";
+import ReturnToTodayButton from "../Buttons/ReturnToTodayButton";
 import { DateTime } from "luxon";
 import { API_BASE } from "../../utils/constants";
 
@@ -21,6 +22,7 @@ export default function SingleSlotForm({
   masterTimes,
   userChangedDate,
   setUserChangedDate,
+  availableDates = [], // 🔥 NEW: Accept from AddSlotForm
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -78,8 +80,6 @@ export default function SingleSlotForm({
       return;
     }
 
-    
-
     axios
       .post(`${API_BASE}/slots`, {
         day: utcDateStr,
@@ -136,14 +136,24 @@ export default function SingleSlotForm({
       </p>
 
       <div className="space-y-2">
-        <label className="label text-xs text-gray-400">Date</label>
+        <label className="label text-xs text-gray-400 block">
+          Date:
+          <span className="text-green-400 text-xs ml-1">
+            (Green = Slots Available)
+          </span>
+        </label>
         <IconDatePicker
           selected={selectedDate}
           onChange={(date) => {
             setSelectedDate(date);
             setUserChangedDate(true);
           }}
+          availableDates={availableDates}
         />
+        {/* 🔥 NEW: Return to Today button */}
+        <div className="flex justify-center w-full">
+          <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
+        </div>
       </div>
 
       <label className="label text-xs text-gray-400">

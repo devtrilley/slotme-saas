@@ -53,8 +53,6 @@ export function formatSlotDate(slot, freelancerTimezone) {
     // Convert UTC to target timezone
     const freelancerTime = utcDateTime.setZone(targetTimezone);
 
-    
-
     // Format as "Wed, Oct 14"
     return freelancerTime.toFormat("EEE, MMM d");
   } catch (error) {
@@ -212,10 +210,7 @@ function parseSlotToUTCDateTime(slot) {
  */
 export function isSlotInPast(slot, freelancerTimezone) {
   try {
-    // 🔥 Use slot's frozen timezone if available
     const targetTimezone = slot.timezone || freelancerTimezone;
-
-    // Parse the slot time as UTC first
     const slotDateTimeUTC = parseSlotToUTCDateTime(slot);
 
     if (!slotDateTimeUTC) {
@@ -223,20 +218,15 @@ export function isSlotInPast(slot, freelancerTimezone) {
       return false;
     }
 
-    // Convert UTC slot time to target timezone
-    const slotInFreelancerTZ = slotDateTimeUTC.setZone(targetTimezone);
+    // Convert UTC to slot's timezone
+    const slotInTargetTZ = slotDateTimeUTC.setZone(targetTimezone);
+    // Get current time in SAME timezone for comparison
+    const nowInTargetTZ = DateTime.now().setZone(targetTimezone);
 
-    // Get current time in freelancer timezone
-    const nowInFreelancerTZ = DateTime.now().setZone(freelancerTimezone);
-
-    const isPast = slotInFreelancerTZ < nowInFreelancerTZ;
-
-    
-
-    return isPast;
+    return slotInTargetTZ < nowInTargetTZ;
   } catch (error) {
     console.warn("Failed to check if slot is past:", error, slot);
-    return false; // Assume not past if we can't determine
+    return false;
   }
 }
 

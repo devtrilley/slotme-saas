@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import React from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import axios from "../utils/axiosInstance";
 import { API_BASE } from "../utils/constants";
@@ -136,7 +137,6 @@ export default function DevFreelancerBookings() {
             "yyyy-MM-dd hh:mm a",
             { zone: "UTC" }
           );
-
           if (!utcDateTime.isValid) {
             utcDateTime = DateTime.fromFormat(
               `${booking.slot_day} ${booking.slot_time}`,
@@ -144,9 +144,7 @@ export default function DevFreelancerBookings() {
               { zone: "UTC" }
             );
           }
-
           if (!utcDateTime.isValid) return false;
-
           const localTime = utcDateTime.setZone(freelancerTimezone);
           const selectedDt =
             DateTime.fromJSDate(selectedDate).setZone(freelancerTimezone);
@@ -156,6 +154,15 @@ export default function DevFreelancerBookings() {
         }
       })
     : bookings;
+
+  // 🔥 NEW: Calculate which dates have bookings (for green highlighting)
+  const availableDates = React.useMemo(() => {
+    const dates = new Set();
+    bookings.forEach((booking) => {
+      dates.add(booking.slot_day); // slot_day is YYYY-MM-DD
+    });
+    return Array.from(dates);
+  }, [bookings]);
 
   // Group by date
   const groupedBookings = filteredBookings.reduce((acc, booking) => {
@@ -195,7 +202,11 @@ export default function DevFreelancerBookings() {
         <label className="text-sm text-gray-400">
           Filter by Date (optional):
         </label>
-        <IconDatePicker selected={selectedDate} onChange={setSelectedDate} />
+        <IconDatePicker
+          selected={selectedDate}
+          onChange={setSelectedDate}
+          availableDates={availableDates}
+        />
         <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
       </div>
 

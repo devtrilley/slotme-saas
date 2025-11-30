@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react"; // 🔥 Added useMemo
 import { useFreelancer } from "../context/FreelancerContext";
 import axios from "../utils/axiosInstance";
 import IconDatePicker from "../components/Inputs/IconDatePicker";
@@ -21,6 +21,9 @@ import SafeLoader from "../components/Layout/SafeLoader";
 
 export default function CRM() {
   const { freelancer } = useFreelancer();
+  const freelancerId = freelancer?.id;
+  const freelancerTimezone = freelancer?.timezone || "America/New_York";
+
   const tier = (freelancer?.tier || "free").toLowerCase();
   const canExport = tier === "pro" || tier === "elite";
   const next =
@@ -31,9 +34,13 @@ export default function CRM() {
   const [timeFilter, setTimeFilter] = useState("all");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [sortDirection, setSortDirection] = useState("asc");
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(() => {
+    const saved = localStorage.getItem("crm_show_filters");
+    return saved === null ? true : saved === "true";
+  });
   const [serviceFilter, setServiceFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [timezoneFilter, setTimezoneFilter] = useState("all"); // 🔥 NEW
   const [exportRange, setExportRange] = useState("selected_date");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(""); // ✅ NEW
@@ -82,9 +89,7 @@ export default function CRM() {
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token) return;
-
     setLoading(true);
-
     (async () => {
       try {
         await fetchAppointments();
@@ -95,7 +100,11 @@ export default function CRM() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [freelancerId]);
+
+  useEffect(() => {
+    localStorage.setItem("crm_show_filters", showFilters.toString());
+  }, [showFilters]);
 
   const isInTimeRange = (time) => {
     const hour = convertToDate(time).getHours();
@@ -139,11 +148,20 @@ export default function CRM() {
     const matchesService =
       serviceFilter === "all" || a.service === serviceFilter;
 
-    // 🔥 Status filter (show all by default, let user filter)
+    // 🔥 Status filter
     const matchesStatus = statusFilter === "all" || a.status === statusFilter;
 
+    // 🔥 NEW: Timezone filter
+    const matchesTimezone =
+      timezoneFilter === "all" || a.freelancer_timezone === timezoneFilter;
+
     return (
-      matchesSearch && inTimeRange && inDate && matchesService && matchesStatus
+      matchesSearch &&
+      inTimeRange &&
+      inDate &&
+      matchesService &&
+      matchesStatus &&
+      matchesTimezone
     );
   });
 
@@ -204,9 +222,17 @@ export default function CRM() {
   };
 
   const formatDate = (isoDate) => {
-    // ✅ slot_day is already local date, just format it
     return DateTime.fromISO(isoDate).toFormat("MMMM d, yyyy");
   };
+
+  // 🔥 CRM: Show dates that HAVE appointments (not available slots)
+  const availableDates = useMemo(() => {
+    const dates = new Set();
+    appointments.forEach((appointment) => {
+      dates.add(appointment.slot_day); // slot_day is YYYY-MM-DD
+    });
+    return Array.from(dates);
+  }, [appointments]);
 
   return (
     <SafeLoader loading={loading} error={error} onRetry={handleRefresh}>
@@ -241,8 +267,12 @@ export default function CRM() {
 
         {/* === Filter by Booking Date BELOW that === */}
         <div className="space-y-2">
-          <label className="font-medium text-sm text-gray-400">
+          <label className="font-medium text-sm text-gray-400 block text-center">
             Filter by Booking Date:
+            <br />
+            <span className="text-green-400 text-xs">
+              (Green = Appointments Booked)
+            </span>
           </label>
 
           {/* ✅ Wrap the picker in a div that controls the width */}
@@ -254,6 +284,7 @@ export default function CRM() {
               placeholderText="Choose a date"
               className="input input-bordered w-full pl-10" // style the input
               wrapperClassName="w-full" // style the outer wrapper
+              availableDates={availableDates}
             />
           </div>
 
@@ -304,6 +335,23 @@ export default function CRM() {
                 options={["all", "confirmed", "pending", "cancelled"]}
                 value={statusFilter}
                 onChange={setStatusFilter}
+              />
+
+              {/* 🔥 NEW: Timezone filter */}
+              <FilterButton
+                label="Filter Timezone:"
+                options={[
+                  "all",
+                  ...Array.from(
+                    new Set(
+                      appointments.map(
+                        (a) => a.freelancer_timezone || freelancerTimezone
+                      )
+                    )
+                  ).sort(),
+                ]}
+                value={timezoneFilter}
+                onChange={setTimezoneFilter}
               />
             </div>
           )}

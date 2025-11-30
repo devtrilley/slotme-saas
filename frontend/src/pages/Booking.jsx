@@ -17,6 +17,7 @@ import HoneypotInput from "../components/Inputs/HoneypotInput";
 import SafeLoader from "../components/Layout/SafeLoader";
 import NoAvailableSlotsCard from "../components/Cards/NoAvailableSlotsCard";
 import RefreshButton from "../components/Buttons/RefreshButton";
+import ReturnToTodayButton from "../components/Buttons/ReturnToTodayButton";
 import BookingInstructionsCard from "../components/Cards/BookingInstructionsCard";
 import {
   getUserTimezone,
@@ -544,13 +545,37 @@ export default function BookingPage({ useCustomUrl = false }) {
   // ⏱ Drop past unbooked slots, keep booked or inherited ones (shows popularity)
   const visibleSlots = filteredSlots.filter((slot) => {
     const isPast = isSlotInPast(slot, slot.timezone || freelancerTimeZone);
-
     if (isPast && !slot.is_booked && !slot.is_inherited_block) {
       return false;
     }
-
     return true;
   });
+
+  // 🔥 NEW: Calculate which dates have available slots (for green highlighting)
+  const availableDates = React.useMemo(() => {
+    const dates = new Set();
+    slots.forEach((slot) => {
+      const slotTimezone = slot.timezone || freelancerTimeZone;
+      const isPast = isSlotInPast(slot, slotTimezone);
+
+      if (!isPast && !slot.is_booked && !slot.is_inherited_block) {
+        // Convert UTC to local timezone to get correct date
+        const utcDateTime = DateTime.fromFormat(
+          `${slot.day} ${slot.time_24h}`,
+          "yyyy-MM-dd HH:mm",
+          { zone: "UTC" }
+        );
+
+        if (utcDateTime.isValid) {
+          const localDate = utcDateTime
+            .setZone(slotTimezone)
+            .toFormat("yyyy-MM-dd");
+          dates.add(localDate);
+        }
+      }
+    });
+    return Array.from(dates);
+  }, [slots, freelancerTimeZone]);
 
   // 🚨 Handle missing freelancer BEFORE SafeLoader
   if (error === "missing-freelancer") {
@@ -718,12 +743,21 @@ export default function BookingPage({ useCustomUrl = false }) {
         <section className="space-y-2">
           <label className="text-sm text-gray-400 block text-center mt-6">
             Select a date:
+            <br />
+            <span className="text-green-400 text-xs">
+              (Green = Slots Available)
+            </span>
           </label>
           <IconDatePicker
             selected={selectedDate}
             onChange={(date) => setSelectedDate(date)}
             minDate={new Date()} // ✅ prevents selecting yesterday
+            availableDates={availableDates}
           />
+          {/* 🔥 NEW: Return to Today button */}
+          <div className="flex justify-center w-full">
+            <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
+          </div>
 
           {services.length > 0 && (
             <div className="space-y-2">

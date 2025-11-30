@@ -2,8 +2,14 @@ import BaseModal from "./BaseModal";
 import {
   formatSlotTimePartsFromUTC,
   formatSlotTimePartsFromLocal,
-  getTimezoneAbbreviation
+  getTimezoneAbbreviation,
 } from "../../utils/timezoneHelpers";
+
+// 🔥 Helper to format YYYY-MM-DD → MM/DD/YY
+function formatDateShort(dateStr) {
+  const [year, month, day] = dateStr.split("-");
+  return `${month}/${day}/${year.slice(2)}`;
+}
 
 export default function CrossDayConfirmModal({
   open,
@@ -21,6 +27,7 @@ export default function CrossDayConfirmModal({
     formattedTime: slotStart.time_12h,
     abbreviation: getTimezoneAbbreviation(freelancerTimezone),
   };
+
   const end = {
     formattedTime: slotEnd.time_12h,
     abbreviation: getTimezoneAbbreviation(freelancerTimezone),
@@ -35,23 +42,20 @@ export default function CrossDayConfirmModal({
       className="max-w-md"
     >
       <div className="space-y-4 text-sm">
-        <p>You’ve selected a time range that crosses over into the next day:</p>
-
+        <p>You've selected a time range that crosses over into the next day:</p>
         <ul className="list-disc list-inside text-left">
           <li>
-            <strong>Start:</strong> {start.formattedTime} on {slotStart.day} (
+            <strong>Start:</strong> {start.formattedTime} on {formatDateShort(slotStart.day)} (
             {start.abbreviation})
           </li>
           <li>
-            <strong>End:</strong> {end.formattedTime} on {slotEnd.day} (
+            <strong>End:</strong> {end.formattedTime} on {formatDateShort(slotEnd.day)} (
             {end.abbreviation})
           </li>
         </ul>
-
         <p className="text-yellow-300">
           Are you sure you want to generate these time slots?
         </p>
-
         <div className="flex justify-end gap-2 pt-2">
           <button className="btn btn-sm btn-ghost" onClick={onClose}>
             Cancel
