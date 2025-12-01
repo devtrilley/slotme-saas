@@ -681,7 +681,7 @@ def seed_everything():
             password=os.getenv("MONTY_PASSWORD", "tom123"),
             tagline="Get Strong. Get Out. Repeat.",
             force_bookings=False,
-            bio="I'm Tom, a self-taught strength and conditioning coach who believes working out shouldn't take all day. Using Mike Mentzer's HIT principles combined with calisthenics and combat conditioning, I help beginners and college students build real strength without wasting hours in the gym. My workouts? 20-45 minutes. No fluff, no BS—just results. I've helped dozens of clients go from out of shape to strong and confident, all with minimal equipment. Whether you're training at home with dumbbells or looking to get into combat sports, I'll show you how to train smarter, not longer.",
+            bio="Self-taught strength coach who believes working out shouldn't take all day. Using Mike Mentzer's HIT + calisthenics, I help beginners build real strength in 20-45 min workouts. Helped 100+ clients get strong with minimal equipment. Training at home with dumbbells or getting into combat sports? I'll show you how to train smarter, not longer. No fluff, no BS—just results.",
             logo_url="https://slotme-profile-photos.s3.us-east-2.amazonaws.com/freelancers/4/logo.jpg",
             phone="7049631321",
             business_phone="7042477821",
