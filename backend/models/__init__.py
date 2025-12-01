@@ -56,7 +56,7 @@ class Freelancer(db.Model):
     show_footer_navbar = db.Column(db.Boolean, default=True, nullable=False)
 
     # ✅ New contact fields
-    contact_email = db.Column(db.String(120), unique=True, nullable=False)
+    contact_email = db.Column(db.String(120), nullable=True)
     phone = db.Column(db.String(50), nullable=True)  # Personal phone (private)
     business_phone = db.Column(db.String(50), nullable=True)  # Business phone (public)
     instagram_url = db.Column(db.String(200), nullable=True)

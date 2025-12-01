@@ -121,7 +121,7 @@ def signup_freelancer():
         return jsonify({"error": "Password too weak"}), 400
 
     if Freelancer.query.filter_by(email=email).first():
-        return jsonify({"error": "Email already exists"}), 400
+        return jsonify({"error": "This email is already registered. Please log in instead."}), 400
 
     hashed = generate_password_hash(password)
 

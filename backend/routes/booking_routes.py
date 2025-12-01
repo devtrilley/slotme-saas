@@ -568,16 +568,24 @@ def confirm_booking_email(token):
             f"&text={title}&dates={start_str}/{end_str}&details={details}&location={location}"
         )
 
-        # ✅ Send timezone-aware HTML confirmation email
+        # ✅ Send timezone-aware confirmation email to CUSTOMER
         try:
             from services.email_service import send_booking_confirmation_email
 
-            # Pass the freelancer's timezone so the email shows correct time
             send_booking_confirmation_email(
                 appointment, customer_timezone=freelancer.timezone
             )
         except Exception as e:
-            print(f"⚠️ Failed to send booking confirmation email: {e}")
+            print(f"⚠️ Failed to send customer confirmation email: {e}")
+            # Don't fail the confirmation if email fails
+
+        # 🔥 NEW: Send notification email to FREELANCER
+        try:
+            from services.email_service import send_freelancer_booking_notification
+
+            send_freelancer_booking_notification(appointment)
+        except Exception as e:
+            print(f"⚠️ Failed to send freelancer notification email: {e}")
             # Don't fail the confirmation if email fails
 
         return redirect(
@@ -747,7 +755,6 @@ def update_appointment(id):
     # --- status change ---
     if "status" in data:
         new_status = data["status"]
-
         # Only allow reverting to pending or cancelling via CRM
         if new_status not in ["pending", "cancelled"]:
             return jsonify({"error": "Invalid status value"}), 400
@@ -769,6 +776,16 @@ def update_appointment(id):
                 start_label=appointment.slot.master_time.label,
                 duration_minutes=appointment.service.duration_minutes,
             )
+
+            # 🔥 NEW: Notify customer when freelancer cancels
+            try:
+                from services.email_service import (
+                    send_customer_cancellation_confirmation,
+                )
+
+                send_customer_cancellation_confirmation(appointment)
+            except Exception as e:
+                print(f"⚠️ Failed to send customer cancellation notification: {e}")
 
     # --- slot change ---
     if "slot_id" in data:
@@ -1115,8 +1132,23 @@ def cancel_booking_execute(cancel_token):
     )
 
     db.session.commit()
-    print("✅ Appointment cancelled successfully.")
 
+    # 🔥 NEW: Send cancellation emails
+    try:
+        from services.email_service import send_freelancer_cancellation_notification
+
+        send_freelancer_cancellation_notification(appointment)
+    except Exception as e:
+        print(f"⚠️ Failed to send freelancer cancellation notification: {e}")
+
+    try:
+        from services.email_service import send_customer_cancellation_confirmation
+
+        send_customer_cancellation_confirmation(appointment)
+    except Exception as e:
+        print(f"⚠️ Failed to send customer cancellation confirmation: {e}")
+
+    print("✅ Appointment cancelled successfully.")
     return (
         jsonify({"success": True, "message": "Appointment cancelled successfully"}),
         200,

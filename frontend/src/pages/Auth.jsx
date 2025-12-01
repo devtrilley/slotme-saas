@@ -177,31 +177,41 @@ export default function Auth({ clearSession }) {
         {mode === "signup" && (
           <>
             <div>
-  <label className="label">
-    <span className="label-text">First Name</span>
-  </label>
-  <input
-    type="text"
-    className="input input-bordered w-full"
-    placeholder="e.g. John"
-    value={firstName}
-    onChange={(e) => setFirstName(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1).toLowerCase())}
-    required
-  />
-</div>
-<div>
-  <label className="label">
-    <span className="label-text">Last Name</span>
-  </label>
-  <input
-    type="text"
-    className="input input-bordered w-full"
-    placeholder="e.g. Smith"
-    value={lastName}
-    onChange={(e) => setLastName(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1).toLowerCase())}
-    required
-  />
-</div>
+              <label className="label">
+                <span className="label-text">First Name</span>
+              </label>
+              <input
+                type="text"
+                className="input input-bordered w-full"
+                placeholder="e.g. John"
+                value={firstName}
+                onChange={(e) =>
+                  setFirstName(
+                    e.target.value.charAt(0).toUpperCase() +
+                      e.target.value.slice(1).toLowerCase()
+                  )
+                }
+                required
+              />
+            </div>
+            <div>
+              <label className="label">
+                <span className="label-text">Last Name</span>
+              </label>
+              <input
+                type="text"
+                className="input input-bordered w-full"
+                placeholder="e.g. Smith"
+                value={lastName}
+                onChange={(e) =>
+                  setLastName(
+                    e.target.value.charAt(0).toUpperCase() +
+                      e.target.value.slice(1).toLowerCase()
+                  )
+                }
+                required
+              />
+            </div>
           </>
         )}
         <div>
