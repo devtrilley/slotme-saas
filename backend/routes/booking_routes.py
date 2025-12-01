@@ -166,6 +166,10 @@ def book_slot():
     if not slot:
         return jsonify({"error": "Slot is unavailable"}), 400
 
+    # 🔥 CRITICAL: Check if slot is already booked
+    if slot.is_booked:
+        return jsonify({"error": "Slot is unavailable"}), 400
+
     service = Service.query.get(service_id)
     if not service:
         return jsonify({"error": "Invalid service selected"}), 400
