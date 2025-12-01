@@ -503,6 +503,13 @@ def confirm_booking_email(token):
                 return redirect(f"{FRONTEND_URL}/invalid")
             required_labels = remaining_labels
 
+        # 🔥 REFRESH ROOT SLOT FROM DB (prevent race condition)
+        db.session.refresh(slot)
+        if slot.is_booked:
+            return redirect(
+                f"{FRONTEND_URL}/already-taken?freelancer_id={slot.freelancer_id}"
+            )
+
         # ✅ Check all inherited blocks for conflicts BEFORE confirming
         for label in required_labels:
             mt = next((m for m in all_times if m.label == label), None)
