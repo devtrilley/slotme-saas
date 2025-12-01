@@ -783,7 +783,9 @@ def update_appointment(id):
                     send_customer_cancellation_confirmation,
                 )
 
-                send_customer_cancellation_confirmation(appointment)
+                send_customer_cancellation_confirmation(
+                    appointment, cancelled_by="freelancer"
+                )
             except Exception as e:
                 print(f"⚠️ Failed to send customer cancellation notification: {e}")
 
@@ -1144,7 +1146,7 @@ def cancel_booking_execute(cancel_token):
     try:
         from services.email_service import send_customer_cancellation_confirmation
 
-        send_customer_cancellation_confirmation(appointment)
+        send_customer_cancellation_confirmation(appointment, cancelled_by="customer")
     except Exception as e:
         print(f"⚠️ Failed to send customer cancellation confirmation: {e}")
 

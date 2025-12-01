@@ -271,8 +271,12 @@ def send_freelancer_cancellation_notification(appointment):
     print(f"✅ Cancellation notification sent to freelancer {freelancer.email}")
 
 
-def send_customer_cancellation_confirmation(appointment):
-    """Send confirmation to customer after they cancel"""
+def send_customer_cancellation_confirmation(appointment, cancelled_by="freelancer"):
+    """Send confirmation to customer after cancellation
+
+    Args:
+        cancelled_by: 'customer' or 'freelancer' - who initiated the cancellation
+    """
     from email_utils import send_branded_customer_reply
     from zoneinfo import ZoneInfo
 
@@ -280,38 +284,49 @@ def send_customer_cancellation_confirmation(appointment):
     user = appointment.user
     slot = appointment.slot
     service = appointment.service
-
     # Time conversion (frozen timezone)
     frozen_tz = ZoneInfo(appointment.freelancer_timezone or "America/New_York")
     slot_date = datetime.strptime(slot.day, "%Y-%m-%d").date()
     utc_time = datetime.strptime(slot.master_time.time_24h, "%H:%M").time()
     utc_dt = datetime.combine(slot_date, utc_time).replace(tzinfo=ZoneInfo("UTC"))
     local_dt = utc_dt.astimezone(frozen_tz)
-
     # Format for display
     local_time_display = local_dt.strftime("%I:%M %p").lstrip("0")
     timezone_abbr = local_dt.tzname()
     local_date_display = local_dt.strftime("%A, %B %d, %Y")
 
-    body = (
-        f"Hi {user.first_name},\n\n"
-        f"{freelancer.business_name or freelancer.first_name} has cancelled your appointment.\n\n"
-        f"If you have any questions, you can contact them at {freelancer.contact_email}.\n\n"
-        "📋 CANCELLED APPOINTMENT:\n"
-        f"Service: {service.name}\n"
-        f"📅 Date: {local_date_display}\n"
-        f"🕐 Time: {local_time_display} {timezone_abbr}\n"
-        f"👤 With: {freelancer.first_name} {freelancer.last_name}\n"
-        f"🏢 Business: {freelancer.business_name or 'N/A'}\n\n"
-        "If you'd like to book again, you can do so anytime.\n\n"
-        "— The SlotMe Team\n"
-        "https://slotme.xyz\n"
-    )
-
+    # 🔥 Different message based on who cancelled
+    if cancelled_by == "customer":
+        body = (
+            f"Hi {user.first_name},\n\n"
+            f"Your appointment has been successfully cancelled.\n\n"
+            f"📋 CANCELLED APPOINTMENT:\n"
+            f"Service: {service.name}\n"
+            f"📅 Date: {local_date_display}\n"
+            f"⏰ Time: {local_time_display} {timezone_abbr}\n"
+            f"👤 With: {freelancer.first_name} {freelancer.last_name}\n"
+            f"🏢 Business: {freelancer.business_name or 'N/A'}\n\n"
+            f"If you'd like to book again, you can do so anytime.\n\n"
+            f"— The SlotMe Team\n"
+            f"https://slotme.xyz\n"
+        )
+    else:  # freelancer cancelled
+        body = (
+            f"Hi {user.first_name},\n\n"
+            f"{freelancer.business_name or freelancer.first_name} has cancelled your appointment.\n\n"
+            f"📋 CANCELLED APPOINTMENT:\n"
+            f"Service: {service.name}\n"
+            f"📅 Date: {local_date_display}\n"
+            f"⏰ Time: {local_time_display} {timezone_abbr}\n"
+            f"👤 With: {freelancer.first_name} {freelancer.last_name}\n"
+            f"🏢 Business: {freelancer.business_name or 'N/A'}\n\n"
+            f"If you have any questions, you can contact them at {freelancer.contact_email}.\n\n"
+            f"— The SlotMe Team\n"
+            f"https://slotme.xyz\n"
+        )
     send_branded_customer_reply(
         subject=f"🚫 Appointment Cancelled - {freelancer.business_name or freelancer.first_name}",
         body=body,
         customer_email=user.email,
     )
-
     print(f"✅ Cancellation confirmation sent to customer {user.email}")
