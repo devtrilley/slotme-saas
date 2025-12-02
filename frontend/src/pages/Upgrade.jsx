@@ -10,12 +10,42 @@ import axios from "../utils/axiosInstance";
 export default function Upgrade() {
   const { freelancer } = useFreelancer();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [timeLeft, setTimeLeft] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  });
   const navigate = useNavigate();
+
+  // 🎄 Countdown Timer to New Year's Eve
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const newYear = new Date("2026-01-01T00:00:00").getTime();
+      const now = new Date().getTime();
+      const difference = newYear - now;
+
+      if (difference > 0) {
+        setTimeLeft({
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60),
+        });
+      }
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const tiers = [
     {
       name: "FREE",
       key: "free",
+      originalPrice: null,
+      discountedPrice: null,
       bg: "bg-slate-800",
       text: "text-white",
       features: [
@@ -34,8 +64,10 @@ export default function Upgrade() {
       ],
     },
     {
-      name: "PRO ($5/mo)",
+      name: "PRO",
       key: "pro",
+      originalPrice: "$10",
+      discountedPrice: "$5",
       bg: "bg-purple-600",
       text: "text-white",
       features: [
@@ -54,8 +86,10 @@ export default function Upgrade() {
       ],
     },
     {
-      name: "ELITE ($10/mo)",
+      name: "ELITE",
       key: "elite",
+      originalPrice: "$20",
+      discountedPrice: "$10",
       bg: "bg-indigo-600",
       text: "text-white",
       features: [
@@ -193,19 +227,104 @@ export default function Upgrade() {
         </p>
       </h1>
 
-      {isLoggedIn && <TierStatusCard tier={freelancer?.tier} />}
+      {/* 🚀 Founder's Pricing Banner */}
+      <div className="bg-gradient-to-r from-[#7C3AED] to-[#6366F1] text-white py-6 px-6 rounded-2xl shadow-lg shadow-purple-500/50 text-center space-y-3">
+        <div className="text-center font-orbitron">
+          <div className="text-xl sm:text-2xl font-black tracking-wide uppercase">
+            ⚡ FOUNDER'S PRICING
+          </div>
+          <div
+            className="text-2xl sm:text-3xl font-black tracking-wider uppercase text-yellow-400 font-orbitron"
+            style={{
+              textShadow: "0 2px 5px rgba(0,0,0,0.4)",
+            }}
+          >
+            50% OFF FOREVER
+          </div>
+        </div>
+        <p className="text-sm font-semibold text-purple-100">
+          Lock in this rate before{" "}
+          <span
+            className="font-black text-yellow-400"
+            style={{
+              textShadow: "0 2px 5px rgba(0,0,0,0.4)",
+            }}
+          >
+            January 1st, 2026
+          </span>
+          !
+        </p>
+        {/* ⏰ Countdown Timer */}
+        <div className="flex items-center justify-center gap-2 sm:gap-6 pt-3 border-t border-white/20 font-orbitron">
+          <div className="flex flex-col items-center">
+            <span
+              className="text-3xl sm:text-5xl font-black text-yellow-400"
+              style={{
+                textShadow: "0 2px 5px rgba(0,0,0,0.4)",
+              }}
+            >
+              {timeLeft.days}
+            </span>
+            <span className="text-xs font-semibold text-purple-200">DAYS</span>
+          </div>
+          <span className="text-2xl sm:text-3xl font-black">:</span>
+          <div className="flex flex-col items-center">
+            <span
+              className="text-3xl sm:text-5xl font-black text-yellow-400"
+              style={{
+                textShadow: "0 2px 5px rgba(0,0,0,0.4)",
+              }}
+            >
+              {String(timeLeft.hours).padStart(2, "0")}
+            </span>
+            <span className="text-xs font-semibold text-purple-200">HRS</span>
+          </div>
+          <span className="text-2xl sm:text-3xl font-black">:</span>
+          <div className="flex flex-col items-center">
+            <span
+              className="text-3xl sm:text-5xl font-black text-yellow-400"
+              style={{
+                textShadow: "0 2px 5px rgba(0,0,0,0.4)",
+              }}
+            >
+              {String(timeLeft.minutes).padStart(2, "0")}
+            </span>
+            <span className="text-xs font-semibold text-purple-200">MIN</span>
+          </div>
+          <span className="text-2xl sm:text-3xl font-black">:</span>
+          <div className="flex flex-col items-center">
+            <span
+              className="text-3xl sm:text-5xl font-black text-yellow-400"
+              style={{
+                textShadow: "0 2px 5px rgba(0,0,0,0.4)",
+              }}
+            >
+              {String(timeLeft.seconds).padStart(2, "0")}
+            </span>
+            <span className="text-xs font-semibold text-purple-200">SEC</span>
+          </div>
+        </div>
+      </div>
 
+      {isLoggedIn && <TierStatusCard tier={freelancer?.tier} />}
       {showLoginModal && (
         <BaseModal
           title="Log in Required"
-          body="Please log in to upgrade your plan."
-          confirmText="Go to Login"
           onClose={() => setShowLoginModal(false)}
-          onConfirm={() => {
-            setShowLoginModal(false);
-            window.location.href = "/auth?next=/upgrade";
-          }}
-        />
+        >
+          <p className="text-center text-gray-300 mb-6">
+            Please log in to upgrade your plan.
+          </p>
+          <button
+            onClick={() => {
+              setShowLoginModal(false);
+              window.location.href = "/auth?next=/upgrade";
+            }}
+            className="btn btn-primary w-full"
+          >
+            Go to Login
+          </button>
+        </BaseModal>
       )}
 
       {/* Mobile Cards */}
@@ -230,7 +349,36 @@ export default function Upgrade() {
                   : ""
               }`}
             >
-              <h2 className="text-2xl font-extrabold mb-4">{tier.name}</h2>
+              {/* 50% OFF Badge for Paid Tiers */}
+              {tier.originalPrice && (
+                <div className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-black py-1 px-3 rounded-full inline-block mb-3 shadow-lg">
+                  ⚡ 50% OFF FOREVER
+                </div>
+              )}
+
+              <h2 className="text-2xl font-extrabold mb-2">{tier.name}</h2>
+
+              {/* Pricing Display */}
+              {tier.originalPrice ? (
+                <div className="mb-4">
+                  <span className="text-red-400 line-through text-lg mr-2 font-bold">
+                    {tier.originalPrice}/mo
+                  </span>
+                  <span
+                    className="text-4xl font-black text-yellow-400 font-orbitron"
+                    style={{
+                      textShadow: "0 2px 5px rgba(0,0,0,0.4)",
+                    }}
+                  >
+                    {tier.discountedPrice}/mo
+                  </span>
+                </div>
+              ) : (
+                <div className="mb-4 text-xl font-semibold text-gray-300">
+                  Forever Free
+                </div>
+              )}
+
               {button && (
                 <button
                   onClick={button.onClick}
@@ -264,7 +412,42 @@ export default function Upgrade() {
               <th className="py-3 px-4 text-left font-semibold">Feature</th>
               {tiers.map((t) => (
                 <th key={t.name} className="py-3 px-4 font-semibold">
-                  {t.name}
+                  <div className="flex flex-col items-center justify-center min-h-[130px] space-y-2">
+                    {/* 50% OFF Badge for Paid Tiers */}
+                    {t.originalPrice ? (
+                      <div className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-black py-1 px-3 rounded-full shadow-lg">
+                        ⚡ 50% OFF FOREVER
+                      </div>
+                    ) : (
+                      <div className="h-7"></div>
+                    )}
+                    <div className="font-bold text-xl">{t.name}</div>
+                    {/* Pricing Display */}
+                    {t.originalPrice ? (
+                      <div className="space-y-1">
+                        <div className="text-red-500 line-through text-sm font-bold">
+                          {t.originalPrice}/mo
+                        </div>
+                        <div
+                          className="text-2xl font-black text-yellow-400 font-orbitron"
+                          style={{
+                            textShadow: "0 2px 5px rgba(0,0,0,0.4)",
+                          }}
+                        >
+                          {t.discountedPrice}/mo
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="text-sm font-bold text-transparent">
+                          $00/mo
+                        </div>
+                        <div className="text-sm text-gray-400">
+                          Forever Free
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </th>
               ))}
             </tr>

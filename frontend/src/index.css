@@ -1,10 +1,19 @@
+/* MUST BE VERY FIRST */
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap");
+
+/* Tailwind + DaisyUI MUST come AFTER the font import */
 @import "tailwindcss";
 @plugin "daisyui";
 
-/* Errors are only cosmetic, without these 3, Tailwinds silently breaks */
+/* Now Tailwind layers */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 🔥 Orbitron class (safe, works fine here) */
+.font-orbitron {
+  font-family: "Orbitron", sans-serif;
+}
 
 /* Mobile M - 375px screens specifically, makes slot time slightly larger than timezone (EST), which is more aesthetic */
 @layer utilities {
