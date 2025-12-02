@@ -13,6 +13,8 @@ from dev.seed_helpers import seed_freelancer, add_appointment
 from functools import wraps
 import os
 
+# 🔒 PRODUCTION SAFETY CHECK
+IS_PRODUCTION = os.getenv("RENDER") or os.getenv("ENV") == "production"
 
 dev_bp = Blueprint("dev", __name__, url_prefix="/dev")
 
@@ -364,6 +366,11 @@ def delete_freelancer(freelancer_id):
 @dev_bp.route("/reset-db", methods=["POST"])
 def reset_database():
     """⚠️ NUCLEAR: Drops and recreates all tables"""
+
+    # 🔒 BLOCK IN PRODUCTION
+    if IS_PRODUCTION:
+        return jsonify({"error": "This endpoint is disabled in production"}), 403
+    
     auth_header = request.headers.get("X-Dev-Auth")
     if auth_header != os.getenv("DEV_PASSWORD"):
         return jsonify({"error": "Unauthorized"}), 401
@@ -394,6 +401,10 @@ def reset_database():
 # SEEDME
 @dev_bp.route("/seed-all", methods=["POST"])
 def seed_everything():
+
+    # 🔒 BLOCK IN PRODUCTION
+    if IS_PRODUCTION:
+        return jsonify({"error": "This endpoint is disabled in production"}), 403
 
     from models import MasterTimeSlot
     from werkzeug.security import generate_password_hash
