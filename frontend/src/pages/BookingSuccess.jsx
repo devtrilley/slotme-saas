@@ -36,26 +36,25 @@ export default function BookingSuccess() {
   };
 
   return (
-    <main className="max-w-md mx-auto p-6 space-y-6 text-center text-white">
+    <main className="max-w-md mx-auto p-6 space-y-6 text-white">
       <section
-        className="flex flex-col items-center space-y-2"
+        className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl p-8 shadow-lg text-center space-y-5 hover:shadow-xl transition-shadow duration-300"
         aria-labelledby="booking-success-heading"
       >
-        <header>
-          <Smile className="text-green-400 w-12 h-12 mx-auto" />
-          <h1 id="booking-success-heading" className="text-2xl font-bold">
+        <header className="space-y-3">
+          <Smile className="text-green-400 w-16 h-16 mx-auto drop-shadow-lg" />
+          <h1 id="booking-success-heading" className="text-3xl font-bold">
             Booking Received!
           </h1>
+          <p className="text-purple-300 text-base leading-relaxed">
+            You're almost done. We sent you an email — click the confirmation
+            link to finalize your appointment.
+          </p>
         </header>
 
-        <p className="text-purple-300">
-          You're almost done. We sent you an email — click the confirmation link
-          to finalize your appointment.
-        </p>
-
-        <div className="flex flex-col items-center space-y-2 text-sm text-white/60">
+        <div className="flex flex-col items-center space-y-2 text-sm text-gray-400 pt-2">
+          <MailCheck className="w-6 h-6 text-gray-400" />
           <span>Haven't received it? Check your spam folder.</span>
-          <MailCheck className="w-5 h-5 text-white/60" />
         </div>
 
         {/* Resend Button */}
@@ -65,8 +64,8 @@ export default function BookingSuccess() {
           </div>
         )}
 
-        {/* 📫 Email platform buttons (mapped) */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4 w-full">
+        {/* 📫 Email Providers – compact square pills */}
+        <div className="grid grid-cols-3 gap-3 mt-6 w-full">
           {[
             {
               name: "Gmail",
@@ -76,27 +75,27 @@ export default function BookingSuccess() {
             {
               name: "Outlook",
               url: "https://outlook.live.com/mail/",
-              logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Microsoft_Office_Outlook_%282018%E2%80%932024%29.svg/1024px-Microsoft_Office_Outlook_%282018%E2%80%932024%29.svg.png?20230309112740",
+              logo: "https://www.vectorlogo.zone/logos/microsoft/microsoft-icon.svg",
             },
             {
               name: "Yahoo",
               url: "https://mail.yahoo.com/",
-              logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSaw80OezWQC5DRsT8hpoPGBIgPr2vcYFs5NA&s",
+              logo: "https://www.vectorlogo.zone/logos/yahoo/yahoo-icon.svg",
             },
-          ].map((platform) => (
+          ].map((p) => (
             <a
-              key={platform.name}
-              href={platform.url}
+              key={p.name}
+              href={p.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn btn-outline w-1/2 sm:w-auto flex items-center justify-center px-6 py-3"
+              className="flex flex-col items-center justify-center 
+                 gap-1 p-2 rounded-lg 
+                 bg-slate-800/60 border border-slate-700 
+                 hover:bg-slate-800 hover:border-purple-500/40
+                 transition-all duration-150"
             >
-              <img
-                src={platform.logo}
-                alt={platform.name}
-                className="w-5 h-5 mr-2"
-              />
-              {platform.name}
+              <img src={p.logo} alt={p.name} className="w-6 h-6" />
+              <span className="text-[10px] text-gray-300">{p.name}</span>
             </a>
           ))}
         </div>
