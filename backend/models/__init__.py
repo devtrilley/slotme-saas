@@ -153,6 +153,8 @@ class Appointment(db.Model):
 
     # ✅ Responses to custom questions
     custom_responses = db.Column(JSON, nullable=True)  # {"Question?": "Answer"}
+    # ✅ Selected add-ons (list of add-on IDs)
+    selected_addons = db.Column(JSON, nullable=True)  # [1, 3, 5]
 
     def to_dict(self):
         return {
@@ -181,7 +183,6 @@ class Appointment(db.Model):
 
 class Service(db.Model):
     __tablename__ = "services"
-
     id = db.Column(db.Integer, primary_key=True)
     freelancer_id = db.Column(
         db.Integer, db.ForeignKey("freelancers.id"), nullable=False
@@ -190,4 +191,19 @@ class Service(db.Model):
     description = db.Column(db.String(300), nullable=True)
     duration_minutes = db.Column(db.Integer, nullable=False)
     price_usd = db.Column(db.Float, nullable=True)
-    is_enabled = db.Column(db.Boolean, default=True, nullable=False)  # ✅ New column
+    is_enabled = db.Column(db.Boolean, default=True, nullable=False)
+
+
+class ServiceAddon(db.Model):
+    __tablename__ = "service_addons"
+    id = db.Column(db.Integer, primary_key=True)
+    freelancer_id = db.Column(
+        db.Integer, db.ForeignKey("freelancers.id"), nullable=False
+    )
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(300), nullable=True)
+    price_usd = db.Column(db.Float, nullable=False, default=0.0)
+    duration_minutes = db.Column(
+        db.Integer, nullable=False, default=0
+    )  # 0 = no extra time
+    is_enabled = db.Column(db.Boolean, default=True, nullable=False)  # ✅ NEW

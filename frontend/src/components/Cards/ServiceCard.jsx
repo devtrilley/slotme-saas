@@ -119,19 +119,52 @@ export default function ServiceCard({
               value={form.description}
               onChange={handleChange("description")}
             />
-            <div className="space-y-1 text-sm text-gray-400">
-              <label className="block">Duration:</label>
-              <input
-                type="number"
-                className="input input-xs bg-white text-black w-full"
-                value={form.duration_minutes ?? ""}
-                onChange={handleChange("duration_minutes")}
-              />
+            <div className="space-y-2">
+              <label className="block text-sm text-gray-300">Duration:</label>
+              <div className="text-center bg-base-300 rounded-lg p-2">
+                <p className="text-white text-sm font-medium">
+                  {form.duration_minutes} mins
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn btn-xs btn-error flex-1 text-white font-bold"
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      duration_minutes: String(
+                        Math.max(15, Number(prev.duration_minutes || 15) - 15)
+                      ),
+                    }))
+                  }
+                >
+                  − 15
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-xs btn-success flex-1 text-white font-bold"
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      duration_minutes: String(
+                        Math.min(480, Number(prev.duration_minutes || 15) + 15)
+                      ),
+                    }))
+                  }
+                >
+                  + 15
+                </button>
+              </div>
 
-              <label className="block">Price:</label>
+              <label className="block text-sm text-gray-300 mt-2">
+                Price (USD):
+              </label>
               <input
                 type="number"
-                className="input input-xs bg-white text-black w-full"
+                step="0.01"
+                min="0"
+                className="input input-xs bg-base-300 text-white w-full"
                 value={form.price_usd ?? ""}
                 onChange={handleChange("price_usd")}
               />

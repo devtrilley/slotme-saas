@@ -370,7 +370,7 @@ def reset_database():
     # 🔒 BLOCK IN PRODUCTION
     if IS_PRODUCTION:
         return jsonify({"error": "This endpoint is disabled in production"}), 403
-    
+
     auth_header = request.headers.get("X-Dev-Auth")
     if auth_header != os.getenv("DEV_PASSWORD"):
         return jsonify({"error": "Unauthorized"}), 401

@@ -81,6 +81,7 @@ def book_slot():
         "phone",
         "slot_id",
         "service_id",
+        "selected_addon_ids",  # ✅ NEW: Allow add-ons
         "website",  # explicitly allowed
         "custom_responses",
         "customer_timezone",
@@ -178,7 +179,24 @@ def book_slot():
     all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
     time_labels = [t.label for t in all_times]
 
-    duration_blocks = service.duration_minutes // 15
+    # ✅ Handle add-ons FIRST (before conflict checks)
+    selected_addon_ids = data.get("selected_addon_ids", [])
+    total_addon_price = 0.0
+    total_addon_duration = 0
+
+    if selected_addon_ids:
+        from models import ServiceAddon
+
+        addons = ServiceAddon.query.filter(
+            ServiceAddon.id.in_(selected_addon_ids),
+            ServiceAddon.freelancer_id == slot.freelancer_id,
+        ).all()
+        total_addon_price = sum(a.price_usd for a in addons)
+        total_addon_duration = sum(a.duration_minutes for a in addons)
+
+    # ✅ Calculate total duration (service + add-ons)
+    total_duration = service.duration_minutes + total_addon_duration
+    duration_blocks = total_duration // 15
     start_label = slot.master_time.label
 
     try:
@@ -311,6 +329,7 @@ def book_slot():
         phone=phone,
         timestamp=datetime.now(timezone.utc),
         custom_responses=custom_responses,
+        selected_addons=selected_addon_ids,  # ✅ Store selected add-ons
         freelancer_timezone=slot.timezone
         or freelancer.timezone,  # 🔥 Use slot's frozen timezone
     )
@@ -353,8 +372,25 @@ def book_slot():
     timezone_abbr = local_dt.tzname()
     local_date_display = local_dt.strftime("%A, %B %d, %Y")
 
-    # Format price for initial email
-    price_display = f"${service.price_usd:.2f}" if service.price_usd else "Free"
+    # ✅ Calculate totals
+    total_price = (service.price_usd or 0) + total_addon_price
+
+    # ✅ Build add-ons section
+    addons_section = ""
+    if selected_addon_ids:
+        from models import ServiceAddon
+
+        addons = ServiceAddon.query.filter(
+            ServiceAddon.id.in_(selected_addon_ids)
+        ).all()
+
+        if addons:
+            addons_section = "\n\n🎁 ADD-ONS (Price, Duration):"
+            for a in addons:
+                addons_section += f"\n• {a.name} (+${a.price_usd:.2f}"
+                if a.duration_minutes > 0:
+                    addons_section += f" +{a.duration_minutes}min"
+                addons_section += ")"
 
     body = f"""Hi {first_name},
 Thanks for booking with SlotMe! You're one step away from confirming your appointment.
@@ -362,15 +398,22 @@ Thanks for booking with SlotMe! You're one step away from confirming your appoin
 ⏰ IMPORTANT: This confirmation link expires in 15 minutes!
 Please confirm now to secure your appointment.
 
-📋 Service: {service.name}
-💰 Price: {price_display}
-⏱️ Duration: {service.duration_minutes} minutes
-🗓️ Date: {local_date_display}
-⏰ Time: {local_time_display} {timezone_abbr}
-👤 With: {freelancer.first_name} {freelancer.last_name}
-🏢 Business: {freelancer.business_name or "N/A"}
+📋 BOOKING DETAILS:
+Service: {service.name}
+Price: ${(service.price_usd or 0):.2f}
+Duration: {service.duration_minutes} minutes{addons_section}
 
-✅ Confirm your booking here:
+💰 TOTAL: ${total_price:.2f} • {total_duration} minutes
+
+📅 APPOINTMENT TIME:
+Date: {local_date_display}
+Time: {local_time_display} {timezone_abbr}
+
+👤 WITH:
+Freelancer: {freelancer.first_name} {freelancer.last_name}
+Business: {freelancer.business_name or "N/A"}
+
+✅ CONFIRM YOUR BOOKING:
 {link}
 
 If you didn't request this, feel free to ignore it.
@@ -711,6 +754,36 @@ def get_appointments():
             timezone_abbr = "UTC"
             local_date_str = a.slot.day  # fallback to UTC date
 
+        # ✅ Calculate add-ons totals
+        addons_list = []
+        total_addon_price = 0.0
+        total_addon_duration = 0
+
+        if a.selected_addons:
+            from models import ServiceAddon
+
+            addons = ServiceAddon.query.filter(
+                ServiceAddon.id.in_(a.selected_addons)
+            ).all()
+
+            for addon in addons:
+                addons_list.append(
+                    {
+                        "id": addon.id,
+                        "name": addon.name,
+                        "price_usd": addon.price_usd,
+                        "duration_minutes": addon.duration_minutes,
+                    }
+                )
+                total_addon_price += addon.price_usd
+                total_addon_duration += addon.duration_minutes
+
+        # Calculate totals
+        base_price = a.service.price_usd if a.service else 0.0
+        base_duration = a.service.duration_minutes if a.service else 0
+        total_price = base_price + total_addon_price
+        total_duration = base_duration + total_addon_duration
+
         result.append(
             {
                 "id": a.id,
@@ -719,7 +792,7 @@ def get_appointments():
                 "name": f"{user.first_name} {user.last_name}",
                 "email": user.email,
                 "phone": user.phone,
-                "slot_day": local_date_str,  # 🔥 FIXED: Use local date
+                "slot_day": local_date_str,
                 "slot_time": local_time_display,
                 "freelancer_timezone": (
                     a.freelancer.timezone if a.freelancer else "America/New_York"
@@ -727,10 +800,11 @@ def get_appointments():
                 "timezone_abbr": timezone_abbr,
                 "status": a.status,
                 "service": a.service.name if a.service else None,
-                "service_duration_minutes": (
-                    a.service.duration_minutes if a.service else None
-                ),
+                "service_duration_minutes": base_duration,
                 "custom_responses": a.custom_responses or {},
+                "selected_addons": addons_list,  # ✅ NEW
+                "total_price": total_price,  # ✅ NEW
+                "total_duration": total_duration,  # ✅ NEW
             }
         )
 

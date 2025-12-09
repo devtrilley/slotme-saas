@@ -74,7 +74,7 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 
-app = Flask(__name__)
+app = Flask(__name__, instance_relative_config=False)
 
 
 # Route imports
@@ -139,16 +139,18 @@ app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)  # Long-lived for U
 
 
 def get_database_url():
-    """Get DATABASE_URL and ensure SSL is enabled for Render Postgres"""
+    """Force SQLite to use backend/instance/scheduler.db in dev"""
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        # Local development fallback to SQLite with absolute path
-        print("⚠️ DATABASE_URL not found - using local SQLite")
+        print("⚠️ DATABASE_URL not found - using local SQLite (forced path)")
         db_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "instance", "scheduler.db"
+            os.path.dirname(os.path.abspath(__file__)),
+            "instance",
+            "scheduler.db"
         )
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         return f"sqlite:///{db_path}"
+    return db_url
 
     # Add SSL requirement for Render Postgres
     if db_url.startswith("postgresql://") and "sslmode" not in db_url:
@@ -182,6 +184,7 @@ def custom_expired_token_response(jwt_header, jwt_payload):
 
 
 with app.app_context():
+    print("🗄️ Creating all tables in", app.config["SQLALCHEMY_DATABASE_URI"])
     db.create_all()
 
 

@@ -426,6 +426,29 @@ export default function CRM() {
                         ({a.service_duration_minutes || "?"} min)
                       </span>
                     </p>
+                    
+                    {/* ✅ NEW: Add-ons display */}
+                    {a.selected_addons && a.selected_addons.length > 0 && (
+                      <p>
+                        🎁{" "}
+                        <span className="text-green-400">
+                          {a.selected_addons.map((addon) => addon.name).join(", ")}
+                        </span>
+                      </p>
+                    )}
+                    
+                    {/* ✅ NEW: Total price & duration */}
+                    {a.total_price !== undefined && (
+                      <p>
+                        💰{" "}
+                        <span className="text-white font-semibold">
+                          ${a.total_price.toFixed(2)}
+                        </span>{" "}
+                        <span className="text-gray-500">
+                          • {a.total_duration} min total
+                        </span>
+                      </p>
+                    )}
                   </div>
                   <p
                     className={`text-sm font-medium ${

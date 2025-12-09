@@ -27,6 +27,7 @@ from models import (
     Appointment,
     MasterTimeSlot,
     Service,
+    ServiceAddon,
     User,
 )
 from email_utils import send_branded_customer_reply
@@ -1497,3 +1498,198 @@ def delete_finalize(token):
         db.session.rollback()
         print(f"❌ Failed to delete account: {e}")
         return jsonify({"error": "Failed to delete account"}), 500
+
+
+# ========== SERVICE ADD-ONS ==========
+
+
+@freelancer_bp.route("/freelancer/addons", methods=["GET", "OPTIONS"])
+@cross_origin(origins=ALLOWED_ORIGINS, headers=["Content-Type", "Authorization"])
+@jwt_required()
+def get_addons():
+    if request.method == "OPTIONS":
+        return "", 200
+    freelancer_id = int(get_jwt_identity())
+    addons = ServiceAddon.query.filter_by(freelancer_id=freelancer_id).all()
+    return jsonify(
+        [
+            {
+                "id": a.id,
+                "name": a.name,
+                "description": a.description,
+                "price_usd": a.price_usd,
+                "duration_minutes": a.duration_minutes,
+                "is_enabled": a.is_enabled,  # ✅ NEW
+            }
+            for a in addons
+        ]
+    )
+
+
+@freelancer_bp.route("/freelancer/addons", methods=["POST", "OPTIONS"])
+@cross_origin(origins=ALLOWED_ORIGINS, headers=["Content-Type", "Authorization"])
+@jwt_required()
+def add_addon():
+    if request.method == "OPTIONS":
+        return "", 200
+    freelancer_id = int(get_jwt_identity())
+    
+    # ✅ TIER GATE: Check freelancer tier and addon count
+    freelancer = Freelancer.query.get(freelancer_id)
+    if not freelancer:
+        return jsonify({"error": "Freelancer not found"}), 404
+    
+    tier = (freelancer.tier or "free").lower()
+    current_addon_count = ServiceAddon.query.filter_by(freelancer_id=freelancer_id).count()
+    
+    # FREE: No add-ons allowed
+    if tier == "free":
+        return jsonify({
+            "error": "Add-ons require PRO or ELITE. Upgrade to unlock this feature.",
+            "tier_required": "pro"
+        }), 403
+    
+    # PRO: Max 5 add-ons
+    if tier == "pro" and current_addon_count >= 5:
+        return jsonify({
+            "error": "PRO tier is limited to 5 add-ons. Upgrade to ELITE for unlimited.",
+            "tier_required": "elite",
+            "current_count": current_addon_count,
+            "limit": 5
+        }), 403
+    
+    # ELITE: Unlimited (no check needed)
+    
+    data = request.get_json()
+    name = data.get("name", "").strip()
+    description = data.get("description", "").strip()
+    if len(description) > 500:
+        return jsonify({"error": "Description too long (500 char max)"}), 422
+    price_raw = data.get("price_usd")
+    duration_raw = data.get("duration_minutes", 0)
+    if not name:
+        return jsonify({"error": "Name is required"}), 422
+    try:
+        price_usd = float(price_raw)
+        if price_usd < 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid price"}), 422
+    try:
+        duration_minutes = int(duration_raw)
+        if duration_minutes < 0 or duration_minutes % 15 != 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return (
+            jsonify({"error": "Invalid duration — must be a multiple of 15 or 0"}),
+            422,
+        )
+    addon = ServiceAddon(
+        freelancer_id=freelancer_id,
+        name=name,
+        description=description,
+        price_usd=price_usd,
+        duration_minutes=duration_minutes,
+    )
+    db.session.add(addon)
+    db.session.commit()
+    return jsonify({
+        "id": addon.id,
+        "name": addon.name,
+        "description": addon.description,
+        "price_usd": addon.price_usd,
+        "duration_minutes": addon.duration_minutes,
+        "is_enabled": addon.is_enabled
+    }), 201
+
+
+@freelancer_bp.route("/freelancer/addons/<int:addon_id>", methods=["PATCH", "OPTIONS"])
+@cross_origin(origins=ALLOWED_ORIGINS, headers=["Content-Type", "Authorization"])
+@jwt_required()
+def update_addon(addon_id):
+    if request.method == "OPTIONS":
+        return "", 200
+    freelancer_id = int(get_jwt_identity())
+    addon = ServiceAddon.query.filter_by(
+        id=addon_id, freelancer_id=freelancer_id
+    ).first()
+    if not addon:
+        return jsonify({"error": "Add-on not found"}), 404
+    data = request.json
+    if "name" in data:
+        addon.name = data["name"].strip()
+    if "description" in data:
+        addon.description = data["description"].strip()
+    if "price_usd" in data:
+        addon.price_usd = float(data["price_usd"])
+    if "duration_minutes" in data:
+        addon.duration_minutes = int(data["duration_minutes"])
+    # ✅ NEW: Enable/disable toggle
+    if "is_enabled" in data:
+        addon.is_enabled = bool(data["is_enabled"])
+    db.session.commit()
+    return jsonify({
+        "id": addon.id,
+        "name": addon.name,
+        "description": addon.description,
+        "price_usd": addon.price_usd,
+        "duration_minutes": addon.duration_minutes,
+        "is_enabled": addon.is_enabled
+    })
+
+
+@freelancer_bp.route("/freelancer/addons/<int:addon_id>", methods=["DELETE", "OPTIONS"])
+@cross_origin(origins=ALLOWED_ORIGINS, headers=["Content-Type", "Authorization"])
+@jwt_required()
+def delete_addon(addon_id):
+    if request.method == "OPTIONS":
+        return "", 200
+
+    freelancer_id = int(get_jwt_identity())
+    addon = ServiceAddon.query.filter_by(
+        id=addon_id, freelancer_id=freelancer_id
+    ).first()
+
+    if not addon:
+        return jsonify({"error": "Add-on not found"}), 404
+
+    db.session.delete(addon)
+    db.session.commit()
+
+    return jsonify({"message": "Add-on deleted"}), 200
+
+
+@freelancer_bp.route("/freelancer/addons/<identifier>", methods=["GET", "OPTIONS"])
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
+def get_public_addons(identifier):
+    """Public route for customers to see available add-ons"""
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    # 🔥 Priority lookup order (same as services)
+    if identifier.isdigit():
+        freelancer_id = int(identifier)
+    else:
+        freelancer = Freelancer.query.filter_by(custom_url=identifier.lower()).first()
+        if not freelancer:
+            freelancer = Freelancer.query.filter_by(
+                public_slug=identifier.lower()
+            ).first()
+        if not freelancer:
+            return jsonify({"error": "Freelancer not found"}), 404
+        freelancer_id = freelancer.id
+    # ✅ FILTER: Only show enabled add-ons to customers
+    addons = ServiceAddon.query.filter_by(
+        freelancer_id=freelancer_id, is_enabled=True
+    ).all()
+    return jsonify(
+        [
+            {
+                "id": a.id,
+                "name": a.name,
+                "description": a.description,
+                "price_usd": a.price_usd,
+                "duration_minutes": a.duration_minutes,
+            }
+            for a in addons
+        ]
+    )

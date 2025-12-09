@@ -94,6 +94,33 @@ export default function ViewBookingModal({ appointment, onClose, onCancel }) {
         <p>
           <strong>Duration:</strong> {service_duration_minutes || "?"} min
         </p>
+        
+        {/* ✅ NEW: Add-ons section */}
+        {appointment.selected_addons && appointment.selected_addons.length > 0 && (
+          <div className="pt-2 border-t border-base-content/10">
+            <h4 className="font-semibold mb-2">🎁 Add-Ons</h4>
+            <ul className="space-y-1 text-sm">
+              {appointment.selected_addons.map((addon) => (
+                <li key={addon.id} className="text-green-400">
+                  • {addon.name}{" "}
+                  <span className="text-gray-400">
+                    (+${addon.price_usd.toFixed(2)}
+                    {addon.duration_minutes > 0 && ` +${addon.duration_minutes}min`})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {/* ✅ NEW: Total summary */}
+        {appointment.total_price !== undefined && (
+          <div className="pt-2 border-t border-base-content/10">
+            <p className="font-semibold">
+              💰 Total: ${appointment.total_price.toFixed(2)} • {appointment.total_duration} min
+            </p>
+          </div>
+        )}
 
         <div className="pt-3 border-t border-base-content/10">
           <h4 className="font-semibold mb-2">Customer Q&A</h4>

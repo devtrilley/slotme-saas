@@ -58,25 +58,56 @@ def send_booking_confirmation_email(appointment, customer_timezone=None):
     if cancel_link:
         cancel_block = "🔗 Need to cancel or reschedule?\n" + cancel_link + "\n\n"
 
-    # Format price
-    price_display = f"${service.price_usd:.2f}" if service.price_usd else "Free"
+    # ✅ Calculate add-ons totals
+    total_addon_price = 0.0
+    total_addon_duration = 0
 
-    body = (
-        f"Hi {user.first_name},\n\n"
-        "Great news! Your appointment is confirmed. ✅\n\n"
-        f"📋 Service: {service.name}\n"
-        f"💰 Price: {price_display}\n"
-        f"⏱️ Duration: {service.duration_minutes} minutes\n"
-        f"📅 Date: {local_date_display}\n"
-        f"🕐 Time: {local_time_display} {timezone_abbr}\n"
-        f"👤 With: {freelancer.first_name} {freelancer.last_name}\n"
-        f"🏢 Business: {freelancer.business_name or 'N/A'}\n\n"
-        f"{instructions_block}"
-        f"{cancel_block}"
-        "Looking forward to seeing you!\n\n"
-        "— The SlotMe Team\n"
-        "https://slotme.xyz\n"
-    )
+    # ✅ Build add-ons section
+    addons_section = ""
+    if appointment.selected_addons:
+        from models import ServiceAddon
+
+        addons = ServiceAddon.query.filter(
+            ServiceAddon.id.in_(appointment.selected_addons)
+        ).all()
+
+        if addons:
+            addons_section = "\n\n🎁 Add-ons (Price, Duration):"
+            for addon in addons:
+                total_addon_price += addon.price_usd
+                total_addon_duration += addon.duration_minutes
+                addons_section += f"\n• {addon.name} (+${addon.price_usd:.2f}"
+                if addon.duration_minutes > 0:
+                    addons_section += f" +{addon.duration_minutes}min"
+                addons_section += ")"
+
+    # Calculate totals
+    total_price = (service.price_usd or 0) + total_addon_price
+    total_duration = service.duration_minutes + total_addon_duration
+
+    body = f"""Hi {user.first_name},
+Great news! Your appointment is confirmed. ✅
+
+📋 BOOKING DETAILS:
+Service: {service.name}
+Price: ${(service.price_usd or 0):.2f}
+Duration: {service.duration_minutes} minutes{addons_section}
+
+💰 TOTAL: ${total_price:.2f} • {total_duration} minutes
+
+📅 APPOINTMENT TIME:
+Date: {local_date_display}
+Time: {local_time_display} {timezone_abbr}
+
+👤 WITH:
+{freelancer.first_name} {freelancer.last_name}
+Business: {freelancer.business_name or 'N/A'}
+
+{instructions_block}{cancel_block}Looking forward to seeing you!
+
+— The SlotMe Team
+https://slotme.xyz
+"""
 
     send_branded_customer_reply(
         subject=f"✅ Booking Confirmed with {freelancer.business_name or freelancer.first_name}",
@@ -172,8 +203,32 @@ def send_freelancer_booking_notification(appointment):
     timezone_abbr = local_dt.tzname()
     local_date_display = local_dt.strftime("%A, %B %d, %Y")
 
-    # Format price
-    price_display = f"${service.price_usd:.2f}" if service.price_usd else "Free"
+    # ✅ Calculate add-ons totals
+    total_addon_price = 0.0
+    total_addon_duration = 0
+
+    # ✅ Build add-ons section
+    addons_section = ""
+    if appointment.selected_addons:
+        from models import ServiceAddon
+
+        addons = ServiceAddon.query.filter(
+            ServiceAddon.id.in_(appointment.selected_addons)
+        ).all()
+
+        if addons:
+            addons_section = "\n\n🎁 Add-ons:"
+            for addon in addons:
+                total_addon_price += addon.price_usd
+                total_addon_duration += addon.duration_minutes
+                addons_section += f"\n• {addon.name} (+${addon.price_usd:.2f}"
+                if addon.duration_minutes > 0:
+                    addons_section += f" +{addon.duration_minutes}min"
+                addons_section += ")"
+
+    # Calculate totals
+    total_price = (service.price_usd or 0) + total_addon_price
+    total_duration = service.duration_minutes + total_addon_duration
 
     # 🔥 Format custom Q&A responses
     custom_qa_block = ""
@@ -194,25 +249,34 @@ def send_freelancer_booking_notification(appointment):
     # CRM link
     crm_link = f"{FRONTEND_URL}/crm"
 
-    body = (
-        f"Hi {freelancer.first_name},\n\n"
-        "🎉 Great news! You have a new confirmed booking.\n\n"
-        "📋 APPOINTMENT DETAILS:\n"
-        f"Service: {service.name}\n"
-        f"Price: {price_display}\n"
-        f"Duration: {service.duration_minutes} minutes\n"
-        f"📅 Date: {local_date_display}\n"
-        f"🕐 Time: {local_time_display} {timezone_abbr}\n\n"
-        "👤 CUSTOMER INFO:\n"
-        f"Name: {user.first_name} {user.last_name}\n"
-        f"Email: {user.email}\n"
-        f"Phone: {user.phone or 'Not provided'}\n"
-        f"{custom_qa_block}"
-        f"\n🔗 Manage all your bookings:\n{crm_link}\n\n"
-        "Looking forward to a great appointment!\n\n"
-        "— The SlotMe Team\n"
-        "https://slotme.xyz\n"
-    )
+    body = f"""Hi {freelancer.first_name},
+🎉 Great news! You have a new confirmed booking.
+
+📋 APPOINTMENT DETAILS:
+Service: {service.name}
+Price: ${(service.price_usd or 0):.2f}
+Duration: {service.duration_minutes} minutes{addons_section}
+
+{'─' * 40}
+💰 TOTAL: ${total_price:.2f} • {total_duration} min total
+
+📅 APPOINTMENT TIME:
+Date: {local_date_display}
+Time: {local_time_display} {timezone_abbr}
+
+👤 CUSTOMER INFO:
+Name: {user.first_name} {user.last_name}
+Email: {user.email}
+Phone: {user.phone or 'Not provided'}
+{custom_qa_block}
+🔗 Manage all your bookings:
+{crm_link}
+
+Looking forward to a great appointment!
+
+— The SlotMe Team
+https://slotme.xyz
+"""
 
     send_branded_customer_reply(
         subject=f"🎉 New Booking: {user.first_name} {user.last_name} - {service.name}",

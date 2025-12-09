@@ -9,6 +9,7 @@ import FreelancerModal from "../components/Modals/FreelancerModal";
 import NoShowPolicy from "../components/NoShowPolicy";
 import FAQCard from "../components/Cards/FAQCard";
 import IconDatePicker from "../components/Inputs/IconDatePicker";
+import AddonSelectionModal from "../components/Modals/AddonSelectionModal";
 import { showToast } from "../utils/toast";
 import ServiceCard from "../components/Cards/ServiceCard";
 import { useNavigate } from "react-router-dom";
@@ -79,6 +80,9 @@ export default function BookingPage({ useCustomUrl = false }) {
   const [services, setServices] = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
   const [selectedServiceDuration, setSelectedServiceDuration] = useState(0);
+  const [addons, setAddons] = useState([]);
+  const [selectedAddonIds, setSelectedAddonIds] = useState([]);
+  const [showAddonModal, setShowAddonModal] = useState(false);
   const [noShowPolicy, setNoShowPolicy] = useState("");
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [honeypot, setHoneypot] = useState(""); // Test honeypot by changing default value
@@ -121,11 +125,12 @@ export default function BookingPage({ useCustomUrl = false }) {
   const handleRefresh = async () => {
     showToast("Refreshing slots...", "refresh", 2000);
     try {
-      const [slotsRes, infoRes] = await Promise.all([
+      const [slotsRes, infoRes, addonsRes] = await Promise.all([
         axios.get(`${API_BASE}/freelancer/slots/${freelancerId}`),
         axios.get(`${API_BASE}/freelancer/public-info/${freelancerId}`),
+        axios.get(`${API_BASE}/freelancer/addons/${freelancerId}`),
       ]);
-      setSlots(slotsRes.data); // 🔥 REMOVED sortSlots()
+      setSlots(slotsRes.data);
       const data = infoRes.data;
       setFreelancerDetails({
         ...data,
@@ -136,6 +141,7 @@ export default function BookingPage({ useCustomUrl = false }) {
 
       const enabled = data.services || [];
       setServices(enabled);
+      setAddons(addonsRes.data); // ✅ CORRECT - inside try block, after setting services
 
       if (enabled.length === 1) {
         setSelectedServiceId(enabled[0].id);
@@ -232,6 +238,18 @@ export default function BookingPage({ useCustomUrl = false }) {
       });
   };
 
+  const fetchAddons = async (identifier) => {
+    try {
+      const res = await axios.get(
+        `${API_BASE}/freelancer/addons/${identifier}`
+      );
+      setAddons(res.data);
+    } catch (err) {
+      console.error("❌ Failed to fetch add-ons", err);
+      setAddons([]);
+    }
+  };
+
   const checkBookingStatus = async (targetEmail) => {
     try {
       const res = await axios.get(
@@ -288,6 +306,7 @@ export default function BookingPage({ useCustomUrl = false }) {
   useEffect(() => {
     fetchSlots();
     fetchFreelancerInfo();
+    fetchAddons(freelancerId);
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("cancelled") === "true") {
@@ -393,6 +412,7 @@ export default function BookingPage({ useCustomUrl = false }) {
         phone,
         slot_id: selectedSlotId,
         service_id: selectedServiceId,
+        selected_addon_ids: selectedAddonIds, // ✅ NEW
         website: honeypot?.trim() || "",
         custom_responses: customResponses,
         customer_timezone: userTimeZone,
@@ -740,6 +760,29 @@ export default function BookingPage({ useCustomUrl = false }) {
             </div>
           </section>
         )}
+        {/* ✅ ADD-ONS BUTTON - RIGHT AFTER CAROUSEL */}
+        {selectedServiceId && addons.length > 0 && (
+          <div className="flex justify-center mt-4">
+            <button
+              onClick={() => setShowAddonModal(true)}
+              className="w-full max-w-sm flex items-center justify-center gap-2
+        px-4 py-3 rounded-lg
+        bg-gradient-to-r from-purple-500/20 to-blue-500/20
+        border border-purple-500/50
+        text-white font-medium
+        shadow-lg shadow-purple-700/20
+        hover:from-purple-500/30 hover:to-blue-500/30 hover:shadow-purple-600/30
+        transition-all duration-200 active:scale-[.98]"
+            >
+              <span className="text-xl">🎁</span>
+              <span className="text-sm">
+                {selectedAddonIds.length > 0
+                  ? `View Add-Ons (${selectedAddonIds.length} selected)`
+                  : "Click to View Available Add-Ons"}
+              </span>
+            </button>
+          </div>
+        )}
         <section className="space-y-2">
           <label className="text-sm text-gray-400 block text-center mt-6">
             Select a date:
@@ -822,6 +865,114 @@ export default function BookingPage({ useCustomUrl = false }) {
                   ))}
                 </select>
               </div>
+              {/* ✅ DUAL ADD-ONS ACCESS - ALSO UNDER DROPDOWN */}
+              {selectedServiceId && addons.length > 0 && (
+                <button
+                  onClick={() => setShowAddonModal(true)}
+                  className="w-full mt-2 flex items-center justify-center gap-2
+          px-3 py-2 rounded-lg
+          bg-gradient-to-r from-purple-500/10 to-blue-500/10
+          border border-purple-500/30
+          text-white text-sm
+          hover:from-purple-500/20 hover:to-blue-500/20
+          transition-all duration-200"
+                >
+                  <span>🎁</span>
+                  <span>
+                    {selectedAddonIds.length > 0
+                      ? `Add-Ons (${selectedAddonIds.length})`
+                      : "Click Here for Add-On Services"}
+                  </span>
+                </button>
+              )}
+              {/* ✅ Total Price & Duration Display */}
+              {selectedServiceId && (
+                <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/10">
+                  <p className="text-sm font-medium text-center mb-3 border-b border-white/10 pb-2">
+                    Booking Summary
+                  </p>
+                  {(() => {
+                    const service = services.find(
+                      (s) => s.id === selectedServiceId
+                    );
+                    const selectedAddons = addons.filter((a) =>
+                      selectedAddonIds.includes(a.id)
+                    );
+                    const totalPrice =
+                      (service?.price_usd || 0) +
+                      selectedAddons.reduce((sum, a) => sum + a.price_usd, 0);
+                    const totalDuration =
+                      (service?.duration_minutes || 0) +
+                      selectedAddons.reduce(
+                        (sum, a) => sum + a.duration_minutes,
+                        0
+                      );
+                    return (
+                      <div className="space-y-2">
+                        {/* Service */}
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-300">
+                            {service?.name}
+                          </span>
+                          <span className="text-sm text-white">
+                            ${service?.price_usd?.toFixed(2) || "0.00"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs text-gray-500">
+                          <span>Duration</span>
+                          <span>{service?.duration_minutes} min</span>
+                        </div>
+
+                        {/* Add-ons */}
+                        {selectedAddons.length > 0 && (
+                          <>
+                            <hr className="border-white/10 my-2" />
+                            <p className="text-xs text-gray-400 font-medium">
+                              Add-Ons:
+                            </p>
+                            {selectedAddons.map((addon) => (
+                              <div key={addon.id} className="space-y-1">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm text-gray-300">
+                                    {addon.name}
+                                  </span>
+                                  <span className="text-sm text-green-400">
+                                    +${addon.price_usd.toFixed(2)}
+                                  </span>
+                                </div>
+                                {addon.duration_minutes > 0 && (
+                                  <div className="flex justify-between items-center text-xs text-gray-500">
+                                    <span>Duration</span>
+                                    <span className="text-green-400">
+                                      +{addon.duration_minutes} min
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </>
+                        )}
+
+                        {/* Total */}
+                        <hr className="border-white/20 my-2" />
+                        <div className="flex justify-between items-center pt-1">
+                          <span className="text-base font-bold text-white">
+                            Total
+                          </span>
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-white">
+                              ${totalPrice.toFixed(2)}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {totalDuration} minutes
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           )}
 
@@ -882,9 +1033,17 @@ export default function BookingPage({ useCustomUrl = false }) {
                   const isDisabled = isBlocked || isPast;
 
                   const handleSelectSlot = () => {
-                    const requiredBlocks = getRequiredBlocks(
-                      selectedServiceDuration
+                    // ✅ Calculate total duration including add-ons
+                    const selectedAddons = addons.filter((a) =>
+                      selectedAddonIds.includes(a.id)
                     );
+                    const totalAddonDuration = selectedAddons.reduce(
+                      (sum, a) => sum + a.duration_minutes,
+                      0
+                    );
+                    const totalDuration =
+                      selectedServiceDuration + totalAddonDuration;
+                    const requiredBlocks = getRequiredBlocks(totalDuration);
                     // 🔥 FIX: Find actual index in filteredSlots
                     const actualIndex = filteredSlots.findIndex(
                       (s) => s.id === slot.id
@@ -1041,6 +1200,7 @@ export default function BookingPage({ useCustomUrl = false }) {
                 ⏳ You can book again in {cooldownRemaining} seconds.
               </p>
             )}
+
             <h3 className="text-lg font-semibold text-center border-b pb-1">
               Your Name & Contact Info
             </h3>
@@ -1146,6 +1306,18 @@ export default function BookingPage({ useCustomUrl = false }) {
         <NoShowPolicy policy={noShowPolicy} />
         <FAQCard faq_items={freelancerDetails.faq_items} />{" "}
       </main>
+
+      {/* ✅ Add-On Selection Modal */}
+      <AddonSelectionModal
+        open={showAddonModal}
+        onClose={() => setShowAddonModal(false)}
+        addons={addons}
+        selectedAddonIds={selectedAddonIds}
+        onUpdateSelection={(newIds) => {
+          setSelectedAddonIds(newIds);
+          setSelectedSlotId(null); // Reset slot when add-ons change
+        }}
+      />
     </SafeLoader>
   );
 }

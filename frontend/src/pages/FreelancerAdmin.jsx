@@ -11,6 +11,8 @@ import FreelancerCard from "../components/Cards/FreelancerCard";
 import FreelancerModal from "../components/Modals/FreelancerModal";
 import ServiceCard from "../components/Cards/ServiceCard";
 import ServiceForm from "../components/Forms/ServiceForm";
+import AddonForm from "../components/Forms/AddonForm";
+import AddonCard from "../components/Cards/AddonCard";
 import { DateTime } from "luxon";
 import TierStatusCard from "../components/Cards/TierStatusCard";
 import { API_BASE } from "../utils/constants";
@@ -113,6 +115,8 @@ export default function AdminPage() {
   const [showInternalModal, setShowInternalModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [services, setServices] = useState([]);
+  const [addons, setAddons] = useState([]);
+  const [addonsError, setAddonsError] = useState(false);
   const [sortDirection, setSortDirection] = useState("asc");
 
   const [showFilters, setShowFilters] = useState(() => {
@@ -263,6 +267,19 @@ export default function AdminPage() {
       });
   };
 
+  const fetchAddons = () => {
+    axios
+      .get(`${API_BASE}/freelancer/addons`)
+      .then((res) => {
+        setAddons(res.data);
+        setAddonsError(false);
+      })
+      .catch((err) => {
+        console.error("❌ Failed to fetch add-ons", err);
+        setAddonsError(true);
+      });
+  };
+
   const fetchFreelancerDetails = () => {
     axios
       .get(`${API_BASE}/freelancer-info`)
@@ -326,6 +343,20 @@ export default function AdminPage() {
         [...prev, deletedService].sort((a, b) => a.id - b.id)
       );
       showToast("Couldn't delete service. Restored.", "error");
+    }
+  };
+
+  const handleDeleteAddon = async (addonId) => {
+    const deletedAddon = addons.find((a) => a.id === addonId);
+    setAddons((prev) => prev.filter((a) => a.id !== addonId));
+    showToast("Add-on deleted.", "success");
+
+    try {
+      await axios.delete(`${API_BASE}/freelancer/addons/${addonId}`);
+    } catch (err) {
+      console.error("❌ Failed to delete add-on", err);
+      setAddons((prev) => [...prev, deletedAddon].sort((a, b) => a.id - b.id));
+      showToast("Couldn't delete add-on. Restored.", "error");
     }
   };
 
@@ -405,12 +436,18 @@ export default function AdminPage() {
 
   const quietFetchServices = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/freelancer/services`);
-      setServices(res.data);
+      const [servicesRes, addonsRes] = await Promise.all([
+        axios.get(`${API_BASE}/freelancer/services`),
+        axios.get(`${API_BASE}/freelancer/addons`),
+      ]);
+      setServices(servicesRes.data);
+      setAddons(addonsRes.data);
       setServicesError(false);
+      setAddonsError(false);
     } catch (err) {
-      console.error("❌ Failed to fetch services (quiet):", err);
+      console.error("❌ Failed to fetch services/add-ons (quiet):", err);
       setServicesError(true);
+      setAddonsError(true);
     }
   };
 
@@ -457,6 +494,7 @@ export default function AdminPage() {
     if (freelancer?.id) {
       fetchSlots();
       fetchServices();
+      fetchAddons();
     }
   }, [freelancer?.id, freelancerDetailsUpdated]);
 
@@ -666,7 +704,9 @@ export default function AdminPage() {
 
             {/* 🔥 NEW: Return to Today button */}
             <div className="flex justify-center w-full">
-              <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
+              <ReturnToTodayButton
+                onClick={() => setSelectedDate(new Date())}
+              />
             </div>
 
             <div className="flex flex-col items-center gap-2 mt-4">
@@ -812,6 +852,68 @@ export default function AdminPage() {
                   onUpdate={fetchServices}
                   onDelete={handleDeleteService}
                   setSelectedServiceForModal={setSelectedServiceForModal}
+                />
+              ))
+            )}
+          </section>
+        </AccordionSection>
+        <AccordionSection
+          title="Add a Service Add-On"
+          subtitle="Optional extras"
+          tier={tier}
+          requiredTier="pro"
+          onTierBlocked={handleTierBlocked}
+        >
+          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <AddonForm onAddonAdded={fetchAddons} />
+          </section>
+        </AccordionSection>
+
+        <AccordionSection title="Your Add-Ons" subtitle="View, edit, delete">
+          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            {/* ✅ NEW: Add-on limit display */}
+            {tier === "pro" && (
+              <div className="text-center text-sm">
+                <span className="text-gray-400">Add-ons: </span>
+                <span className={`font-semibold ${addons.length >= 5 ? "text-warning" : "text-success"}`}>
+                  {addons.length} / 5
+                </span>
+                {addons.length >= 5 && (
+                  <span className="block text-xs text-warning mt-1">
+                    Limit reached. Upgrade to ELITE for unlimited.
+                  </span>
+                )}
+              </div>
+            )}
+            {tier === "elite" && (
+              <div className="text-center text-sm">
+                <span className="text-gray-400">Add-ons: </span>
+                <span className="font-semibold text-primary">{addons.length} (Unlimited)</span>
+              </div>
+            )}
+            
+            {addonsError && addons.length > 0 && (
+              <ErrorCard
+                title="Couldn't refresh your add-ons."
+                message="You're seeing the cached version below."
+                variant="warning"
+              />
+            )}
+            {addons.length === 0 ? (
+              <div className="text-center text-sm text-gray-400 italic">
+                {addonsError
+                  ? "Unable to load add-ons. Please check your internet or server status."
+                  : tier === "free"
+                  ? "Add-ons require PRO or ELITE. Upgrade to get started!"
+                  : "No add-ons available. Add one above!"}
+              </div>
+            ) : (
+              addons.map((addon) => (
+                <AddonCard
+                  key={addon.id}
+                  addon={addon}
+                  onUpdate={fetchAddons}
+                  onDelete={handleDeleteAddon}
                 />
               ))
             )}

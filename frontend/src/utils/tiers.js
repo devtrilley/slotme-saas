@@ -11,7 +11,6 @@ export const FEATURES_BY_TIER = {
   qrCodes: "free", // QR code for public profile
   noShowPolicy: "free",
   analyticsBasic: "free",
-
   // Pro and up
   analyticsFull: "pro",
   customURL: "pro",
@@ -19,7 +18,7 @@ export const FEATURES_BY_TIER = {
   exportCSV: "pro",
   emailReminders: "pro",
   smsReminders: "pro",
-
+  addons: "pro", // ✅ NEW: Add-ons require PRO minimum
   // Elite only
   prioritySupport: "elite",
   earlyAccess: "elite",
