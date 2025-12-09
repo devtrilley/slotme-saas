@@ -40,10 +40,8 @@ def load_freelancer():
         "/dev/reset-db",
         "/404",
         "/master-times",
-        # "/appointment",
         "/freelancer/public-info",
         "/freelancer/slots",
-        "/freelancer/addons",  # ← ADD THIS LINE
         "/freelancer/questions/",
         "/confirm-booking",
         "/cancel-booking",
@@ -70,6 +68,16 @@ def load_freelancer():
 
     if any(request.path.startswith(prefix) for prefix in open_prefixes):
         print(f"⚠️ Matched OPEN PREFIX → {request.path}\n")
+        return
+
+    # Special case: /freelancer/addons/<slug> is public, /freelancer/addons needs auth
+    path_parts = request.path.split("/")
+    if (
+        len(path_parts) >= 4
+        and path_parts[1] == "freelancer"
+        and path_parts[2] == "addons"
+    ):
+        print(f"⚠️ Matched PUBLIC ADDON ROUTE → {request.path}\n")
         return
 
     if request.path in open_paths:
