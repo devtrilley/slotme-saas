@@ -9,7 +9,6 @@ const publicEndpoints = [
   "/book",
   "/freelancer/public-info",
   "/freelancer/slots",
-  "/freelancer/addons",  // ← ADD THIS LINE
   "/check-booking-status",
   "/resend-confirmation",
   "/confirm-booking",
