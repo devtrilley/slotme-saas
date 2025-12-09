@@ -9,6 +9,7 @@ const publicEndpoints = [
   "/book",
   "/freelancer/public-info",
   "/freelancer/slots",
+  "/freelancer/addons",  // ← ADD THIS LINE
   "/check-booking-status",
   "/resend-confirmation",
   "/confirm-booking",
@@ -148,8 +149,6 @@ axiosInstance.interceptors.response.use(
           throw new Error("No refresh token available");
         }
 
-        
-
         // Call refresh endpoint with refresh token
         const refreshResponse = await axios.post(
           `${API_BASE}/auth/refresh`,
@@ -163,7 +162,6 @@ axiosInstance.interceptors.response.use(
 
         // ✅ Store new access token
         localStorage.setItem("access_token", newAccessToken);
-        
 
         // Update original request with new token
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;

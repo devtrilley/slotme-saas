@@ -43,6 +43,7 @@ def load_freelancer():
         # "/appointment",
         "/freelancer/public-info",
         "/freelancer/slots",
+        "/freelancer/addons",  # ← ADD THIS LINE
         "/freelancer/questions/",
         "/confirm-booking",
         "/cancel-booking",
