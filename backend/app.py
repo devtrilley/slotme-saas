@@ -84,6 +84,7 @@ from routes.dev_routes import dev_bp
 from routes.freelancer_routes import freelancer_bp
 from routes.reminder_routes import reminder_bp
 from routes.stripe_routes import stripe_bp, stripe_webhook
+from routes.onboarding_routes import onboarding_bp
 from routes.s3_routes import s3_bp
 
 
@@ -102,6 +103,8 @@ app.register_blueprint(stripe_bp)
 # Register it below with the others
 app.register_blueprint(public_bp)
 app.register_blueprint(s3_bp)
+
+app.register_blueprint(onboarding_bp)
 
 app.add_url_rule("/webhook", view_func=stripe_webhook, methods=["POST"])
 

@@ -9,7 +9,11 @@ export function FreelancerProvider({ children }) {
 
   useEffect(() => {
     const stored = getStoredFreelancer();
-    if (stored) setFreelancer(stored);
+
+    if (stored) {
+      setFreelancer(stored);
+    }
+
     setIsLoaded(true); // ✅ flag ready
   }, []);
 
@@ -29,7 +33,12 @@ export function FreelancerProvider({ children }) {
 
   return (
     <FreelancerContext.Provider
-      value={{ freelancer, setFreelancer, clearFreelancer, isLoaded }}
+      value={{
+        freelancer,
+        setFreelancer,
+        clearFreelancer,
+        isLoaded,
+      }}
     >
       {children}
     </FreelancerContext.Provider>

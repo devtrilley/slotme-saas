@@ -96,6 +96,20 @@ export default function BookingPage({ useCustomUrl = false }) {
   const [customQuestions, setCustomQuestions] = useState([]);
   const [customResponses, setCustomResponses] = useState({});
 
+  const navigate = useNavigate();
+
+  // ✅ Track when user returns from booking page
+  useEffect(() => {
+    // ✅ ALWAYS scroll to top when booking page loads
+    window.scrollTo({ top: 0, behavior: "instant" });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("from") === "admin") {
+      localStorage.setItem("onboarding_step6_visited", "true");
+      showToast("✅ Onboarding step 6 complete!", "success");
+    }
+  }, []);
+
   useEffect(() => {
     if (!selectedSlotId) return;
 
@@ -352,8 +366,6 @@ export default function BookingPage({ useCustomUrl = false }) {
       setLoading(false);
     }
   };
-
-  const navigate = useNavigate(); // ⬅ place this inside BookingPage()
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -631,6 +643,40 @@ export default function BookingPage({ useCustomUrl = false }) {
   return (
     <SafeLoader loading={loading} error={error} onRetry={handleRetry}>
       <main className="max-w-md lg:max-w-2xl mx-auto p-6 space-y-6">
+        {/* ✅ Return to Dashboard button - ONLY during step 6 onboarding */}
+        {(() => {
+          const isLoggedIn = localStorage.getItem("access_token");
+          const onboardingStep6Visited = localStorage.getItem(
+            "onboarding_step6_visited"
+          );
+          const onboardingCompleted = localStorage.getItem(
+            "onboarding_completed"
+          );
+
+          // Only show if: logged in AND step 6 NOT visited yet AND onboarding NOT complete
+          const shouldShow =
+            isLoggedIn && !onboardingStep6Visited && !onboardingCompleted;
+
+          return (
+            shouldShow && (
+              <div className="flex justify-center mb-4">
+                <button
+                  onClick={() => {
+                    // Mark step 6 complete
+                    localStorage.setItem("onboarding_step6_visited", "true");
+
+                    // Scroll to top before navigating
+                    window.scrollTo({ top: 0, behavior: "instant" });
+                    navigate("/freelancer-admin");
+                  }}
+                  className="btn btn-sm gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white border-none hover:from-purple-700 hover:to-blue-700 shadow-lg"
+                >
+                  ← Back to Dashboard to Continue Setup!
+                </button>
+              </div>
+            )
+          );
+        })()}
         <FreelancerCard
           business_name={freelancerDetails.business_name}
           first_name={freelancerDetails.first_name}

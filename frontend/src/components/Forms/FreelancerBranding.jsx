@@ -384,6 +384,19 @@ export default function FreelancerBranding({ onUpdate }) {
           placeholder="Atlanta, GA or Remote"
           className="input input-bordered w-full"
         />
+
+        {/* ✅ MOVED: Preferred Payment Methods */}
+        <label className="label text-sm text-white">
+          Preferred Payment Methods:
+        </label>
+        <input
+          type="text"
+          name="preferred_payment_methods"
+          value={form.preferred_payment_methods}
+          onChange={handleChange}
+          placeholder="Card (Stripe), PayPal, CashApp"
+          className="input input-bordered w-full"
+        />
         {/* Booking Instructions - Array-based like FAQs */}
         <div className="space-y-4">
           <h3 className="text-base font-semibold text-white">
@@ -448,17 +461,7 @@ export default function FreelancerBranding({ onUpdate }) {
             + Add Instruction
           </button>
         </div>
-        <label className="label text-sm text-white">
-          Preferred Payment Methods:
-        </label>
-        <input
-          type="text"
-          name="preferred_payment_methods"
-          value={form.preferred_payment_methods}
-          onChange={handleChange}
-          placeholder="Card (Stripe), PayPal, CashApp"
-          className="input input-bordered w-full"
-        />
+
         <div className="space-y-4">
           <h3 className="text-base font-semibold text-white">FAQs</h3>
 

@@ -143,12 +143,11 @@ export default function App() {
             background: "#1F2937",
             color: "#fff",
             fontSize: "0.875rem",
-            zIndex: 60,
+            zIndex: 9999,
             boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
-            cursor: "pointer", // ✅ Shows it's clickable
+            cursor: "pointer",
           },
           onClick: (toast) => {
-            // ✅ Dismiss toast on click
             const toastInstance = require("react-hot-toast").toast;
             toastInstance.dismiss(toast.id);
           },

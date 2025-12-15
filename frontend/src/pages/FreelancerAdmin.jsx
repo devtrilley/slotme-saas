@@ -28,6 +28,7 @@ import TimeSlotCard from "../components/Cards/TimeSlotCard";
 import InternalBookingModal from "../components/Modals/InternalBookingModal";
 import CustomQuestionsForm from "../components/Forms/CustomQuestionsForm";
 import ConfirmModal from "../components/Modals/ConfirmModal";
+import OnboardingBanner from "../components/Onboarding/OnboardingBanner";
 import { useFreelancer } from "../context/FreelancerContext";
 import {
   isSlotInPast,
@@ -521,463 +522,568 @@ export default function AdminPage() {
   }
 
   return (
-    <SafeLoader loading={loading}>
-      <main className="max-w-2xl mx-auto px-4 md:px-6 py-6 space-y-6">
-        <div className="flex flex-col gap-2 items-center">
-          <h1 className="text-2xl font-bold text-center">
-            Freelancer Admin Dashboard
-          </h1>
+    <>
+      {/* 🎯 Onboarding banner - OUTSIDE SafeLoader for positioning */}
+      <OnboardingBanner
+        freelancer={freelancerDetails}
+        services={services}
+        slots={slots}
+        onJumpTo={(sectionId) => {
+          console.log("🎯 onJumpTo called with:", sectionId);
 
-          <button
-            onClick={() => {
-              localStorage.removeItem("freelancer_logged_in");
-              localStorage.removeItem("access_token");
-              localStorage.removeItem("freelancer_id");
-              localStorage.removeItem("branding_updated");
-              localStorage.removeItem("client_id");
+          // ✅ STEP 1: Instant scroll to top
+          window.scrollTo({ top: 0, behavior: "instant" });
 
-              clearFreelancer(); // 👈 Reset in-memory context
-              navigate("/auth");
+          // ✅ STEP 2: Wait for banner to fully close + DOM to settle
+          setTimeout(() => {
+            console.log("🔍 Looking for element:", sectionId);
+            const element = document.getElementById(sectionId);
 
-              showToast("👋 Logged out successfully", "success");
-            }}
-            className="btn btn-sm btn-outline"
-          >
-            Logout
-          </button>
-        </div>
-        {freelancer && (
-          <TierStatusCard
-            tier={freelancer.tier || "free"}
-            error={freelancerDetailsLoadError}
-            notLoggedIn={!isLoggedIn}
-          />
-        )}
-        {freelancerDetailsLoadError ? (
-          <ErrorCard
-            title="We couldn’t load your freelancerDetails info."
-            message="Please check your internet or try logging in again."
-            onRetry={() => window.location.reload()}
-            variant="error"
-            icon="❌"
-          />
-        ) : (
-          <>
-            <FreelancerCard
-              business_name={freelancerDetails.business_name}
-              first_name={freelancerDetails.first_name}
-              last_name={freelancerDetails.last_name}
-              email={freelancerDetails.email}
-              logoUrl={freelancer?.logo_url || freelancerDetails.logo_url}
-              isVerified={freelancerDetails.is_verified}
-              tagline={freelancerDetails.tagline}
-              tier={tier}
-              onClick={() => setShowModal(true)}
+            if (!element) {
+              console.error("❌ Element not found:", sectionId);
+              alert(
+                `Can't find section "${sectionId}" - check if ID exists in DOM`
+              );
+              return;
+            }
+
+            console.log("✅ Found element:", element);
+
+            // ✅ STEP 3: Open accordion if closed
+            const accordion = element.closest("details");
+            if (accordion) {
+              console.log("📂 Found accordion, opening...");
+              accordion.open = true;
+            }
+
+            // ✅ STEP 4: Wait for accordion to fully open
+            setTimeout(() => {
+              console.log("📜 Scrolling to element...");
+
+              // ✅ STEP 5: Scroll element into view
+              element.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+              });
+
+              // ✅ STEP 6: Add glow effect
+              setTimeout(() => {
+                console.log("✨ Adding glow effect");
+                element.classList.add(
+                  "ring-4",
+                  "ring-purple-500",
+                  "transition-all",
+                  "duration-500"
+                );
+
+                // ✅ STEP 7: Remove glow after 4 seconds
+                setTimeout(() => {
+                  element.classList.remove(
+                    "ring-4",
+                    "ring-purple-500",
+                    "transition-all",
+                    "duration-500"
+                  );
+                }, 4000);
+              }, 300); // Wait for scroll to finish
+            }, 200); // Wait for accordion animation
+          }, 100); // Wait for banner close
+        }}
+      />
+
+      <SafeLoader loading={loading}>
+        <main className="max-w-2xl mx-auto px-4 md:px-6 py-6 space-y-6">
+          {/* Rest of your admin page */}
+          <div className="flex flex-col gap-2 items-center">
+            <h1 className="text-2xl font-bold text-center">
+              Freelancer Admin Dashboard
+            </h1>
+
+            <button
+              onClick={() => {
+                localStorage.removeItem("freelancer_logged_in");
+                localStorage.removeItem("access_token");
+                localStorage.removeItem("freelancer_id");
+                localStorage.removeItem("branding_updated");
+                localStorage.removeItem("client_id");
+
+                clearFreelancer(); // 👈 Reset in-memory context
+                navigate("/auth");
+
+                showToast("👋 Logged out successfully", "success");
+              }}
+              className="btn btn-sm btn-outline"
+            >
+              Logout
+            </button>
+          </div>
+          {freelancer && (
+            <TierStatusCard
+              tier={freelancer.tier || "free"}
+              error={freelancerDetailsLoadError}
+              notLoggedIn={!isLoggedIn}
             />
-
-            {showModal && (
-              <FreelancerModal
-                freelancer={{
-                  ...freelancerDetails,
-                  id: freelancerDetails.id || null,
-                }}
-                onClose={() => setShowModal(false)}
+          )}
+          {freelancerDetailsLoadError ? (
+            <ErrorCard
+              title="We couldn’t load your freelancerDetails info."
+              message="Please check your internet or try logging in again."
+              onRetry={() => window.location.reload()}
+              variant="error"
+              icon="❌"
+            />
+          ) : (
+            <>
+              <FreelancerCard
+                business_name={freelancerDetails.business_name}
+                first_name={freelancerDetails.first_name}
+                last_name={freelancerDetails.last_name}
+                email={freelancerDetails.email}
+                logoUrl={freelancer?.logo_url || freelancerDetails.logo_url}
+                isVerified={freelancerDetails.is_verified}
+                tagline={freelancerDetails.tagline}
+                tier={tier}
+                onClick={() => setShowModal(true)}
               />
-            )}
-          </>
-        )}
-        <div className={`flex justify-center`}>
-          <TipChip className="sticky top-16 z-10" />
-        </div>
-        <AccordionSection title="Account & Share Link" defaultOpen>
-          <div className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow space-y-2">
-            <p className="text-sm font-medium text-center">
-              Your Public Booking Link
-            </p>
-            <p className="text-sm text-primary text-center break-words">
+
+              {showModal && (
+                <FreelancerModal
+                  freelancer={{
+                    ...freelancerDetails,
+                    id: freelancerDetails.id || null,
+                  }}
+                  onClose={() => setShowModal(false)}
+                />
+              )}
+            </>
+          )}
+          <div className={`flex justify-center`}>
+            <TipChip className="sticky top-16 z-10" />
+          </div>
+          <AccordionSection
+            title="Account & Share Link"
+            defaultOpen
+            id="share-link"
+          >
+            <div className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow space-y-2">
+              <p className="text-sm font-medium text-center">
+                Your Public Booking Link
+              </p>
+              <p className="text-sm text-primary text-center break-words">
+                {freelancerDetailsLoadError ||
+                !isLoggedIn ||
+                !freelancerDetails?.id
+                  ? "Booking link unavailable — your account details could not be loaded."
+                  : shareUrl}
+              </p>
               {freelancerDetailsLoadError ||
               !isLoggedIn ||
-              !freelancerDetails?.id
-                ? "Booking link unavailable — your account details could not be loaded."
-                : shareUrl}
-            </p>
-            {freelancerDetailsLoadError ||
-            !isLoggedIn ||
-            !freelancerDetails?.id ? null : (
-              <div className="flex justify-center gap-2">
-                <button
-                  className="btn btn-xs btn-outline"
-                  onClick={() => {
-                    navigator.clipboard.writeText(shareUrl);
-                    showToast("Link copied to clipboard!", "success");
-                  }}
-                >
-                  Copy Link
-                </button>
-                <button
-                  onClick={() =>
-                    navigate(shareUrl.replace(window.location.origin, ""))
-                  }
-                  className="btn btn-xs btn-primary"
-                >
-                  Go to Booking Page
-                </button>
-              </div>
-            )}
-          </div>
-        </AccordionSection>
-        <AccordionSection
-          title="Add / Generate Slots"
-          subtitle="Single or batch"
-        >
-          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
-            <AddSlotForm
-              onAdd={quietFetchSlots}
-              syncWith={syncDates ? selectedDate : null}
-              setSyncDate={syncDates ? setSelectedDate : null}
-              mode={slotTab}
-              setMode={updateSlotTab}
-              freelancerTimezone={freelancerTimezone}
-              availableDates={availableDates} // 🔥 NEW: Pass available dates
-            />
-          </section>
-        </AccordionSection>
+              !freelancerDetails?.id ? null : (
+                <div className="flex justify-center gap-2">
+                  <button
+                    className="btn btn-xs btn-outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(shareUrl);
+                      showToast(
+                        "Link copied! ✅ Onboarding step 7 complete",
+                        "success"
+                      );
 
-        <AccordionSection
-          title="Date Sync"
-          subtitle="Sync slot forms with time slots"
-        >
-          <label className="flex items-start gap-3 cursor-pointer select-none md:justify-center">
-            <input
-              type="checkbox"
-              checked={syncDates}
-              onChange={() => setSyncDates(!syncDates)}
-              className="checkbox checkbox-sm mt-0.5 shrink-0"
-              aria-label="Sync Add Slot & Batch Slot dates with Time Slots calendar"
-            />
-
-            <span className="text-sm leading-6">
-              <span className="font-medium">
-                Sync Add Slot & Batch Slot dates with Time Slots calendar
-                <span className="opacity-70"> (recommended)</span>
-              </span>
-
-              {syncDates && (
-                <span className="block mt-1 text-xs text-success italic">
-                  ✅ Sync is active — slot forms follow calendar date
-                </span>
-              )}
-            </span>
-          </label>
-        </AccordionSection>
-
-        <AccordionSection title="Time Slots" subtitle="View, sort, filter">
-          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
-            <h3 className="text-lg font-semibold text-center border-b pb-1">
-              Your Time Slots
-            </h3>
-
-            <label className="text-sm text-gray-400 block text-center">
-              Select a date to view / edit your time slots:{" "}
-              <span className="text-green-400">(Green = Slots Available)</span>
-            </label>
-            <div className="flex justify-center">
-              <RefreshButton
-                onRefresh={handleRefresh}
-                toastMessage="🔄 Refreshing time slots..."
-              />
-            </div>
-            <div className="relative w-full">
-              <IconDatePicker
-                selected={selectedDate}
-                onChange={(date) => setSelectedDate(date)}
-                className="input input-bordered w-full pl-10"
-                wrapperClassName="w-full"
-                dateFormat="MMMM d, yyyy"
-                placeholderText="Choose a date"
-                availableDates={availableDates}
-              />
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-                📅
-              </span>
-            </div>
-
-            {/* 🔥 NEW: Return to Today button */}
-            <div className="flex justify-center w-full">
-              <ReturnToTodayButton
-                onClick={() => setSelectedDate(new Date())}
-              />
-            </div>
-
-            <div className="flex flex-col items-center gap-2 mt-4">
-              {/* ✅ Toggle goes outside of conditional block */}
-              <div className="text-center mt-2">
-                <button
-                  className="text-sm text-blue-400 hover:underline transition underline"
-                  onClick={() => setShowFilters((prev) => !prev)}
-                >
-                  {showFilters ? "Hide Sort & Filter" : "Show Sort & Filter"}
-                </button>
-              </div>
-
-              {/* ✅ Sort & Filter only rendered if toggled on */}
-              {showFilters && (
-                <div className="flex flex-col items-center gap-2 mt-4">
-                  <div className="flex flex-col items-center w-full gap-1">
-                    <span className="text-sm text-gray-400">Sort:</span>
-                    <SortButton
-                      direction={sortDirection}
-                      onToggle={() =>
-                        setSortDirection((prev) =>
-                          prev === "asc" ? "desc" : "asc"
-                        )
-                      }
-                    />
-                  </div>
-
-                  <FilterButton
-                    label="Filter Status:"
-                    options={["all", "available", "booked", "passed"]}
-                    value={statusFilter}
-                    onChange={setStatusFilter}
-                  />
-
-                  {/* 🔥 NEW: Timezone filter */}
-                  <FilterButton
-                    label="Filter Timezone:"
-                    options={[
-                      "all",
-                      ...Array.from(
-                        new Set(
-                          slots.map((s) => s.timezone || freelancerTimezone)
-                        )
-                      ).sort(),
-                    ]}
-                    value={timezoneFilter}
-                    onChange={setTimezoneFilter}
-                  />
+                      // Mark step 7 complete silently (banner will auto-update)
+                      axios
+                        .post(`${API_BASE}/onboarding/mark-step/7`)
+                        .catch((err) => {
+                          console.error("Failed to mark step 7:", err);
+                        });
+                    }}
+                  >
+                    Copy Link
+                  </button>
+                  <button
+                    onClick={() =>
+                      navigate(shareUrl.replace(window.location.origin, ""))
+                    }
+                    className="btn btn-xs btn-primary"
+                  >
+                    Go to Booking Page
+                  </button>
                 </div>
               )}
             </div>
-
-            {fetchError ? (
-              <ErrorCard
-                title="We couldn’t load your time slots."
-                message="Try refreshing or check your internet connection."
-                onRetry={handleRefresh}
-                variant="warning"
-                icon="🕒"
+          </AccordionSection>
+          <AccordionSection
+            title="Add / Generate Slots"
+            subtitle="Single or batch"
+            id="add-slots"
+          >
+            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+              <AddSlotForm
+                onAdd={quietFetchSlots}
+                syncWith={syncDates ? selectedDate : null}
+                setSyncDate={syncDates ? setSelectedDate : null}
+                mode={slotTab}
+                setMode={updateSlotTab}
+                freelancerTimezone={freelancerTimezone}
+                availableDates={availableDates} // 🔥 NEW: Pass available dates
               />
-            ) : filteredSlots.length === 0 ? (
-              <p className="text-center text-sm text-gray-400">
-                No slots for this day.
-              </p>
-            ) : (
-              <>
-                {(() => {
-                  let lastTimezone = null;
-                  return sortedFilteredSlots.map((slot, index) => {
-                    const slotTimezone = slot.timezone || freelancerTimezone;
-                    const showHeader = slotTimezone !== lastTimezone;
-                    lastTimezone = slotTimezone;
+            </section>
+          </AccordionSection>
 
-                    return (
-                      <div key={slot.id}>
-                        {/* 🔥 Timezone group header */}
-                        {showHeader && (
-                          <div className="mt-4 mb-2 text-center">
-                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                              {slotTimezone
-                                .replace("America/", "")
-                                .replace("_", " ")}{" "}
-                              Timezone
-                            </span>
-                          </div>
-                        )}
-
-                        <TimeSlotCard
-                          slot={slot}
-                          freelancerTimezone={freelancerTimezone}
-                          onClick={(slot) => {
-                            if (slot._deleteAction) {
-                              setSlotToDelete(slot.id);
-                              setShowSlotConfirm(true);
-                              return;
-                            }
-
-                            const { formattedTime, abbreviation } =
-                              formatSlotTimeParts(slot, freelancerTimezone);
-                            setSelectedSlotId(slot.id);
-                            setSelectedSlotTime(
-                              `${formattedTime} ${abbreviation}`
-                            );
-                            setSelectedSlotDate(slot.day);
-                            setShowInternalModal(true);
-                          }}
-                        />
-                      </div>
-                    );
-                  });
-                })()}
-              </>
-            )}
-          </section>
-        </AccordionSection>
-
-        <AccordionSection title="Add a Service" subtitle="Create offerings">
-          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
-            <ServiceForm onServiceAdded={fetchServices} />
-          </section>
-        </AccordionSection>
-        <AccordionSection title="Your Services" subtitle="Edit, price, delete">
-          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
-            {servicesError && services.length > 0 && (
-              <ErrorCard
-                title="Couldn't refresh your services."
-                message="You're seeing the cached version below."
-                variant="warning"
+          <AccordionSection
+            title="Date Sync"
+            subtitle="Sync slot forms with time slots"
+          >
+            <label className="flex items-start gap-3 cursor-pointer select-none md:justify-center">
+              <input
+                type="checkbox"
+                checked={syncDates}
+                onChange={() => setSyncDates(!syncDates)}
+                className="checkbox checkbox-sm mt-0.5 shrink-0"
+                aria-label="Sync Add Slot & Batch Slot dates with Time Slots calendar"
               />
-            )}
-            {services.length === 0 ? (
-              <div className="text-center text-sm text-gray-400 italic">
-                {servicesError
-                  ? "Unable to load list of services. Please check your internet or server status."
-                  : "No services available. Add one above!"}
-              </div>
-            ) : (
-              services.map((s) => (
-                <ServiceCard
-                  key={s.id}
-                  service={s}
-                  onUpdate={fetchServices}
-                  onDelete={handleDeleteService}
-                  setSelectedServiceForModal={setSelectedServiceForModal}
-                />
-              ))
-            )}
-          </section>
-        </AccordionSection>
-        <AccordionSection
-          title="Add a Service Add-On"
-          subtitle="Optional extras"
-          tier={tier}
-          requiredTier="pro"
-          onTierBlocked={handleTierBlocked}
-        >
-          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
-            <AddonForm onAddonAdded={fetchAddons} />
-          </section>
-        </AccordionSection>
 
-        <AccordionSection title="Your Add-Ons" subtitle="View, edit, delete">
-          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
-            {/* ✅ NEW: Add-on limit display */}
-            {tier === "pro" && (
-              <div className="text-center text-sm">
-                <span className="text-gray-400">Add-ons: </span>
-                <span className={`font-semibold ${addons.length >= 5 ? "text-warning" : "text-success"}`}>
-                  {addons.length} / 5
+              <span className="text-sm leading-6">
+                <span className="font-medium">
+                  Sync Add Slot & Batch Slot dates with Time Slots calendar
+                  <span className="opacity-70"> (recommended)</span>
                 </span>
-                {addons.length >= 5 && (
-                  <span className="block text-xs text-warning mt-1">
-                    Limit reached. Upgrade to ELITE for unlimited.
+
+                {syncDates && (
+                  <span className="block mt-1 text-xs text-success italic">
+                    ✅ Sync is active — slot forms follow calendar date
                   </span>
                 )}
-              </div>
-            )}
-            {tier === "elite" && (
-              <div className="text-center text-sm">
-                <span className="text-gray-400">Add-ons: </span>
-                <span className="font-semibold text-primary">{addons.length} (Unlimited)</span>
-              </div>
-            )}
-            
-            {addonsError && addons.length > 0 && (
-              <ErrorCard
-                title="Couldn't refresh your add-ons."
-                message="You're seeing the cached version below."
-                variant="warning"
-              />
-            )}
-            {addons.length === 0 ? (
-              <div className="text-center text-sm text-gray-400 italic">
-                {addonsError
-                  ? "Unable to load add-ons. Please check your internet or server status."
-                  : tier === "free"
-                  ? "Add-ons require PRO or ELITE. Upgrade to get started!"
-                  : "No add-ons available. Add one above!"}
-              </div>
-            ) : (
-              addons.map((addon) => (
-                <AddonCard
-                  key={addon.id}
-                  addon={addon}
-                  onUpdate={fetchAddons}
-                  onDelete={handleDeleteAddon}
+              </span>
+            </label>
+          </AccordionSection>
+
+          <AccordionSection title="Time Slots" subtitle="View, sort, filter">
+            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+              <h3 className="text-lg font-semibold text-center border-b pb-1">
+                Your Time Slots
+              </h3>
+
+              <label className="text-sm text-gray-400 block text-center">
+                Select a date to view / edit your time slots:{" "}
+                <span className="text-green-400">
+                  (Green = Slots Available)
+                </span>
+              </label>
+              <div className="flex justify-center">
+                <RefreshButton
+                  onRefresh={handleRefresh}
+                  toastMessage="🔄 Refreshing time slots..."
                 />
-              ))
-            )}
-          </section>
-        </AccordionSection>
-        <AccordionSection
-          title="Custom Booking Questions"
-          subtitle="(Optional) shown to clients before booking"
-          tier={tier}
-          requiredTier="pro"
-          onTierBlocked={handleTierBlocked}
-        >
-          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
-            <CustomQuestionsForm />
-          </section>
-        </AccordionSection>
-        <AccordionSection title="Branding" subtitle="Logo, bio, tagline, etc">
-          <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
-            <FreelancerBranding
-              onUpdate={() => setFreelancerDetailsUpdated((n) => n + 1)}
-            />
-          </section>
-        </AccordionSection>
+              </div>
+              <div className="relative w-full">
+                <IconDatePicker
+                  selected={selectedDate}
+                  onChange={(date) => setSelectedDate(date)}
+                  className="input input-bordered w-full pl-10"
+                  wrapperClassName="w-full"
+                  dateFormat="MMMM d, yyyy"
+                  placeholderText="Choose a date"
+                  availableDates={availableDates}
+                />
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+                  📅
+                </span>
+              </div>
 
-        <InternalBookingModal
-          visible={showInternalModal}
-          onClose={() => setShowInternalModal(false)}
-          services={services}
-          selectedDate={new Date(selectedSlotDate)}
-          refetch={handleRefresh}
-          preselectedTime={selectedSlotTime}
-          slotId={selectedSlotId}
-          freelancerTimezone={freelancerTimezone} // ✅ pass here
-        />
+              {/* 🔥 NEW: Return to Today button */}
+              <div className="flex justify-center w-full">
+                <ReturnToTodayButton
+                  onClick={() => setSelectedDate(new Date())}
+                />
+              </div>
 
-        {showSlotConfirm && (
-          <ConfirmModal
-            isOpen={showSlotConfirm}
-            onClose={() => {
-              setSlotToDelete(null);
-              setShowSlotConfirm(false);
-            }}
-            onConfirm={handleDelete}
-            title="Delete Time Slot?"
-            message="Are you sure you want to delete this time slot?"
-            confirmText="Yes, Delete It"
-            cancelText="Keep Slot"
-            serviceCardElement={
-              slotToDelete && (
-                <div className="flex items-start gap-4">
-                  <div className="flex-1">
-                    <TimeSlotCard
-                      slot={slots.find((s) => s.id === slotToDelete)}
-                      showButton={false}
-                      centered={true}
-                      freelancerTimezone={freelancerTimezone}
+              <div className="flex flex-col items-center gap-2 mt-4">
+                {/* ✅ Toggle goes outside of conditional block */}
+                <div className="text-center mt-2">
+                  <button
+                    className="text-sm text-blue-400 hover:underline transition underline"
+                    onClick={() => setShowFilters((prev) => !prev)}
+                  >
+                    {showFilters ? "Hide Sort & Filter" : "Show Sort & Filter"}
+                  </button>
+                </div>
+
+                {/* ✅ Sort & Filter only rendered if toggled on */}
+                {showFilters && (
+                  <div className="flex flex-col items-center gap-2 mt-4">
+                    <div className="flex flex-col items-center w-full gap-1">
+                      <span className="text-sm text-gray-400">Sort:</span>
+                      <SortButton
+                        direction={sortDirection}
+                        onToggle={() =>
+                          setSortDirection((prev) =>
+                            prev === "asc" ? "desc" : "asc"
+                          )
+                        }
+                      />
+                    </div>
+
+                    <FilterButton
+                      label="Filter Status:"
+                      options={["all", "available", "booked", "passed"]}
+                      value={statusFilter}
+                      onChange={setStatusFilter}
+                    />
+
+                    {/* 🔥 NEW: Timezone filter */}
+                    <FilterButton
+                      label="Filter Timezone:"
+                      options={[
+                        "all",
+                        ...Array.from(
+                          new Set(
+                            slots.map((s) => s.timezone || freelancerTimezone)
+                          )
+                        ).sort(),
+                      ]}
+                      value={timezoneFilter}
+                      onChange={setTimezoneFilter}
                     />
                   </div>
+                )}
+              </div>
+
+              {fetchError ? (
+                <ErrorCard
+                  title="We couldn’t load your time slots."
+                  message="Try refreshing or check your internet connection."
+                  onRetry={handleRefresh}
+                  variant="warning"
+                  icon="🕒"
+                />
+              ) : filteredSlots.length === 0 ? (
+                <p className="text-center text-sm text-gray-400">
+                  No slots for this day.
+                </p>
+              ) : (
+                <>
+                  {(() => {
+                    let lastTimezone = null;
+                    return sortedFilteredSlots.map((slot, index) => {
+                      const slotTimezone = slot.timezone || freelancerTimezone;
+                      const showHeader = slotTimezone !== lastTimezone;
+                      lastTimezone = slotTimezone;
+
+                      return (
+                        <div key={slot.id}>
+                          {/* 🔥 Timezone group header */}
+                          {showHeader && (
+                            <div className="mt-4 mb-2 text-center">
+                              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                {slotTimezone
+                                  .replace("America/", "")
+                                  .replace("_", " ")}{" "}
+                                Timezone
+                              </span>
+                            </div>
+                          )}
+
+                          <TimeSlotCard
+                            slot={slot}
+                            freelancerTimezone={freelancerTimezone}
+                            onClick={(slot) => {
+                              if (slot._deleteAction) {
+                                setSlotToDelete(slot.id);
+                                setShowSlotConfirm(true);
+                                return;
+                              }
+
+                              const { formattedTime, abbreviation } =
+                                formatSlotTimeParts(slot, freelancerTimezone);
+                              setSelectedSlotId(slot.id);
+                              setSelectedSlotTime(
+                                `${formattedTime} ${abbreviation}`
+                              );
+                              setSelectedSlotDate(slot.day);
+                              setShowInternalModal(true);
+                            }}
+                          />
+                        </div>
+                      );
+                    });
+                  })()}
+                </>
+              )}
+            </section>
+          </AccordionSection>
+
+          <AccordionSection
+            title="Add a Service"
+            subtitle="Create offerings"
+            id="add-service"
+          >
+            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+              <ServiceForm onServiceAdded={fetchServices} />
+            </section>
+          </AccordionSection>
+          <AccordionSection
+            title="Your Services"
+            subtitle="Edit, price, delete"
+          >
+            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+              {servicesError && services.length > 0 && (
+                <ErrorCard
+                  title="Couldn't refresh your services."
+                  message="You're seeing the cached version below."
+                  variant="warning"
+                />
+              )}
+              {services.length === 0 ? (
+                <div className="text-center text-sm text-gray-400 italic">
+                  {servicesError
+                    ? "Unable to load list of services. Please check your internet or server status."
+                    : "No services available. Add one above!"}
                 </div>
-              )
-            }
+              ) : (
+                services.map((s) => (
+                  <ServiceCard
+                    key={s.id}
+                    service={s}
+                    onUpdate={fetchServices}
+                    onDelete={handleDeleteService}
+                    setSelectedServiceForModal={setSelectedServiceForModal}
+                  />
+                ))
+              )}
+            </section>
+          </AccordionSection>
+          <AccordionSection
+            title="Add a Service Add-On"
+            subtitle="Optional extras"
+            tier={tier}
+            requiredTier="pro"
+            onTierBlocked={handleTierBlocked}
+          >
+            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+              <AddonForm onAddonAdded={fetchAddons} />
+            </section>
+          </AccordionSection>
+
+          <AccordionSection title="Your Add-Ons" subtitle="View, edit, delete">
+            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+              {/* ✅ NEW: Add-on limit display */}
+              {tier === "pro" && (
+                <div className="text-center text-sm">
+                  <span className="text-gray-400">Add-ons: </span>
+                  <span
+                    className={`font-semibold ${
+                      addons.length >= 5 ? "text-warning" : "text-success"
+                    }`}
+                  >
+                    {addons.length} / 5
+                  </span>
+                  {addons.length >= 5 && (
+                    <span className="block text-xs text-warning mt-1">
+                      Limit reached. Upgrade to ELITE for unlimited.
+                    </span>
+                  )}
+                </div>
+              )}
+              {tier === "elite" && (
+                <div className="text-center text-sm">
+                  <span className="text-gray-400">Add-ons: </span>
+                  <span className="font-semibold text-primary">
+                    {addons.length} (Unlimited)
+                  </span>
+                </div>
+              )}
+
+              {addonsError && addons.length > 0 && (
+                <ErrorCard
+                  title="Couldn't refresh your add-ons."
+                  message="You're seeing the cached version below."
+                  variant="warning"
+                />
+              )}
+              {addons.length === 0 ? (
+                <div className="text-center text-sm text-gray-400 italic">
+                  {addonsError
+                    ? "Unable to load add-ons. Please check your internet or server status."
+                    : tier === "free"
+                    ? "Add-ons require PRO or ELITE. Upgrade to get started!"
+                    : "No add-ons available. Add one above!"}
+                </div>
+              ) : (
+                addons.map((addon) => (
+                  <AddonCard
+                    key={addon.id}
+                    addon={addon}
+                    onUpdate={fetchAddons}
+                    onDelete={handleDeleteAddon}
+                  />
+                ))
+              )}
+            </section>
+          </AccordionSection>
+          <AccordionSection
+            title="Custom Booking Questions"
+            subtitle="(Optional) shown to clients before booking"
+            tier={tier}
+            requiredTier="pro"
+            onTierBlocked={handleTierBlocked}
+          >
+            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+              <CustomQuestionsForm />
+            </section>
+          </AccordionSection>
+          <AccordionSection
+            title="Branding"
+            subtitle="Logo, bio, tagline, etc"
+            id="branding"
+          >
+            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+              <FreelancerBranding
+                onUpdate={() => setFreelancerDetailsUpdated((n) => n + 1)}
+              />
+            </section>
+          </AccordionSection>
+
+          <InternalBookingModal
+            visible={showInternalModal}
+            onClose={() => setShowInternalModal(false)}
+            services={services}
+            selectedDate={new Date(selectedSlotDate)}
+            refetch={handleRefresh}
+            preselectedTime={selectedSlotTime}
+            slotId={selectedSlotId}
+            freelancerTimezone={freelancerTimezone} // ✅ pass here
           />
-        )}
-      </main>
-    </SafeLoader>
+
+          {showSlotConfirm && (
+            <ConfirmModal
+              isOpen={showSlotConfirm}
+              onClose={() => {
+                setSlotToDelete(null);
+                setShowSlotConfirm(false);
+              }}
+              onConfirm={handleDelete}
+              title="Delete Time Slot?"
+              message="Are you sure you want to delete this time slot?"
+              confirmText="Yes, Delete It"
+              cancelText="Keep Slot"
+              serviceCardElement={
+                slotToDelete && (
+                  <div className="flex items-start gap-4">
+                    <div className="flex-1">
+                      <TimeSlotCard
+                        slot={slots.find((s) => s.id === slotToDelete)}
+                        showButton={false}
+                        centered={true}
+                        freelancerTimezone={freelancerTimezone}
+                      />
+                    </div>
+                  </div>
+                )
+              }
+            />
+          )}
+        </main>
+      </SafeLoader>
+    </>
   );
 }

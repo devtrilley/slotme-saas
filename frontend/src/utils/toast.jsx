@@ -10,19 +10,19 @@ const iconMap = {
 };
 
 function getToastStyle(type = "default") {
-  switch (type) {
-    case "success":
-      return { background: "#36D399", color: "#1F2937" };
-    case "error":
-      return { background: "#F87272", color: "#1F2937" };
-    case "warning":
-      return { background: "#FBBD23", color: "#1F2937" };
-    case "info":
-    case "refresh":
-      return { background: "#3ABFF8", color: "#1F2937" };
-    default:
-      return { background: "#1F2937", color: "#fff" };
+  if (type === "success") {
+    return { background: "#36D399", color: "#1F2937" };
   }
+  if (type === "error") {
+    return { background: "#F87272", color: "#1F2937" };
+  }
+  if (type === "warning") {
+    return { background: "#FBBD23", color: "#1F2937" };
+  }
+  if (type === "info" || type === "refresh") {
+    return { background: "#3ABFF8", color: "#1F2937" };
+  }
+  return { background: "#1F2937", color: "#fff" };
 }
 
 function SwipeableToast({ message, type = "success", toastId }) {
@@ -33,12 +33,9 @@ function SwipeableToast({ message, type = "success", toastId }) {
   const [dismissType, setDismissType] = useState(null); // "swipe" | "manual" | "timeout"
   const [entered, setEntered] = useState(false);
 
-  // ✅ Smooth entrance animation
+  // Trigger entrance animation
   useEffect(() => {
-    const enterTimer = setTimeout(() => {
-      setEntered(true);
-    }, 10);
-    return () => clearTimeout(enterTimer);
+    setTimeout(() => setEntered(true), 50);
   }, []);
 
   // 👆 Swipe support
@@ -102,8 +99,13 @@ function SwipeableToast({ message, type = "success", toastId }) {
     ? "translateY(0) scale(1)"
     : "translateY(-8px) scale(0.95)";
 
+  const baseStyle = getToastStyle(type);
+
+  const background = baseStyle.background;
+
   const style = {
-    ...getToastStyle(type),
+    ...baseStyle,
+    background,
     padding: "10px 16px",
     borderRadius: "6px",
     fontSize: "0.875rem",
@@ -133,17 +135,21 @@ function SwipeableToast({ message, type = "success", toastId }) {
   };
 
   return (
-    <div 
-      ref={ref} 
+    <div
+      ref={ref}
       style={style}
-      onClick={handleClose}  // ✅ Click anywhere on toast to dismiss
+      onClick={handleClose} // ✅ Click anywhere on toast to dismiss
     >
       <span>{iconMap[type] || "💬"}</span>
-      <span style={{ userSelect: "none" }}>{message}</span>  {/* ✅ Prevent text selection */}
-      <button style={closeBtnStyle} onClick={(e) => {
-        e.stopPropagation();
-        handleClose();
-      }}>
+      <span style={{ userSelect: "none" }}>{message}</span>{" "}
+      {/* ✅ Prevent text selection */}
+      <button
+        style={closeBtnStyle}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleClose();
+        }}
+      >
         ×
       </button>
     </div>
@@ -154,6 +160,9 @@ function SwipeableToast({ message, type = "success", toastId }) {
 export function showToast(message, type = "success", duration = 6000) {
   toast.custom(
     (t) => <SwipeableToast message={message} type={type} toastId={t.id} />,
-    { duration }
+    {
+      duration,
+      position: "top-center",
+    }
   );
 }

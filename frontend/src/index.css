@@ -329,3 +329,42 @@ button {
     background-position: 0% 50%;
   }
 }
+
+/* Onboarding flash animations */
+
+/* Regular step completion - flash green then return to purple */
+@keyframes flashGreen {
+  0% {
+    background: linear-gradient(to right, rgb(147 51 234), rgb(59 130 246));
+  }
+  20% {
+    background: linear-gradient(to right, rgb(22 163 74), rgb(16 185 129));
+  }
+  80% {
+    background: linear-gradient(to right, rgb(22 163 74), rgb(16 185 129));
+  }
+  100% {
+    background: linear-gradient(to right, rgb(147 51 234), rgb(59 130 246));
+  }
+}
+
+.flash-green {
+  animation: flashGreen 1.4s ease-in-out;
+}
+
+/* Final step completion - flash to permanent green */
+@keyframes flashToGreen {
+  0% {
+    background: linear-gradient(to right, rgb(147 51 234), rgb(59 130 246));
+  }
+  50% {
+    background: linear-gradient(to right, rgb(22 163 74), rgb(16 185 129));
+  }
+  100% {
+    background: linear-gradient(to right, rgb(22 163 74), rgb(16 185 129));
+  }
+}
+
+.flash-to-green {
+  animation: flashToGreen 1.4s ease-in-out forwards;
+}
