@@ -150,7 +150,12 @@ export default function FreelancerProfile() {
                 </li>
               )}
 
-              <div className="border border-white/20 bg-white/5 rounded-lg p-4 text-left mt-10 mb-10">
+              <div
+                className="mt-10 mb-10 p-5 rounded-2xl
+  bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950
+  border border-slate-700
+  shadow-md text-left"
+              >
                 <h2 className="text-sm font-semibold text-white mb-2 uppercase tracking-wide text-center">
                   Contact Info
                 </h2>
@@ -260,9 +265,11 @@ export default function FreelancerProfile() {
               </li>
             </ul>
           </div>
-          <BookingInstructionsCard
-            instructions={freelancerDetails.booking_instructions}
-          />
+          <div className="text-left">
+            <BookingInstructionsCard
+              instructions={freelancerDetails.booking_instructions}
+            />
+          </div>
           {freelancerDetails.created_at &&
             DateTime.fromISO(freelancerDetails.created_at).isValid && (
               <p className="text-xs text-gray-400">

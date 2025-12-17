@@ -114,22 +114,23 @@ export default function CRM() {
     return true;
   };
 
-  const handleCancel = async () => {
-    if (!cancelTargetId) return;
-
+  const cancelAppointmentById = async (id) => {
+    if (!id) return;
     try {
-      await axios.patch(`/appointments/${cancelTargetId}`, {
-        status: "cancelled",
-      });
+      await axios.patch(`/appointments/${id}`, { status: "cancelled" });
       showToast("Appointment cancelled.", "success");
-      fetchAppointments(); // Refresh CRM list
+      await fetchAppointments();
     } catch (err) {
       showToast("Couldn't cancel. Try again.", "error");
       console.error("Cancel error:", err);
-    } finally {
-      setCancelTargetId(null);
-      setShowConfirmModal(false);
     }
+  };
+
+  const handleCancel = async () => {
+    if (!cancelTargetId) return;
+    await cancelAppointmentById(cancelTargetId);
+    setCancelTargetId(null);
+    setShowConfirmModal(false);
   };
 
   const filtered = appointments.filter((a) => {
@@ -426,17 +427,19 @@ export default function CRM() {
                         ({a.service_duration_minutes || "?"} min)
                       </span>
                     </p>
-                    
+
                     {/* ✅ NEW: Add-ons display */}
                     {a.selected_addons && a.selected_addons.length > 0 && (
                       <p>
                         🎁{" "}
                         <span className="text-green-400">
-                          {a.selected_addons.map((addon) => addon.name).join(", ")}
+                          {a.selected_addons
+                            .map((addon) => addon.name)
+                            .join(", ")}
                         </span>
                       </p>
                     )}
-                    
+
                     {/* ✅ NEW: Total price & duration */}
                     {a.total_price !== undefined && (
                       <p>
@@ -571,12 +574,13 @@ export default function CRM() {
           <ViewBookingModal
             appointment={selectedAppointment}
             onClose={() => setSelectedAppointment(null)}
-            onCancel={handleCancel}
+            onCancel={cancelAppointmentById}
           />
         )}
 
         {showConfirmModal && (
           <ConfirmModal
+            isOpen={showConfirmModal}
             title="Cancel Appointment?"
             message="Are you sure you want to cancel this appointment?"
             confirmText="Yes, Cancel It"

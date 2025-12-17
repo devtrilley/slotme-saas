@@ -9,7 +9,7 @@ export default function WhySlotMe() {
         <img
           src={slotmeLogo}
           alt="SlotMe"
-          className="mx-auto w-36 sm:w-40 md:w-48 animate-pulse"
+          className="mx-auto w-36 sm:w-40 md:w-48"
         />
 
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-tight">
@@ -22,7 +22,8 @@ export default function WhySlotMe() {
 
         <p className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
           Freelancers lose{" "}
-          <span className="text-red-400 font-bold text-xl">40%</span> of bookings to{" "}
+          <span className="text-red-400 font-bold text-xl">40%</span> of
+          bookings to{" "}
           <span className="text-gray-100 font-semibold text-[1.1rem]">
             complicated scheduling
           </span>

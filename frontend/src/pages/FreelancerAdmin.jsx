@@ -665,7 +665,7 @@ export default function AdminPage() {
             defaultOpen
             id="share-link"
           >
-            <div className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow space-y-2">
+            <div className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-2">
               <p className="text-sm font-medium text-center">
                 Your Public Booking Link
               </p>
@@ -716,7 +716,7 @@ export default function AdminPage() {
             subtitle="Single or batch"
             id="add-slots"
           >
-            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <section className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-4">
               <AddSlotForm
                 onAdd={quietFetchSlots}
                 syncWith={syncDates ? selectedDate : null}
@@ -724,7 +724,7 @@ export default function AdminPage() {
                 mode={slotTab}
                 setMode={updateSlotTab}
                 freelancerTimezone={freelancerTimezone}
-                availableDates={availableDates} // 🔥 NEW: Pass available dates
+                availableDates={availableDates}
               />
             </section>
           </AccordionSection>
@@ -758,7 +758,7 @@ export default function AdminPage() {
           </AccordionSection>
 
           <AccordionSection title="Time Slots" subtitle="View, sort, filter">
-            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <section className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-4">
               <h3 className="text-lg font-semibold text-center border-b pb-1">
                 Your Time Slots
               </h3>
@@ -917,7 +917,7 @@ export default function AdminPage() {
             subtitle="Create offerings"
             id="add-service"
           >
-            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <section className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-4">
               <ServiceForm onServiceAdded={fetchServices} />
             </section>
           </AccordionSection>
@@ -925,7 +925,7 @@ export default function AdminPage() {
             title="Your Services"
             subtitle="Edit, price, delete"
           >
-            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <section className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-4">
               {servicesError && services.length > 0 && (
                 <ErrorCard
                   title="Couldn't refresh your services."
@@ -959,13 +959,13 @@ export default function AdminPage() {
             requiredTier="pro"
             onTierBlocked={handleTierBlocked}
           >
-            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <section className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-4">
               <AddonForm onAddonAdded={fetchAddons} />
             </section>
           </AccordionSection>
 
           <AccordionSection title="Your Add-Ons" subtitle="View, edit, delete">
-            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <section className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-4">
               {/* ✅ NEW: Add-on limit display */}
               {tier === "pro" && (
                 <div className="text-center text-sm">
@@ -1027,7 +1027,7 @@ export default function AdminPage() {
             requiredTier="pro"
             onTierBlocked={handleTierBlocked}
           >
-            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <section className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-4">
               <CustomQuestionsForm />
             </section>
           </AccordionSection>
@@ -1036,7 +1036,7 @@ export default function AdminPage() {
             subtitle="Logo, bio, tagline, etc"
             id="branding"
           >
-            <section className="p-4 bg-base-200 border-2 border-white/40 rounded-xl shadow-sm space-y-4">
+            <section className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-4">
               <FreelancerBranding
                 onUpdate={() => setFreelancerDetailsUpdated((n) => n + 1)}
               />

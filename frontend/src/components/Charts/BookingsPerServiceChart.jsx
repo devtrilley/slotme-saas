@@ -49,9 +49,13 @@ export default function BookingsPerServiceChart({ data }) {
 
   return (
     <div
-      ref={wrapperRef}
-      className="bg-white/5 rounded-lg p-4 shadow space-y-4"
-    >
+  ref={wrapperRef}
+  className="p-5 rounded-2xl
+    bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950
+    border border-slate-700
+    shadow-md
+    space-y-4"
+>
       <h2 className="text-center text-sm font-semibold">
         Bookings per Service
       </h2>

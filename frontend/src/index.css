@@ -368,3 +368,19 @@ button {
 .flash-to-green {
   animation: flashToGreen 1.4s ease-in-out forwards;
 }
+
+/* ✅ Fade in from left animation */
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slideInFromLeft {
+  animation: slideInFromLeft 400ms ease-out forwards;
+}

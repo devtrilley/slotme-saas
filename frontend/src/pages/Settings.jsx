@@ -71,7 +71,7 @@ export default function Settings() {
         defaultOpen={true}
       >
         {/* Current Info Preview */}
-        <div className="bg-base-200 p-4 rounded-xl border border-gray-700 text-sm space-y-1 mb-4">
+        <div className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md text-sm space-y-1 mb-4">
           <p>
             <strong>Name:</strong> {freelancer?.first_name}{" "}
             {freelancer?.last_name}
@@ -88,7 +88,7 @@ export default function Settings() {
         </div>
 
         {/* Profile Update Form */}
-        <div className="bg-base-100 p-6 rounded-xl border border-gray-700 shadow-md space-y-4">
+        <div className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-4">
           <h2 className="text-lg font-semibold text-center">Update Info</h2>
 
           <div>
@@ -198,7 +198,7 @@ export default function Settings() {
         title="Business Profile & Branding"
         subtitle="Logo, bio, tagline, etc"
       >
-        <div className="bg-base-100 p-6 rounded-xl border border-gray-700 shadow-md">
+        <div className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md">
           <FreelancerBranding
             onUpdate={() => {
               showToast("Branding updated.", "success");
@@ -212,7 +212,7 @@ export default function Settings() {
         title="UI Preferences"
         subtitle="Customize your interface"
       >
-        <div className="bg-base-100 p-6 rounded-xl border border-gray-700 shadow-md space-y-4">
+        <div className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-4">
           <h2 className="text-lg font-semibold text-center">
             Mobile Navigation
           </h2>
@@ -260,7 +260,7 @@ export default function Settings() {
       {/* 🔐 EMAIL & PASSWORD */}
       <AccordionSection title="Email & Password" subtitle="Security settings">
         {/* Change Email */}
-        <div className="bg-base-100 p-6 rounded-xl border border-gray-700 shadow-md space-y-4 mb-4">
+        <div className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-4 mb-4">
           <h2 className="text-lg font-semibold text-center">Change Email</h2>
 
           <div>
@@ -360,7 +360,7 @@ export default function Settings() {
         </div>
 
         {/* Change Password */}
-        <div className="bg-base-100 p-6 rounded-xl border border-gray-700 shadow-md space-y-4">
+        <div className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-4">
           <h2 className="text-lg font-semibold text-center">Change Password</h2>
 
           <div>
@@ -483,7 +483,7 @@ export default function Settings() {
           title="Subscription & Billing"
           subtitle="Manage your plan"
         >
-          <div className="bg-base-100 p-6 rounded-xl border border-gray-700 shadow-md space-y-4">
+          <div className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 rounded-2xl shadow-md space-y-4">
             <h2 className="text-lg font-semibold text-center">Subscription</h2>
 
             <TierStatusCard tier={freelancer?.tier} />
@@ -516,7 +516,7 @@ export default function Settings() {
         subtitle="⚠️ Delete account"
         color="red"
       >
-        <div className="bg-base-100 p-6 rounded-xl shadow-md border border-red-500 space-y-4">
+        <div className="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-red-500 rounded-2xl shadow-md space-y-4">
           <h2 className="text-lg font-semibold text-red-500 text-center">
             Delete My Account
           </h2>

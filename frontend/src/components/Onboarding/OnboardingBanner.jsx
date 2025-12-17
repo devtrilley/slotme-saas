@@ -558,8 +558,10 @@ export default function OnboardingBanner({
                 </p>
                 <p className="text-sm text-green-100 leading-relaxed">
                   That’s it! You are now set to schedule bookings with SlotMe.
-                  Don't forget to upgrade your to our <strong className="text-purple-400">Pro</strong> and{" "}
-                  <strong className="text-yellow-400">Elite</strong> tiers for free!
+                  Don't forget to upgrade your to our{" "}
+                  <strong className="text-purple-400">Pro</strong> and{" "}
+                  <strong className="text-yellow-400">Elite</strong> tiers for
+                  free!
                 </p>
               </div>
             )}

@@ -398,10 +398,14 @@ export default function FreelancerBranding({ onUpdate }) {
           className="input input-bordered w-full"
         />
         {/* Booking Instructions - Array-based like FAQs */}
-        <div className="space-y-4">
-          <h3 className="text-base font-semibold text-white">
+        <div className="my-8">
+          <div className="h-px bg-white/10 mb-4" />
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-300">
             Booking Instructions
           </h3>
+        </div>
+
+        <div className="space-y-4">
           <p className="text-xs text-gray-400">
             Each instruction becomes a bullet point on your booking page
           </p>
@@ -461,10 +465,14 @@ export default function FreelancerBranding({ onUpdate }) {
             + Add Instruction
           </button>
         </div>
+        <div className="my-8">
+          <div className="h-px bg-white/10 mb-4" />
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-300">
+            FAQs
+          </h3>
+        </div>
 
         <div className="space-y-4">
-          <h3 className="text-base font-semibold text-white">FAQs</h3>
-
           {form.faq_items.length === 0 ? (
             <div className="text-center py-6 text-gray-400 text-sm">
               No FAQs yet. Add one to help customers!

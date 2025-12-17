@@ -34,10 +34,7 @@ export default function ServiceRevenueChart({ data }) {
   // ⛔ Reset activeId when clicking outside the chart area
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(event.target)
-      ) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
         setActiveId(null);
       }
     };
@@ -55,12 +52,14 @@ export default function ServiceRevenueChart({ data }) {
 
   return (
     <div
-      ref={wrapperRef}
-      className="bg-white/5 rounded-lg p-4 shadow space-y-4"
-    >
-      <h2 className="text-center text-sm font-semibold">
-        Revenue per Service
-      </h2>
+  ref={wrapperRef}
+  className="p-5 rounded-2xl
+    bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950
+    border border-slate-700
+    shadow-md
+    space-y-4"
+>
+      <h2 className="text-center text-sm font-semibold">Revenue per Service</h2>
 
       <div className="w-full h-[220px]">
         <ResponsivePie
@@ -104,9 +103,7 @@ export default function ServiceRevenueChart({ data }) {
               key={service}
               onClick={() => setActiveId(service)}
               className={`flex items-center gap-2 cursor-pointer ${
-                activeId === service
-                  ? "text-white font-bold"
-                  : "text-gray-300"
+                activeId === service ? "text-white font-bold" : "text-gray-300"
               }`}
             >
               <span

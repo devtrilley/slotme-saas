@@ -1,29 +1,26 @@
 export default function BookingInstructionsCard({ instructions }) {
-  // Handle empty, undefined, or empty array
-  if (!instructions || (Array.isArray(instructions) && instructions.length === 0)) {
+  if (
+    !instructions ||
+    (Array.isArray(instructions) && instructions.length === 0)
+  ) {
     return null;
   }
-
-  // Backwards compatibility: if it's still a string, convert to array
-  const instructionList = Array.isArray(instructions) 
-    ? instructions 
+  const instructionList = Array.isArray(instructions)
+    ? instructions
     : [instructions];
-
-  // Filter out any empty strings
-  const cleanList = instructionList.filter(i => i && i.trim());
-  
+  const cleanList = instructionList.filter((i) => i && i.trim());
   if (cleanList.length === 0) return null;
-
   return (
-    <div className="border border-white/20 bg-white/5 rounded-lg p-4 text-left text-sm text-white">
-      <h2 className="text-sm font-semibold text-white mb-3 uppercase tracking-wide text-center">
+    <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 shadow-md border border-slate-700 hover:shadow-lg hover:-translate-y-[1px] transition-all duration-150">
+      <h2 className="text-sm font-semibold text-white mb-3 uppercase tracking-wide text-center flex items-center justify-center gap-2">
+        <span className="text-blue-400">📋</span>
         Booking Instructions
       </h2>
-      <ul className="space-y-2 text-white/90">
+      <ul className="space-y-2.5 text-sm">
         {cleanList.map((instruction, i) => (
-          <li key={i} className="flex items-start gap-2">
-            <span className="text-primary mt-0.5">•</span>
-            <span className="flex-1">{instruction}</span>
+          <li key={i} className="flex items-start gap-3">
+            <span className="text-primary text-lg leading-none">•</span>
+            <span className="flex-1 text-gray-300 leading-relaxed">{instruction}</span>
           </li>
         ))}
       </ul>

@@ -13,10 +13,11 @@ const formatTimeForAPI = (hour, minute, ampm) => {
   return `${paddedHour}:${minute} ${ampm}`;
 };
 
-const getLocalDateString = (date, freelancerTimezone) => {
-  return DateTime.fromJSDate(date)
-    .setZone(freelancerTimezone)
-    .toFormat("yyyy-MM-dd");
+const getLocalDateString = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 export default function BatchSlotForm({
@@ -110,10 +111,7 @@ export default function BatchSlotForm({
     }
 
     // 🔥 FIX: Get local date string (no UTC conversion needed)
-    const localDateString = getLocalDateString(
-      selectedDate,
-      freelancerTimezone
-    );
+    const localDateString = getLocalDateString(selectedDate);
 
     const payload = {
       start_day: localDateString, // 🔥 Send LOCAL date
@@ -125,10 +123,9 @@ export default function BatchSlotForm({
     };
 
     if (crossesMidnight) {
-      const nextDayString = DateTime.fromJSDate(selectedDate)
-        .setZone(freelancerTimezone)
-        .plus({ days: 1 })
-        .toFormat("yyyy-MM-dd");
+      const nextDay = new Date(selectedDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDayString = getLocalDateString(nextDay);
 
       setPendingPayload({
         slotStart: {

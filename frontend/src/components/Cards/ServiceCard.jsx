@@ -77,36 +77,36 @@ export default function ServiceCard({
   return (
     <>
       <li
-        onClick={() => {
-          if (isPublicView && onClick) {
-            setIsFlashing(true);
-            onClick();
-            const wrapper = document.getElementById("service-select-wrapper");
-            if (wrapper) {
-              wrapper.classList.add(
-                "ring-2",
-                "ring-blue-400",
-                "ring-offset-2",
-                "ring-offset-black"
-              );
-              setTimeout(() => {
-                wrapper.classList.remove(
-                  "ring-2",
-                  "ring-blue-400",
-                  "ring-offset-2",
-                  "ring-offset-black"
-                );
-              }, 1000);
-            }
-            setTimeout(() => setIsFlashing(false), 1000);
-          }
-        }}
-        className={`w-full h-full bg-white/10 backdrop-blur-md rounded-xl px-4 py-4 list-none space-y-2 cursor-pointer transition-all duration-300 border ${
-          isFlashing
-            ? "border-blue-400 ring-2 ring-blue-400 ring-offset-2 ring-offset-black"
-            : "border-white/20 hover:shadow-md"
-        }`}
-      >
+  onClick={() => {
+    if (isPublicView && onClick) {
+      setIsFlashing(true);
+      onClick();
+      const wrapper = document.getElementById("service-select-wrapper");
+      if (wrapper) {
+        wrapper.classList.add(
+          "ring-2",
+          "ring-blue-400",
+          "ring-offset-2",
+          "ring-offset-black"
+        );
+        setTimeout(() => {
+          wrapper.classList.remove(
+            "ring-2",
+            "ring-blue-400",
+            "ring-offset-2",
+            "ring-offset-black"
+          );
+        }, 1000);
+      }
+      setTimeout(() => setIsFlashing(false), 1000);
+    }
+  }}
+  className={`w-full h-full p-5 rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 shadow-md border list-none space-y-2 cursor-pointer transition-all duration-150 ${
+    isFlashing
+      ? "border-blue-400 ring-2 ring-blue-400 ring-offset-2 ring-offset-black"
+      : "border-slate-700 hover:shadow-lg hover:-translate-y-[1px]"
+  }`}
+>
         {editing ? (
           <div className="space-y-2">
             <input

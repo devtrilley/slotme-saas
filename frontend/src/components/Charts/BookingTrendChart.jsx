@@ -46,7 +46,11 @@ export default function BookingTrendChart({ trendData, signupDate }) {
   chartData.sort((a, b) => new Date(a.x) - new Date(b.x));
 
   return (
-    <div className="bg-white/5 rounded-lg p-4 shadow space-y-4 min-h-[320px]">
+    <div className="p-5 rounded-2xl
+  bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950
+  border border-slate-700
+  shadow-md
+  space-y-4 min-h-[320px]">
       <h2 className="text-center text-sm font-semibold">
         Bookings Since{" "}
         {trendData?.[0]?.x

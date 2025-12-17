@@ -358,7 +358,10 @@ export default function BookingPage({ useCustomUrl = false }) {
       const res = await axios.get(
         `${API_BASE}/freelancer/slots/${freelancerId}`
       );
-      setSlots(res.data); // 🔥 REMOVED sortSlots() - backend already sorted!
+      console.log("🔍 RAW SLOTS FROM BACKEND:", res.data);
+      console.log("🔍 Total slots:", res.data.length);
+      console.log("🔍 First 5 slots:", res.data.slice(0, 5));
+      setSlots(res.data);
     } catch (err) {
       console.error("❌ Failed to fetch slots", err);
       setError("Booking page unavailable.");
@@ -574,6 +577,13 @@ export default function BookingPage({ useCustomUrl = false }) {
     isSlotOnDate(s, selectedDate, s.timezone || freelancerTimeZone)
   );
 
+  console.log("🔍 Selected date:", selectedDate.toLocaleDateString());
+  console.log("🔍 Filtered slots for this date:", filteredSlots.length);
+  console.log(
+    "🔍 Filtered slot details:",
+    filteredSlots.map((s) => ({ day: s.day, time: s.time_24h, tz: s.timezone }))
+  );
+
   // ⏱ Drop past unbooked slots, keep booked or inherited ones (shows popularity)
   const visibleSlots = filteredSlots.filter((slot) => {
     const isPast = isSlotInPast(slot, slot.timezone || freelancerTimeZone);
@@ -640,6 +650,32 @@ export default function BookingPage({ useCustomUrl = false }) {
     );
   }
 
+  // (Nothing here - auto-scroll removed, keeping fade-in animations)
+
+  // 🚨 Handle missing freelancer BEFORE SafeLoader
+  if (error === "missing-freelancer") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-base-200 rounded-lg shadow-xl p-8 text-center space-y-6">
+          <div className="text-7xl animate-pulse">🔍</div>
+          <h1 className="text-2xl font-bold text-purple-400">
+            Hmm... we can't find this booking page
+          </h1>
+          <p className="text-gray-400 text-sm leading-relaxed">
+            This link doesn't belong to any freelancer. It might be broken,
+            expired, or the freelancer may have deleted their account.
+          </p>
+          <button
+            onClick={() => (window.location.href = "/")}
+            className="btn btn-primary w-full mt-4"
+          >
+            🏠 Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <SafeLoader loading={loading} error={error} onRetry={handleRetry}>
       <main className="max-w-md lg:max-w-2xl mx-auto p-6 space-y-6">
@@ -652,20 +688,14 @@ export default function BookingPage({ useCustomUrl = false }) {
           const onboardingCompleted = localStorage.getItem(
             "onboarding_completed"
           );
-
-          // Only show if: logged in AND step 6 NOT visited yet AND onboarding NOT complete
           const shouldShow =
             isLoggedIn && !onboardingStep6Visited && !onboardingCompleted;
-
           return (
             shouldShow && (
               <div className="flex justify-center mb-4">
                 <button
                   onClick={() => {
-                    // Mark step 6 complete
                     localStorage.setItem("onboarding_step6_visited", "true");
-
-                    // Scroll to top before navigating
                     window.scrollTo({ top: 0, behavior: "instant" });
                     navigate("/freelancer-admin");
                   }}
@@ -677,6 +707,8 @@ export default function BookingPage({ useCustomUrl = false }) {
             )
           );
         })()}
+
+        {/* ✅ FREELANCER CARD - ALWAYS VISIBLE */}
         <FreelancerCard
           business_name={freelancerDetails.business_name}
           first_name={freelancerDetails.first_name}
@@ -688,12 +720,15 @@ export default function BookingPage({ useCustomUrl = false }) {
           onClick={() => setShowModal(true)}
           tier={freelancerDetails.tier}
         />
+
         {showModal && (
           <FreelancerModal
             freelancer={{ ...freelancerDetails, id: freelancerId }}
             onClose={() => setShowModal(false)}
           />
         )}
+
+        {/* ✅ BOOKING TITLE & REFRESH - ALWAYS VISIBLE */}
         <section className="flex flex-col items-center gap-2">
           <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>
           <RefreshButton
@@ -702,22 +737,24 @@ export default function BookingPage({ useCustomUrl = false }) {
             className="btn-sm"
           />
         </section>
+
+        {/* ✅ BOOKING INSTRUCTIONS - ALWAYS VISIBLE IF EXISTS */}
         {freelancerDetails?.booking_instructions && (
-          <div className="mb-4">
-            <BookingInstructionsCard
-              instructions={freelancerDetails.booking_instructions}
-            />
-          </div>
+          <BookingInstructionsCard
+            instructions={freelancerDetails.booking_instructions}
+          />
         )}
+
+        {/* ✅ SERVICE CAROUSEL - ALWAYS VISIBLE */}
         {services.length > 0 && (
           <section className="mt-4">
             <h3 className="text-center text-sm text-white mb-2 mt-6 font-medium">
-              Available Services Slider
+              Choose Your Service
             </h3>
-
-            {/* ✅ No gap - buttons touch carousel */}
+            <p className="text-center text-xs text-gray-400 mb-3 lg:hidden">
+              ← Swipe to see more →
+            </p>
             <div className="flex items-stretch">
-              {/* ✅ Left arrow - rounds left edge */}
               <button
                 onClick={() => scrollCarousel("left")}
                 disabled={!canScrollLeft}
@@ -731,10 +768,19 @@ export default function BookingPage({ useCustomUrl = false }) {
                 <span className="text-2xl">←</span>
               </button>
 
-              {/* ✅ Carousel - sharp corners */}
               <div
                 ref={carouselRef}
-                className="flex-1 flex overflow-x-auto gap-4 px-5 py-4 snap-x snap-mandatory lg:snap-none bg-white/5 border-t border-b border-white/10 scrollbar-hide"
+                className="
+    -mx-6               /* ⬅️ BREAK OUT OF main padding */
+    px-6 py-4
+    flex overflow-x-auto gap-4 snap-x snap-mandatory lg:snap-none
+
+    bg-gradient-to-r from-white/5 via-white/10 to-white/5
+    border-t border-b border-white/10
+    shadow-inner
+
+    scrollbar-hide
+  "
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
               >
                 {services.map((service) => (
@@ -756,41 +802,13 @@ export default function BookingPage({ useCustomUrl = false }) {
                         setSelectedServiceId(service.id);
                         setSelectedServiceDuration(service.duration_minutes);
                         scrollServiceIntoView(service.id);
-
-                        const requiredBlocks = getRequiredBlocks(
-                          service.duration_minutes
-                        );
-                        const index = filteredSlots.findIndex(
-                          (s) => s.id === selectedSlotId
-                        );
-                        if (index === -1) {
-                          setSelectedSlotId(null);
-                          return;
-                        }
-                        const futureSlots = filteredSlots.slice(index);
-                        const relevantSlice = futureSlots.slice(
-                          0,
-                          requiredBlocks
-                        );
-                        const visibleFree = relevantSlice.every(
-                          (s) => !s.is_booked && !s.is_inherited_block
-                        );
-                        const missingBlocks =
-                          requiredBlocks - relevantSlice.length;
-                        const startSlot = futureSlots[0];
-                        const lastSlotId =
-                          filteredSlots[filteredSlots.length - 1]?.id;
-                        const isLastSlot = startSlot?.id === lastSlotId;
-                        const valid =
-                          visibleFree && (missingBlocks <= 0 || isLastSlot);
-                        if (!valid) setSelectedSlotId(null);
+                        setSelectedSlotId(null); // Reset slot when service changes
                       }}
                     />
                   </div>
                 ))}
               </div>
 
-              {/* ✅ Right arrow - rounds right edge */}
               <button
                 onClick={() => scrollCarousel("right")}
                 disabled={!canScrollRight}
@@ -806,551 +824,452 @@ export default function BookingPage({ useCustomUrl = false }) {
             </div>
           </section>
         )}
-        {/* ✅ ADD-ONS BUTTON - RIGHT AFTER CAROUSEL */}
-        {selectedServiceId && addons.length > 0 && (
-          <div className="flex justify-center mt-4">
-            <button
-              onClick={() => setShowAddonModal(true)}
-              className="w-full max-w-sm flex items-center justify-center gap-2
-        px-4 py-3 rounded-lg
-        bg-gradient-to-r from-purple-500/20 to-blue-500/20
-        border border-purple-500/50
-        text-white font-medium
-        shadow-lg shadow-purple-700/20
-        hover:from-purple-500/30 hover:to-blue-500/30 hover:shadow-purple-600/30
-        transition-all duration-200 active:scale-[.98]"
-            >
-              <span className="text-xl">🎁</span>
-              <span className="text-sm">
-                {selectedAddonIds.length > 0
-                  ? `View Add-Ons (${selectedAddonIds.length} selected)`
-                  : "Click to View Available Add-Ons"}
-              </span>
-            </button>
-          </div>
-        )}
-        <section className="space-y-2">
-          <label className="text-sm text-gray-400 block text-center mt-6">
-            Select a date:
-            <br />
-            <span className="text-green-400 text-xs">
-              (Green = Slots Available)
-            </span>
-          </label>
-          <IconDatePicker
-            selected={selectedDate}
-            onChange={(date) => setSelectedDate(date)}
-            minDate={new Date()} // ✅ prevents selecting yesterday
-            availableDates={availableDates}
-          />
-          {/* 🔥 NEW: Return to Today button */}
-          <div className="flex justify-center w-full">
-            <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
-          </div>
 
-          {services.length > 0 && (
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400 block text-center mt-6">
-                Select a service:
-              </label>
-              <div
-                id="service-select-wrapper"
-                className="relative transition-all duration-300 rounded-lg overflow-hidden"
-              >
-                <select
-                  className="select select-bordered w-full rounded-lg"
-                  value={selectedServiceId || ""}
-                  onChange={(e) => {
-                    const serviceId = Number(e.target.value);
-                    setSelectedServiceId(serviceId);
-                    const selectedService = services.find(
-                      (s) => s.id === serviceId
-                    );
-                    const newDuration = selectedService?.duration_minutes || 0;
-                    setSelectedServiceDuration(newDuration);
-
-                    // Recalculate slot logic
-                    const requiredBlocks = getRequiredBlocks(newDuration);
-                    const index = filteredSlots.findIndex(
-                      (s) => s.id === selectedSlotId
-                    );
-
-                    if (index === -1) {
-                      setSelectedSlotId(null);
-                      return;
-                    }
-
-                    const futureSlots = filteredSlots.slice(index);
-                    const relevantSlice = futureSlots.slice(0, requiredBlocks);
-
-                    const visibleFree = relevantSlice.every(
-                      (s) => !s.is_booked && !s.is_inherited_block
-                    );
-
-                    const missingBlocks = requiredBlocks - relevantSlice.length;
-                    const startSlot = futureSlots[0];
-                    const lastSlotId =
-                      filteredSlots[filteredSlots.length - 1]?.id;
-                    const isLastSlot = startSlot?.id === lastSlotId;
-
-                    const valid =
-                      visibleFree && (missingBlocks <= 0 || isLastSlot);
-
-                    if (!valid) setSelectedSlotId(null);
-                  }}
-                  required
-                >
-                  <option value="" disabled>
-                    -- Choose a service --
-                  </option>
-                  {services.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.duration_minutes} min) - $
-                      {s.price_usd?.toFixed(2) || "0.00"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {/* ✅ DUAL ADD-ONS ACCESS - ALSO UNDER DROPDOWN */}
-              {selectedServiceId && addons.length > 0 && (
+        {/* ✅ PROGRESSIVE REVEAL - HIDDEN UNTIL SERVICE SELECTED */}
+        {selectedServiceId && (
+          <div className="space-y-6 animate-slideInFromLeft">
+            {/* ✅ ADD-ONS BUTTON (if addons exist) */}
+            {addons.length > 0 && (
+              <div className="flex justify-center">
                 <button
                   onClick={() => setShowAddonModal(true)}
-                  className="w-full mt-2 flex items-center justify-center gap-2
-          px-3 py-2 rounded-lg
-          bg-gradient-to-r from-purple-500/10 to-blue-500/10
-          border border-purple-500/30
-          text-white text-sm
-          hover:from-purple-500/20 hover:to-blue-500/20
-          transition-all duration-200"
+                  className="w-full max-w-sm flex items-center justify-center gap-2
+                    px-4 py-3 rounded-xl
+                    bg-gradient-to-r from-purple-500/20 to-blue-500/20
+                    border border-purple-500/50
+                    text-white font-medium
+                    shadow-lg shadow-purple-700/20
+                    hover:from-purple-500/30 hover:to-blue-500/30 hover:shadow-purple-600/30
+                    transition-all duration-200 active:scale-[.98]"
                 >
-                  <span>🎁</span>
-                  <span>
+                  <span className="text-xl">🎁</span>
+                  <span className="text-sm">
                     {selectedAddonIds.length > 0
-                      ? `Add-Ons (${selectedAddonIds.length})`
-                      : "Click Here for Add-On Services"}
+                      ? `View Add-Ons (${selectedAddonIds.length} selected)`
+                      : "Optional Add-Ons Available"}
                   </span>
                 </button>
-              )}
-              {/* ✅ Total Price & Duration Display */}
-              {selectedServiceId && (
-                <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/10">
-                  <p className="text-sm font-medium text-center mb-3 border-b border-white/10 pb-2">
-                    Booking Summary
-                  </p>
-                  {(() => {
-                    const service = services.find(
-                      (s) => s.id === selectedServiceId
-                    );
-                    const selectedAddons = addons.filter((a) =>
-                      selectedAddonIds.includes(a.id)
-                    );
-                    const totalPrice =
-                      (service?.price_usd || 0) +
-                      selectedAddons.reduce((sum, a) => sum + a.price_usd, 0);
-                    const totalDuration =
-                      (service?.duration_minutes || 0) +
-                      selectedAddons.reduce(
-                        (sum, a) => sum + a.duration_minutes,
-                        0
-                      );
-                    return (
-                      <div className="space-y-2">
-                        {/* Service */}
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-300">
-                            {service?.name}
-                          </span>
-                          <span className="text-sm text-white">
-                            ${service?.price_usd?.toFixed(2) || "0.00"}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-xs text-gray-500">
-                          <span>Duration</span>
-                          <span>{service?.duration_minutes} min</span>
-                        </div>
-
-                        {/* Add-ons */}
-                        {selectedAddons.length > 0 && (
-                          <>
-                            <hr className="border-white/10 my-2" />
-                            <p className="text-xs text-gray-400 font-medium">
-                              Add-Ons:
-                            </p>
-                            {selectedAddons.map((addon) => (
-                              <div key={addon.id} className="space-y-1">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm text-gray-300">
-                                    {addon.name}
-                                  </span>
-                                  <span className="text-sm text-green-400">
-                                    +${addon.price_usd.toFixed(2)}
-                                  </span>
-                                </div>
-                                {addon.duration_minutes > 0 && (
-                                  <div className="flex justify-between items-center text-xs text-gray-500">
-                                    <span>Duration</span>
-                                    <span className="text-green-400">
-                                      +{addon.duration_minutes} min
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </>
-                        )}
-
-                        {/* Total */}
-                        <hr className="border-white/20 my-2" />
-                        <div className="flex justify-between items-center pt-1">
-                          <span className="text-base font-bold text-white">
-                            Total
-                          </span>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-white">
-                              ${totalPrice.toFixed(2)}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {totalDuration} minutes
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 🧭 Simplified timezone note */}
-          <p className="text-sm text-gray-400 text-center mt-2 italic">
-            *Times grouped by timezone below*
-          </p>
-        </section>
-        {loading ? (
-          <p className="text-center">Loading slots...</p>
-        ) : (
-          <>
-            {/* ✅ No-available-slots card ABOVE the grid */}
-            {(() => {
-              const bookableSlots = visibleSlots.filter((slot) => {
-                const isPast = isSlotInPast(
-                  slot,
-                  slot.timezone || freelancerTimeZone
-                ); // 🔥 Use slot's own timezone
-                return !isPast && !slot.is_booked && !slot.is_inherited_block;
-              });
-
-              const shouldShowCard =
-                filteredSlots.length === 0 || bookableSlots.length === 0;
-
-              const hasSlotsForDay = filteredSlots.length > 0;
-
-              return (
-                shouldShowCard && (
-                  <NoAvailableSlotsCard
-                    selectedDate={selectedDate}
-                    hasSlotsForDay={hasSlotsForDay}
-                    onRefresh={() => {
-                      fetchSlots();
-                      fetchFreelancerInfo();
-                    }}
-                  />
-                )
-              );
-            })()}
-            <section className="grid grid-cols-2 gap-4">
-              {(() => {
-                let lastTimezone = null;
-
-                return visibleSlots.map((slot, index) => {
-                  const slotTimezone = slot.timezone || freelancerTimeZone;
-                  const showHeader = slotTimezone !== lastTimezone;
-
-                  lastTimezone = slotTimezone;
-
-                  const isSelected = selectedSlotId === slot.id;
-                  const isBlocked =
-                    slot.is_booked ||
-                    slot.is_inherited_block ||
-                    !selectedServiceId;
-
-                  const isPast = isSlotInPast(slot, freelancerTimeZone);
-                  const isDisabled = isBlocked || isPast;
-
-                  const handleSelectSlot = () => {
-                    // ✅ Calculate total duration including add-ons
-                    const selectedAddons = addons.filter((a) =>
-                      selectedAddonIds.includes(a.id)
-                    );
-                    const totalAddonDuration = selectedAddons.reduce(
-                      (sum, a) => sum + a.duration_minutes,
-                      0
-                    );
-                    const totalDuration =
-                      selectedServiceDuration + totalAddonDuration;
-                    const requiredBlocks = getRequiredBlocks(totalDuration);
-                    // 🔥 FIX: Find actual index in filteredSlots
-                    const actualIndex = filteredSlots.findIndex(
-                      (s) => s.id === slot.id
-                    );
-                    const futureSlots = filteredSlots.slice(actualIndex);
-
-                    const relevantSlice = futureSlots.slice(0, requiredBlocks);
-
-                    const visibleFree = relevantSlice.every(
-                      (s) => !s.is_booked && !s.is_inherited_block
-                    );
-
-                    const slotsExist = relevantSlice.length;
-                    const missingSlots = requiredBlocks - slotsExist;
-
-                    const startSlot = futureSlots[0];
-                    if (
-                      !startSlot ||
-                      startSlot.is_booked ||
-                      startSlot.is_inherited_block
-                    ) {
-                      showToast(
-                        "Time overlaps with booking. Pick another slot.",
-                        "error"
-                      );
-                      return;
-                    }
-
-                    if (!visibleFree) {
-                      showToast(
-                        "Time overlaps with booking. Pick another slot.",
-                        "error"
-                      );
-                      return;
-                    }
-
-                    if (missingSlots > 0 && !isSelected) {
-                      console.warn(
-                        "⚠️ Booking extends beyond visible slots – inherited blocks will apply server-side."
-                      );
-                    }
-
-                    setSelectedSlotId((prev) =>
-                      prev === slot.id ? null : slot.id
-                    );
-                  };
-
-                  return (
-                    <React.Fragment key={`slot-${slot.id}`}>
-                      {/* 🔥 Timezone group header - spans full width */}
-                      {showHeader && (
-                        <div className="col-span-2 mt-4 mb-2 text-center w-full">
-                          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                            {slotTimezone === "America/New_York"
-                              ? "Eastern"
-                              : slotTimezone === "America/Chicago"
-                              ? "Central"
-                              : slotTimezone === "America/Denver"
-                              ? "Mountain"
-                              : slotTimezone === "America/Los_Angeles"
-                              ? "Pacific"
-                              : slotTimezone
-                                  .replace("America/", "")
-                                  .replace("_", " ")}{" "}
-                            Timezone
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex flex-col">
-                        <button
-                          className={`btn w-full text-sm lg:text-base lg:p-5 animate-fadeInFast ${
-                            isDisabled
-                              ? "bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
-                              : isSelected
-                              ? "bg-primary text-white ring-2 ring-primary/40 shadow-lg shadow-primary/20 scale-[1.02]"
-                              : "btn-outline text-white border-white"
-                          }`}
-                          onClick={() => {
-                            if (loading) return;
-                            if (!selectedServiceId) {
-                              showToast("Select a service first.", "warning");
-                              return;
-                            }
-                            if (isDisabled) {
-                              const nowInFreelancerTZ = DateTime.now()
-                                .setZone(freelancerTimeZone)
-                                .startOf("day");
-                              const selectedEST =
-                                DateTime.fromJSDate(selectedDate).startOf(
-                                  "day"
-                                );
-                              if (selectedEST < nowInFreelancerTZ) {
-                                showToast(
-                                  "Past date. Choose another day.",
-                                  "warning"
-                                );
-                              } else {
-                                showToast(
-                                  "Time already passed. Pick another.",
-                                  "warning"
-                                );
-                              }
-                              return;
-                            }
-                            handleSelectSlot();
-                          }}
-                          type="button"
-                        >
-                          {(() => {
-                            const { formattedTime, abbreviation } =
-                              formatSlotTimeParts(
-                                slot,
-                                slot.timezone || freelancerTimeZone
-                              );
-                            return (
-                              <span className="text-xs w-full text-center flex justify-center items-center gap-1">
-                                <span>{formattedTime}</span>
-                                <span className="text-[0.65rem] text-gray-400">
-                                  {abbreviation}
-                                </span>
-                              </span>
-                            );
-                          })()}
-                        </button>
-                        {slot.is_booked && (
-                          <div className="text-xs text-red-400 mt-1 text-center">
-                            {slot.service_name ? (
-                              <>
-                                Booked: <strong>{slot.service_name}</strong> (
-                                {slot.duration_minutes} min)
-                              </>
-                            ) : (
-                              <>Booked</>
-                            )}
-                          </div>
-                        )}
-                        {slot.is_inherited_block && (
-                          <div className="text-xs text-purple-400 mt-1 text-center italic">
-                            Blocked (part of earlier appointment)
-                          </div>
-                        )}
-                      </div>
-                    </React.Fragment>
-                  );
-                });
-              })()}
-            </section>
-          </>
-        )}
-        <section>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {cooldownRemaining > 0 && (
-              <p className="text-center text-yellow-400 text-sm mb-2">
-                ⏳ You can book again in {cooldownRemaining} seconds.
-              </p>
-            )}
-
-            <h3 className="text-lg font-semibold text-center border-b pb-1">
-              Your Name & Contact Info
-            </h3>
-            <input
-              type="text"
-              placeholder="First name"
-              className="input input-bordered w-full"
-              value={firstName}
-              onChange={(e) => {
-                const val = e.target.value;
-                setFirstName(
-                  val.charAt(0).toUpperCase() + val.slice(1).toLowerCase()
-                );
-              }}
-              required
-            />
-            <input
-              type="text"
-              placeholder="Last name"
-              className="input input-bordered w-full"
-              value={lastName}
-              onChange={(e) => {
-                const val = e.target.value;
-                setLastName(
-                  val.charAt(0).toUpperCase() + val.slice(1).toLowerCase()
-                );
-              }}
-              required
-            />
-
-            <input
-              type="email"
-              placeholder="Your email"
-              className="input input-bordered w-full"
-              value={email}
-              onChange={(e) => setEmail(e.target.value.trim())}
-              required
-            />
-
-            <input
-              type="tel"
-              placeholder="Your phone"
-              className="input input-bordered w-full"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
-            />
-
-            {/* ✅ CUSTOM QUESTIONS SECTION */}
-            {customQuestions.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-center border-b pb-1">
-                  Additional Questions
-                </h3>
-
-                {customQuestions.map((q, i) => (
-                  <div key={i}>
-                    <label className="block text-sm font-medium text-white mb-1">
-                      {q.question}
-                      {q.required && <span className="text-red-500"> *</span>}
-                    </label>
-                    <input
-                      type="text"
-                      className="input input-bordered w-full"
-                      value={customResponses[q.question] || ""}
-                      onChange={(e) =>
-                        setCustomResponses({
-                          ...customResponses,
-                          [q.question]: e.target.value,
-                        })
-                      }
-                      required={q.required}
-                    />
-                  </div>
-                ))}
               </div>
             )}
 
-            <HoneypotInput value={honeypot} setValue={setHoneypot} />
+            {/* ✅ BOOKING SUMMARY - CLEAN STYLING */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 shadow-md border border-slate-700">
+              <h3 className="text-sm font-semibold text-center mb-4 pb-3 border-b border-white/20 text-white">
+                Booking Summary
+              </h3>
+              {(() => {
+                const service = services.find(
+                  (s) => s.id === selectedServiceId
+                );
+                const selectedAddons = addons.filter((a) =>
+                  selectedAddonIds.includes(a.id)
+                );
+                const totalPrice =
+                  (service?.price_usd || 0) +
+                  selectedAddons.reduce((sum, a) => sum + a.price_usd, 0);
+                const totalDuration =
+                  (service?.duration_minutes || 0) +
+                  selectedAddons.reduce(
+                    (sum, a) => sum + a.duration_minutes,
+                    0
+                  );
 
-            <button
-              className={`btn w-full flex items-center justify-center gap-2 ${
-                submitting || !selectedSlotId
-                  ? "opacity-50 cursor-not-allowed btn-primary"
-                  : cooldownRemaining > 0
-                  ? "btn-outline text-white border-yellow-500"
-                  : "btn-primary"
-              }`}
-              disabled={!selectedSlotId || submitting}
-              type="submit"
-            >
-              {submitting && (
-                <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-white border-opacity-60"></span>
-              )}
-              {submitting
-                ? "Submitting..."
-                : cooldownRemaining > 0
-                ? `Please wait (${cooldownRemaining}s)`
-                : "Book Appointment"}
-            </button>
-          </form>
-        </section>
+                return (
+                  <div className="space-y-3">
+                    {/* Service */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-300">
+                        {service?.name}
+                      </span>
+                      <span className="text-sm font-medium text-white">
+                        ${service?.price_usd?.toFixed(2) || "0.00"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-gray-400">
+                      <span>Duration</span>
+                      <span>{service?.duration_minutes} min</span>
+                    </div>
+
+                    {/* Add-ons */}
+                    {selectedAddons.length > 0 && (
+                      <>
+                        <hr className="border-white/10 my-3" />
+                        <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">
+                          Add-Ons:
+                        </p>
+                        {selectedAddons.map((addon) => (
+                          <div key={addon.id} className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-300">
+                                {addon.name}
+                              </span>
+                              <span className="text-sm font-medium text-green-400">
+                                +${addon.price_usd.toFixed(2)}
+                              </span>
+                            </div>
+                            {addon.duration_minutes > 0 && (
+                              <div className="flex justify-between items-center text-xs text-gray-400">
+                                <span>Duration</span>
+                                <span className="text-green-400">
+                                  +{addon.duration_minutes} min
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Total */}
+                    <hr className="border-white/20 my-3" />
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-base font-bold text-white">
+                        Total
+                      </span>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-white">
+                          ${totalPrice.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {totalDuration} minutes
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* ✅ DATE PICKER */}
+            <section className="space-y-3">
+              <h3 className="text-center text-sm font-semibold text-white mt-6">
+                Pick a Date
+              </h3>
+              <label className="text-xs text-gray-400 block text-center">
+                <span className="text-green-400">
+                  (Green = Slots Available)
+                </span>
+              </label>
+              <IconDatePicker
+                selected={selectedDate}
+                onChange={(date) => setSelectedDate(date)}
+                minDate={new Date()}
+                availableDates={availableDates}
+              />
+              <div className="flex justify-center w-full">
+                <ReturnToTodayButton
+                  onClick={() => setSelectedDate(new Date())}
+                />
+              </div>
+              <p className="text-xs text-gray-400 text-center mt-2 italic">
+                *Times grouped by timezone below*
+              </p>
+            </section>
+
+            {/* ✅ TIME SLOTS GRID */}
+            {loading ? (
+              <p className="text-center text-gray-400">Loading slots...</p>
+            ) : (
+              <section className="space-y-4">
+                <h3 className="text-center text-sm font-semibold text-white">
+                  Choose Your Time
+                </h3>
+
+                {/* No available slots card */}
+                {(() => {
+                  const bookableSlots = visibleSlots.filter((slot) => {
+                    const isPast = isSlotInPast(
+                      slot,
+                      slot.timezone || freelancerTimeZone
+                    );
+                    return (
+                      !isPast && !slot.is_booked && !slot.is_inherited_block
+                    );
+                  });
+                  const shouldShowCard =
+                    filteredSlots.length === 0 || bookableSlots.length === 0;
+                  const hasSlotsForDay = filteredSlots.length > 0;
+
+                  return (
+                    shouldShowCard && (
+                      <NoAvailableSlotsCard
+                        selectedDate={selectedDate}
+                        hasSlotsForDay={hasSlotsForDay}
+                        onRefresh={() => {
+                          fetchSlots();
+                          fetchFreelancerInfo();
+                        }}
+                      />
+                    )
+                  );
+                })()}
+
+                {/* Slots grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  {(() => {
+                    let lastTimezone = null;
+                    return visibleSlots.map((slot) => {
+                      const slotTimezone = slot.timezone || freelancerTimeZone;
+                      const showHeader = slotTimezone !== lastTimezone;
+                      lastTimezone = slotTimezone;
+
+                      const isSelected = selectedSlotId === slot.id;
+                      const isBlocked =
+                        slot.is_booked || slot.is_inherited_block;
+                      const isPast = isSlotInPast(slot, slotTimezone);
+                      const isDisabled = isBlocked || isPast;
+
+                      const handleSelectSlot = () => {
+                        const selectedAddons = addons.filter((a) =>
+                          selectedAddonIds.includes(a.id)
+                        );
+                        const totalAddonDuration = selectedAddons.reduce(
+                          (sum, a) => sum + a.duration_minutes,
+                          0
+                        );
+                        const totalDuration =
+                          selectedServiceDuration + totalAddonDuration;
+                        const requiredBlocks = getRequiredBlocks(totalDuration);
+
+                        const actualIndex = filteredSlots.findIndex(
+                          (s) => s.id === slot.id
+                        );
+                        const futureSlots = filteredSlots.slice(actualIndex);
+                        const relevantSlice = futureSlots.slice(
+                          0,
+                          requiredBlocks
+                        );
+                        const visibleFree = relevantSlice.every(
+                          (s) => !s.is_booked && !s.is_inherited_block
+                        );
+
+                        const startSlot = futureSlots[0];
+                        if (
+                          !startSlot ||
+                          startSlot.is_booked ||
+                          startSlot.is_inherited_block
+                        ) {
+                          showToast(
+                            "Time overlaps with booking. Pick another slot.",
+                            "error"
+                          );
+                          return;
+                        }
+
+                        if (!visibleFree) {
+                          showToast(
+                            "Time overlaps with booking. Pick another slot.",
+                            "error"
+                          );
+                          return;
+                        }
+
+                        setSelectedSlotId((prev) =>
+                          prev === slot.id ? null : slot.id
+                        );
+                      };
+
+                      return (
+                        <React.Fragment key={`slot-${slot.id}`}>
+                          {showHeader && (
+                            <div className="col-span-2 mt-4 mb-2 text-center w-full">
+                              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                {slotTimezone === "America/New_York"
+                                  ? "Eastern"
+                                  : slotTimezone === "America/Chicago"
+                                  ? "Central"
+                                  : slotTimezone === "America/Denver"
+                                  ? "Mountain"
+                                  : slotTimezone === "America/Los_Angeles"
+                                  ? "Pacific"
+                                  : slotTimezone
+                                      .replace("America/", "")
+                                      .replace("_", " ")}{" "}
+                                Timezone
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex flex-col">
+                            <button
+                              className={`btn w-full text-sm lg:text-base lg:p-5 transition-all duration-200 ${
+                                isDisabled
+                                  ? "bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
+                                  : isSelected
+                                  ? "bg-primary text-white ring-2 ring-primary/40 shadow-lg shadow-primary/20 scale-[1.02]"
+                                  : "btn-outline text-white border-white hover:scale-[1.02]"
+                              }`}
+                              onClick={() => {
+                                if (loading || isDisabled) return;
+                                handleSelectSlot();
+                              }}
+                              type="button"
+                            >
+                              {(() => {
+                                const { formattedTime, abbreviation } =
+                                  formatSlotTimeParts(slot, slotTimezone);
+                                return (
+                                  <span className="text-xs w-full text-center flex justify-center items-center gap-1">
+                                    <span>{formattedTime}</span>
+                                    <span className="text-[0.65rem] text-gray-400">
+                                      {abbreviation}
+                                    </span>
+                                  </span>
+                                );
+                              })()}
+                            </button>
+
+                            {slot.is_booked && (
+                              <div className="text-xs text-red-400 mt-1 text-center">
+                                {slot.service_name ? (
+                                  <>
+                                    Booked: <strong>{slot.service_name}</strong>{" "}
+                                    ({slot.duration_minutes} min)
+                                  </>
+                                ) : (
+                                  <>Booked</>
+                                )}
+                              </div>
+                            )}
+
+                            {slot.is_inherited_block && (
+                              <div className="text-xs text-purple-400 mt-1 text-center italic">
+                                Blocked (part of earlier appointment)
+                              </div>
+                            )}
+                          </div>
+                        </React.Fragment>
+                      );
+                    });
+                  })()}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+
+        {/* ✅ CONTACT FORM - HIDDEN UNTIL SLOT SELECTED */}
+        {selectedSlotId && (
+          <section className="animate-slideInFromLeft">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 shadow-md border border-slate-700">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {cooldownRemaining > 0 && (
+                  <p className="text-center text-yellow-400 text-sm mb-2">
+                    ⏳ You can book again in {cooldownRemaining} seconds.
+                  </p>
+                )}
+
+                <h3 className="text-lg font-semibold text-center border-b border-white/20 pb-2">
+                  Enter Your Contact Info
+                </h3>
+
+                <input
+                  type="text"
+                  placeholder="First name"
+                  className="input input-bordered w-full"
+                  value={firstName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFirstName(
+                      val.charAt(0).toUpperCase() + val.slice(1).toLowerCase()
+                    );
+                  }}
+                  required
+                />
+
+                <input
+                  type="text"
+                  placeholder="Last name"
+                  className="input input-bordered w-full"
+                  value={lastName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setLastName(
+                      val.charAt(0).toUpperCase() + val.slice(1).toLowerCase()
+                    );
+                  }}
+                  required
+                />
+
+                <input
+                  type="email"
+                  placeholder="Your email"
+                  className="input input-bordered w-full"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value.trim())}
+                  required
+                />
+
+                <input
+                  type="tel"
+                  placeholder="Your phone"
+                  className="input input-bordered w-full"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                />
+
+                {/* Custom Questions */}
+                {customQuestions.length > 0 && (
+                  <div className="space-y-4 pt-4 border-t border-white/10">
+                    <h3 className="text-sm font-semibold text-center text-white">
+                      Additional Questions
+                    </h3>
+                    {customQuestions.map((q, i) => (
+                      <div key={i}>
+                        <label className="block text-sm font-medium text-white mb-1">
+                          {q.question}
+                          {q.required && (
+                            <span className="text-red-500"> *</span>
+                          )}
+                        </label>
+                        <input
+                          type="text"
+                          className="input input-bordered w-full"
+                          value={customResponses[q.question] || ""}
+                          onChange={(e) =>
+                            setCustomResponses({
+                              ...customResponses,
+                              [q.question]: e.target.value,
+                            })
+                          }
+                          required={q.required}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <HoneypotInput value={honeypot} setValue={setHoneypot} />
+
+                <button
+                  className={`btn w-full flex items-center justify-center gap-2 ${
+                    submitting || !selectedSlotId
+                      ? "opacity-50 cursor-not-allowed btn-primary"
+                      : cooldownRemaining > 0
+                      ? "btn-outline text-white border-yellow-500"
+                      : "btn-primary"
+                  }`}
+                  disabled={!selectedSlotId || submitting}
+                  type="submit"
+                >
+                  {submitting && (
+                    <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-white border-opacity-60"></span>
+                  )}
+                  {submitting
+                    ? "Submitting..."
+                    : cooldownRemaining > 0
+                    ? `Please wait (${cooldownRemaining}s)`
+                    : "Book Appointment"}
+                </button>
+              </form>
+            </div>
+          </section>
+        )}
+
+        {/* ✅ NO-SHOW POLICY & FAQ - ALWAYS VISIBLE AT BOTTOM */}
         <NoShowPolicy policy={noShowPolicy} />
-        <FAQCard faq_items={freelancerDetails.faq_items} />{" "}
+        <FAQCard faq_items={freelancerDetails.faq_items} />
       </main>
 
       {/* ✅ Add-On Selection Modal */}
@@ -1361,7 +1280,7 @@ export default function BookingPage({ useCustomUrl = false }) {
         selectedAddonIds={selectedAddonIds}
         onUpdateSelection={(newIds) => {
           setSelectedAddonIds(newIds);
-          setSelectedSlotId(null); // Reset slot when add-ons change
+          setSelectedSlotId(null);
         }}
       />
     </SafeLoader>

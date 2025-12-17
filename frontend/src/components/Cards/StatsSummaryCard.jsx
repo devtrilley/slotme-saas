@@ -1,6 +1,10 @@
 export default function StatsSummaryCard({ stats }) {
   return (
-    <div className="bg-white/5 rounded-lg p-4 shadow space-y-2 text-sm">
+    <div className="p-5 rounded-2xl
+  bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950
+  border border-slate-700
+  shadow-md
+  space-y-2 text-sm">
       <div className="flex justify-between">
         <span>Total Bookings:</span>
         <span className="font-bold">{stats.total_bookings}</span>
