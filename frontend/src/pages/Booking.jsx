@@ -587,7 +587,12 @@ export default function BookingPage({ useCustomUrl = false }) {
   // ⏱ Drop past unbooked slots, keep booked or inherited ones (shows popularity)
   const visibleSlots = filteredSlots.filter((slot) => {
     const isPast = isSlotInPast(slot, slot.timezone || freelancerTimeZone);
+    // Hide past unbooked slots
     if (isPast && !slot.is_booked && !slot.is_inherited_block) {
+      return false;
+    }
+    // ✅ NEW: Hide ALL booked/blocked slots for cleaner UX
+    if (slot.is_booked || slot.is_inherited_block) {
       return false;
     }
     return true;
@@ -748,10 +753,10 @@ export default function BookingPage({ useCustomUrl = false }) {
         {/* ✅ SERVICE CAROUSEL - ALWAYS VISIBLE */}
         {services.length > 0 && (
           <section className="mt-4">
-            <h3 className="text-center text-sm text-white mb-2 mt-6 font-medium">
+            <h3 className="text-center text-lg font-bold text-white mb-2 mt-6">
               Choose Your Service
             </h3>
-            <p className="text-center text-xs text-gray-400 mb-3 lg:hidden">
+            <p className="text-center text-sm text-gray-400 mb-3 lg:hidden">
               ← Swipe to see more →
             </p>
             <div className="flex items-stretch">
@@ -774,14 +779,18 @@ export default function BookingPage({ useCustomUrl = false }) {
     -mx-6               /* ⬅️ BREAK OUT OF main padding */
     px-6 py-4
     flex overflow-x-auto gap-4 snap-x snap-mandatory lg:snap-none
-
-    bg-gradient-to-r from-white/5 via-white/10 to-white/5
-    border-t border-b border-white/10
-    shadow-inner
-
     scrollbar-hide
   "
-                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                style={{
+                  scrollbarWidth: "none",
+                  msOverflowStyle: "none",
+                  background:
+                    "linear-gradient(135deg, rgba(76, 29, 149, 0.25) 0%, rgba(59, 26, 107, 0.2) 15%, rgba(91, 33, 182, 0.3) 30%, rgba(76, 29, 149, 0.25) 50%, rgba(107, 33, 168, 0.35) 70%, rgba(88, 28, 135, 0.25) 85%, rgba(91, 33, 182, 0.3) 100%)",
+                  borderTop: "1px solid rgba(107, 33, 168, 0.2)",
+                  borderBottom: "1px solid rgba(107, 33, 168, 0.2)",
+                  boxShadow:
+                    "inset 0 1px 2px rgba(139, 92, 246, 0.15), inset 0 -1px 2px rgba(0, 0, 0, 0.2), 0 4px 10px rgba(107, 33, 168, 0.15)",
+                }}
               >
                 {services.map((service) => (
                   <div
@@ -854,7 +863,7 @@ export default function BookingPage({ useCustomUrl = false }) {
 
             {/* ✅ BOOKING SUMMARY - CLEAN STYLING */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 shadow-md border border-slate-700">
-              <h3 className="text-sm font-semibold text-center mb-4 pb-3 border-b border-white/20 text-white">
+              <h3 className="text-lg font-bold text-center mb-4 pb-3 border-b border-white/20 text-white">
                 Booking Summary
               </h3>
               {(() => {
@@ -942,11 +951,11 @@ export default function BookingPage({ useCustomUrl = false }) {
 
             {/* ✅ DATE PICKER */}
             <section className="space-y-3">
-              <h3 className="text-center text-sm font-semibold text-white mt-6">
+              <h3 className="text-center text-lg font-bold text-white mt-6 mb-2">
                 Pick a Date
               </h3>
-              <label className="text-xs text-gray-400 block text-center">
-                <span className="text-green-400">
+              <label className="text-sm text-gray-400 block text-center">
+                <span className="text-green-400 font-medium">
                   (Green = Slots Available)
                 </span>
               </label>
@@ -961,19 +970,29 @@ export default function BookingPage({ useCustomUrl = false }) {
                   onClick={() => setSelectedDate(new Date())}
                 />
               </div>
-              <p className="text-xs text-gray-400 text-center mt-2 italic">
-                *Times grouped by timezone below*
-              </p>
             </section>
 
             {/* ✅ TIME SLOTS GRID */}
             {loading ? (
               <p className="text-center text-gray-400">Loading slots...</p>
             ) : (
-              <section className="space-y-4">
-                <h3 className="text-center text-sm font-semibold text-white">
+              <section
+                className="
+      mt-6
+      p-5
+      rounded-2xl
+      bg-gradient-to-br from-slate-800/80 via-slate-900/80 to-slate-950/80
+      border border-slate-700
+      shadow-md
+    "
+              >
+                <h3 className="text-center text-lg font-bold text-white">
                   Choose Your Time
                 </h3>
+
+                <p className="text-center text-xs text-gray-400 mt-1 italic">
+                  Times shown grouped by timezone below
+                </p>
 
                 {/* No available slots card */}
                 {(() => {
@@ -1030,11 +1049,17 @@ export default function BookingPage({ useCustomUrl = false }) {
                         const totalDuration =
                           selectedServiceDuration + totalAddonDuration;
                         const requiredBlocks = getRequiredBlocks(totalDuration);
-
-                        const actualIndex = filteredSlots.findIndex(
+                        
+                        // 🔥 FIX: Only check consecutive slots within the SAME TIMEZONE
+                        const slotTimezone = slot.timezone || freelancerTimeZone;
+                        const sameTzSlots = filteredSlots.filter(
+                          (s) => (s.timezone || freelancerTimeZone) === slotTimezone
+                        );
+                        
+                        const actualIndex = sameTzSlots.findIndex(
                           (s) => s.id === slot.id
                         );
-                        const futureSlots = filteredSlots.slice(actualIndex);
+                        const futureSlots = sameTzSlots.slice(actualIndex);
                         const relevantSlice = futureSlots.slice(
                           0,
                           requiredBlocks
@@ -1042,7 +1067,6 @@ export default function BookingPage({ useCustomUrl = false }) {
                         const visibleFree = relevantSlice.every(
                           (s) => !s.is_booked && !s.is_inherited_block
                         );
-
                         const startSlot = futureSlots[0];
                         if (
                           !startSlot ||
@@ -1055,7 +1079,6 @@ export default function BookingPage({ useCustomUrl = false }) {
                           );
                           return;
                         }
-
                         if (!visibleFree) {
                           showToast(
                             "Time overlaps with booking. Pick another slot.",
@@ -1063,7 +1086,6 @@ export default function BookingPage({ useCustomUrl = false }) {
                           );
                           return;
                         }
-
                         setSelectedSlotId((prev) =>
                           prev === slot.id ? null : slot.id
                         );
@@ -1072,21 +1094,23 @@ export default function BookingPage({ useCustomUrl = false }) {
                       return (
                         <React.Fragment key={`slot-${slot.id}`}>
                           {showHeader && (
-                            <div className="col-span-2 mt-4 mb-2 text-center w-full">
-                              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                {slotTimezone === "America/New_York"
-                                  ? "Eastern"
-                                  : slotTimezone === "America/Chicago"
-                                  ? "Central"
-                                  : slotTimezone === "America/Denver"
-                                  ? "Mountain"
-                                  : slotTimezone === "America/Los_Angeles"
-                                  ? "Pacific"
-                                  : slotTimezone
-                                      .replace("America/", "")
-                                      .replace("_", " ")}{" "}
-                                Timezone
-                              </span>
+                            <div className="col-span-2 mt-4 mb-3 text-center w-full">
+                              <div className="inline-block px-4 py-2 rounded-lg bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 shadow-md">
+                                <span className="text-sm font-semibold text-gray-300 uppercase tracking-wider">
+                                  {slotTimezone === "America/New_York"
+                                    ? "Eastern"
+                                    : slotTimezone === "America/Chicago"
+                                    ? "Central"
+                                    : slotTimezone === "America/Denver"
+                                    ? "Mountain"
+                                    : slotTimezone === "America/Los_Angeles"
+                                    ? "Pacific"
+                                    : slotTimezone
+                                        .replace("America/", "")
+                                        .replace("_", " ")}{" "}
+                                  Timezone
+                                </span>
+                              </div>
                             </div>
                           )}
 
@@ -1097,7 +1121,16 @@ export default function BookingPage({ useCustomUrl = false }) {
                                   ? "bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
                                   : isSelected
                                   ? "bg-primary text-white ring-2 ring-primary/40 shadow-lg shadow-primary/20 scale-[1.02]"
-                                  : "btn-outline text-white border-white hover:scale-[1.02]"
+                                  : `
+  bg-slate-800/70
+  border border-slate-600/60
+  text-white
+  shadow-md shadow-black/25
+  hover:bg-slate-700/80
+  hover:border-primary/60
+  hover:shadow-lg hover:shadow-primary/20
+  hover:scale-[1.03]
+`
                               }`}
                               onClick={() => {
                                 if (loading || isDisabled) return;
@@ -1119,19 +1152,6 @@ export default function BookingPage({ useCustomUrl = false }) {
                               })()}
                             </button>
 
-                            {slot.is_booked && (
-                              <div className="text-xs text-red-400 mt-1 text-center">
-                                {slot.service_name ? (
-                                  <>
-                                    Booked: <strong>{slot.service_name}</strong>{" "}
-                                    ({slot.duration_minutes} min)
-                                  </>
-                                ) : (
-                                  <>Booked</>
-                                )}
-                              </div>
-                            )}
-
                             {slot.is_inherited_block && (
                               <div className="text-xs text-purple-400 mt-1 text-center italic">
                                 Blocked (part of earlier appointment)
@@ -1151,7 +1171,7 @@ export default function BookingPage({ useCustomUrl = false }) {
         {/* ✅ CONTACT FORM - HIDDEN UNTIL SLOT SELECTED */}
         {selectedSlotId && (
           <section className="animate-slideInFromLeft">
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 shadow-md border border-slate-700">
+            <div className="p-5 rounded-2xl mt-10 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 shadow-md border border-slate-700">
               <form onSubmit={handleSubmit} className="space-y-4">
                 {cooldownRemaining > 0 && (
                   <p className="text-center text-yellow-400 text-sm mb-2">
@@ -1267,7 +1287,15 @@ export default function BookingPage({ useCustomUrl = false }) {
           </section>
         )}
 
-        {/* ✅ NO-SHOW POLICY & FAQ - ALWAYS VISIBLE AT BOTTOM */}
+        {/* ✅ Divider BEFORE Policy Section */}
+        <div
+          className="-mx-6 my-10 h-[2px]
+  bg-gradient-to-r
+  from-transparent via-primary/40 to-transparent
+"
+        ></div>
+
+        {/* ✅ NO-SHOW POLICY & FAQ - GROUPED TOGETHER */}
         <NoShowPolicy policy={noShowPolicy} />
         <FAQCard faq_items={freelancerDetails.faq_items} />
       </main>

@@ -268,7 +268,7 @@ export default function BatchSlotForm({
             availableDates={availableDates}
           />
           {/* 🔥 NEW: Return to Today button */}
-          <div className="flex justify-center w-full">
+          <div className="flex justify-center w-full mt-2">
             <ReturnToTodayButton onClick={() => setSelectedDate(new Date())} />
           </div>
         </div>

@@ -65,6 +65,33 @@ select {
   transition: all 0.2s ease !important;
 }
 
+/* 🔥 Date picker matches TIME SLOT BUTTONS */
+.date-picker-input {
+  background: rgba(30, 41, 59, 0.7) !important; /* bg-slate-800/70 */
+  border: 1px solid rgba(71, 85, 105, 0.6) !important; /* border-slate-600/60 */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.25),
+    0 2px 4px -2px rgba(0, 0, 0, 0.25) !important; /* shadow-md shadow-black/25 */
+  border-radius: 0.75rem !important; /* rounded-xl */
+}
+
+.date-picker-input:hover {
+  background: rgba(51, 65, 85, 0.8) !important; /* hover:bg-slate-700/80 */
+  border-color: rgba(
+    139,
+    92,
+    246,
+    0.6
+  ) !important; /* hover:border-primary/60 */
+  box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.2),
+    0 4px 6px -4px rgba(139, 92, 246, 0.2) !important; /* hover:shadow-lg hover:shadow-primary/20 */
+}
+
+.date-picker-input:focus {
+  outline: none !important;
+  border-color: rgba(139, 92, 246, 0.6) !important;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.4) !important;
+}
+
 input:hover,
 textarea:hover,
 select:hover {

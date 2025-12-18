@@ -118,7 +118,7 @@ export default function IconDatePicker({
         minDate={new Date()}
         onFocus={handleFocus}
         onInputClick={handleClick}
-        portalId="root" // 🔥 THE FIX - renders at document body
+        portalId="root"
         dayClassName={(date) => {
           const dayLocal = new Date(date).setHours(0, 0, 0, 0);
           const today = new Date().setHours(0, 0, 0, 0);
