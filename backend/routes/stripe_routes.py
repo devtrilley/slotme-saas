@@ -42,15 +42,12 @@ def create_checkout_session():
     try:
         freelancer = Freelancer.query.get(freelancer_id)
 
-        # 🔥 If user has existing subscription, cancel it first
-        if freelancer.stripe_subscription_id:
-            print(f"🔴 Canceling old subscription {freelancer.stripe_subscription_id}")
-            try:
-                stripe.Subscription.delete(freelancer.stripe_subscription_id)
-                print(f"✅ Old subscription canceled")
-            except stripe.error.StripeError as e:
-                print(f"⚠️ Error canceling old subscription: {e}")
-                # Continue anyway - webhook will handle it
+        # 🔥 Don't touch old subscription here - webhook will handle it after new checkout completes
+        old_subscription_id = freelancer.stripe_subscription_id
+        if old_subscription_id:
+            print(
+                f"⚠️ User has existing subscription {old_subscription_id} - will be cancelled via webhook after new checkout"
+            )
 
         # 🔥 ELSE: Create new subscription via Checkout (first time)
         success_url = data.get("success_url")
@@ -64,6 +61,15 @@ def create_checkout_session():
             success_url = (
                 f"{FRONTEND_URL}/upgrade-success?session_id={{CHECKOUT_SESSION_ID}}"
             )
+
+        # Build metadata with old subscription ID if exists
+        checkout_metadata = {
+            "freelancer_id": str(freelancer_id),
+            "tier": plan,
+        }
+
+        if old_subscription_id:
+            checkout_metadata["old_subscription_id"] = old_subscription_id
 
         session = stripe.checkout.Session.create(
             **(
@@ -79,7 +85,7 @@ def create_checkout_session():
             subscription_data={
                 "trial_period_days": 30,  # 🎁 30-day free trial
             },
-            metadata={"freelancer_id": str(freelancer_id), "tier": plan},
+            metadata=checkout_metadata,
         )
         return jsonify({"url": session.url})
 
@@ -133,9 +139,11 @@ def stripe_webhook():
             print(f"❌ No freelancer found for session {session.get('id')}")
             return jsonify({"status": "ignored"}), 200
 
-        # Get subscription details
+       # Get subscription details
+        metadata = session.get("metadata", {})
         subscription_id = session.get("subscription")
         customer_id = session.get("customer")
+        old_subscription_id = metadata.get("old_subscription_id")
 
         if subscription_id:
             # Fetch full subscription object from Stripe
@@ -149,6 +157,20 @@ def stripe_webhook():
                 tier = PRICE_TO_TIER.get(
                     price_id, "pro"
                 )  # Default to pro if price not found
+
+                # 🔥 NEW: Cancel old subscription now that new one is confirmed
+                if old_subscription_id and old_subscription_id != subscription_id:
+                    print(
+                        f"🔄 Canceling old subscription {old_subscription_id} (new subscription {subscription_id} confirmed)"
+                    )
+                    try:
+                        stripe.Subscription.delete(old_subscription_id)
+                        print(
+                            f"✅ Old subscription {old_subscription_id} cancelled immediately"
+                        )
+                    except stripe.error.StripeError as e:
+                        print(f"⚠️ Could not cancel old subscription: {e}")
+                        # Continue anyway - user has new subscription
 
                 # Save full subscription state
                 freelancer.stripe_customer_id = customer_id
@@ -325,7 +347,7 @@ def stripe_webhook():
 def cancel_subscription():
     """Cancel user's subscription at end of billing period (or trial)"""
     freelancer_id = int(get_jwt_identity())
-    
+
     try:
         freelancer = Freelancer.query.get(freelancer_id)
         if not freelancer:
@@ -339,8 +361,7 @@ def cancel_subscription():
 
         # Cancel at period end (keeps access until trial_end or current_period_end)
         subscription = stripe.Subscription.modify(
-            freelancer.stripe_subscription_id, 
-            cancel_at_period_end=True
+            freelancer.stripe_subscription_id, cancel_at_period_end=True
         )
 
         # Update local state
@@ -358,12 +379,19 @@ def cancel_subscription():
         else:
             message = "Subscription will cancel at the end of the current period."
 
-        print(f"✅ Subscription {subscription.id} set to cancel at period end for freelancer {freelancer_id}")
+        print(
+            f"✅ Subscription {subscription.id} set to cancel at period end for freelancer {freelancer_id}"
+        )
 
-        return jsonify({
-            "message": message,
-            "ends_at": end_date.isoformat() if end_date else None
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": message,
+                    "ends_at": end_date.isoformat() if end_date else None,
+                }
+            ),
+            200,
+        )
 
     except stripe.error.StripeError as e:
         print(f"❌ Stripe error canceling subscription: {e}")
@@ -424,33 +452,39 @@ def check_session_status(session_id):
         print("❌ Failed to verify session:", e)
         return jsonify({"error": "Failed to verify session"}), 500
 
+
 @stripe_bp.route("/sync-subscription", methods=["GET"])
 @jwt_required()
 def sync_subscription():
     """Manually sync subscription state from Stripe (failsafe for missed webhooks)"""
     freelancer_id = int(get_jwt_identity())
-    
+
     try:
         freelancer = Freelancer.query.get(freelancer_id)
         if not freelancer:
             return jsonify({"error": "Freelancer not found"}), 404
 
         if not freelancer.stripe_subscription_id:
-            return jsonify({
-                "tier": "free",
-                "status": "no_subscription",
-                "message": "No active subscription"
-            }), 200
+            return (
+                jsonify(
+                    {
+                        "tier": "free",
+                        "status": "no_subscription",
+                        "message": "No active subscription",
+                    }
+                ),
+                200,
+            )
 
         # Fetch subscription from Stripe
         sub = stripe.Subscription.retrieve(freelancer.stripe_subscription_id)
-        
+
         # Map price_id to tier
         PRICE_TO_TIER = {
             "price_1Ra4Q7Cao129FRPLhW781Pum": "pro",
             "price_1Ra4SSCao129FRPLofSSMdhl": "elite",
         }
-        
+
         price_id = sub["items"]["data"][0]["price"]["id"] if sub.get("items") else None
         tier = PRICE_TO_TIER.get(price_id, "pro")
         status = sub.get("status")
@@ -459,8 +493,14 @@ def sync_subscription():
         freelancer.stripe_price_id = price_id
         freelancer.subscription_status = status
         freelancer.cancel_at_period_end = sub.get("cancel_at_period_end", False)
-        freelancer.current_period_end = datetime.fromtimestamp(sub["current_period_end"]) if sub.get("current_period_end") else None
-        freelancer.trial_end = datetime.fromtimestamp(sub["trial_end"]) if sub.get("trial_end") else None
+        freelancer.current_period_end = (
+            datetime.fromtimestamp(sub["current_period_end"])
+            if sub.get("current_period_end")
+            else None
+        )
+        freelancer.trial_end = (
+            datetime.fromtimestamp(sub["trial_end"]) if sub.get("trial_end") else None
+        )
 
         # Set tier based on status
         if status in ["trialing", "active"]:
@@ -470,15 +510,30 @@ def sync_subscription():
 
         db.session.commit()
 
-        print(f"🔄 Synced subscription for freelancer {freelancer_id}: {status} -> {freelancer.tier}")
+        print(
+            f"🔄 Synced subscription for freelancer {freelancer_id}: {status} -> {freelancer.tier}"
+        )
 
-        return jsonify({
-            "tier": freelancer.tier,
-            "status": status,
-            "cancel_at_period_end": freelancer.cancel_at_period_end,
-            "current_period_end": freelancer.current_period_end.isoformat() if freelancer.current_period_end else None,
-            "trial_end": freelancer.trial_end.isoformat() if freelancer.trial_end else None,
-        }), 200
+        return (
+            jsonify(
+                {
+                    "tier": freelancer.tier,
+                    "status": status,
+                    "cancel_at_period_end": freelancer.cancel_at_period_end,
+                    "current_period_end": (
+                        freelancer.current_period_end.isoformat()
+                        if freelancer.current_period_end
+                        else None
+                    ),
+                    "trial_end": (
+                        freelancer.trial_end.isoformat()
+                        if freelancer.trial_end
+                        else None
+                    ),
+                }
+            ),
+            200,
+        )
 
     except stripe.error.StripeError as e:
         print(f"❌ Stripe error syncing subscription: {e}")
