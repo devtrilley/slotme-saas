@@ -10,35 +10,7 @@ import axios from "../utils/axiosInstance";
 export default function Upgrade() {
   const { freelancer } = useFreelancer();
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [timeLeft, setTimeLeft] = useState({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-  });
   const navigate = useNavigate();
-
-  // 🎄 Countdown Timer to New Year's Eve
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const newYear = new Date("2026-01-01T00:00:00").getTime();
-      const now = new Date().getTime();
-      const difference = newYear - now;
-
-      if (difference > 0) {
-        setTimeLeft({
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60),
-        });
-      }
-    };
-
-    calculateTimeLeft();
-    const timer = setInterval(calculateTimeLeft, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const tiers = [
     {
@@ -143,9 +115,13 @@ export default function Upgrade() {
     // Define all valid transitions
     const transitions = {
       free: {
-        pro: { text: "Upgrade", plan: "pro", className: "bg-white text-black" },
+        pro: {
+          text: "Start Free Trial",
+          plan: "pro",
+          className: "bg-white text-black",
+        },
         elite: {
-          text: "Upgrade",
+          text: "Start Free Trial",
           plan: "elite",
           className: "bg-white text-black",
         },
@@ -228,13 +204,13 @@ export default function Upgrade() {
       </h1>
 
       {/* 🚀 Founder's Pricing Banner */}
-      <div className="bg-gradient-to-r from-[#7C3AED] to-[#6366F1] text-white py-6 px-6 rounded-2xl shadow-lg shadow-purple-500/50 text-center space-y-3">
+      <div className="bg-gradient-to-r from-[#7C3AED] to-[#6366F1] text-white py-8 px-6 rounded-2xl shadow-lg shadow-purple-500/50 text-center space-y-4">
         <div className="text-center font-orbitron">
           <div className="text-xl sm:text-2xl font-black tracking-wide uppercase">
             ⚡ FOUNDER'S PRICING
           </div>
           <div
-            className="text-2xl sm:text-3xl font-black tracking-wider uppercase text-yellow-400 font-orbitron"
+            className="text-3xl sm:text-4xl font-black tracking-wider uppercase text-yellow-400 font-orbitron"
             style={{
               textShadow: "0 2px 5px rgba(0,0,0,0.4)",
             }}
@@ -242,67 +218,13 @@ export default function Upgrade() {
             50% OFF FOREVER
           </div>
         </div>
-        <p className="text-sm font-semibold text-purple-100">
-          Lock in this rate before{" "}
-          <span
-            className="font-black text-yellow-400"
-            style={{
-              textShadow: "0 2px 5px rgba(0,0,0,0.4)",
-            }}
-          >
-            January 1st, 2026
-          </span>
-          !
-        </p>
-        {/* ⏰ Countdown Timer */}
-        <div className="flex items-center justify-center gap-2 sm:gap-6 pt-3 border-t border-white/20 font-orbitron">
-          <div className="flex flex-col items-center">
-            <span
-              className="text-3xl sm:text-5xl font-black text-yellow-400"
-              style={{
-                textShadow: "0 2px 5px rgba(0,0,0,0.4)",
-              }}
-            >
-              {timeLeft.days}
-            </span>
-            <span className="text-xs font-semibold text-purple-200">DAYS</span>
-          </div>
-          <span className="text-2xl sm:text-3xl font-black">:</span>
-          <div className="flex flex-col items-center">
-            <span
-              className="text-3xl sm:text-5xl font-black text-yellow-400"
-              style={{
-                textShadow: "0 2px 5px rgba(0,0,0,0.4)",
-              }}
-            >
-              {String(timeLeft.hours).padStart(2, "0")}
-            </span>
-            <span className="text-xs font-semibold text-purple-200">HRS</span>
-          </div>
-          <span className="text-2xl sm:text-3xl font-black">:</span>
-          <div className="flex flex-col items-center">
-            <span
-              className="text-3xl sm:text-5xl font-black text-yellow-400"
-              style={{
-                textShadow: "0 2px 5px rgba(0,0,0,0.4)",
-              }}
-            >
-              {String(timeLeft.minutes).padStart(2, "0")}
-            </span>
-            <span className="text-xs font-semibold text-purple-200">MIN</span>
-          </div>
-          <span className="text-2xl sm:text-3xl font-black">:</span>
-          <div className="flex flex-col items-center">
-            <span
-              className="text-3xl sm:text-5xl font-black text-yellow-400"
-              style={{
-                textShadow: "0 2px 5px rgba(0,0,0,0.4)",
-              }}
-            >
-              {String(timeLeft.seconds).padStart(2, "0")}
-            </span>
-            <span className="text-xs font-semibold text-purple-200">SEC</span>
-          </div>
+        <div className="space-y-2">
+          <p className="text-lg sm:text-xl font-bold text-white">
+            🎁 30-Day Free Trial Included
+          </p>
+          <p className="text-sm font-semibold text-purple-100">
+            Lock in this rate now – prices may increase for new sign-ups later!
+          </p>
         </div>
       </div>
 

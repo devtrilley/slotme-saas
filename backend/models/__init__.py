@@ -36,12 +36,19 @@ class Freelancer(db.Model):
 
     # ✅ Tier field added here
     tier = db.Column(db.String(20), default="free")  # "free", "pro", "elite"
-
+    
     # ✅ Stripe customer ID (used to prevent duplicate creation)
     stripe_customer_id = db.Column(db.String(100), nullable=True)
-
+    
     # ✅ Stripe subscription ID (used for cancellation)
     stripe_subscription_id = db.Column(db.String(100), nullable=True)
+    
+    # 🔥 NEW: Full subscription state tracking
+    stripe_price_id = db.Column(db.String(100), nullable=True)  # Which plan they're on
+    subscription_status = db.Column(db.String(30), nullable=True)  # trialing, active, past_due, canceled, etc
+    cancel_at_period_end = db.Column(db.Boolean, default=False)  # Scheduled cancellation
+    current_period_end = db.Column(db.DateTime, nullable=True)  # When billing period ends
+    trial_end = db.Column(db.DateTime, nullable=True)  # When trial ends
 
     # 🗑️ Account deletion flow
     delete_token = db.Column(db.String(255), nullable=True)
