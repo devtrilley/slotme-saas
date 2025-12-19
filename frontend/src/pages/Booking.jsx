@@ -587,14 +587,13 @@ export default function BookingPage({ useCustomUrl = false }) {
   // ⏱ Drop past unbooked slots, keep booked or inherited ones (shows popularity)
   const visibleSlots = filteredSlots.filter((slot) => {
     const isPast = isSlotInPast(slot, slot.timezone || freelancerTimeZone);
-    // Hide past unbooked slots
+
+    // Hide only past + unbooked slots
     if (isPast && !slot.is_booked && !slot.is_inherited_block) {
       return false;
     }
-    // ✅ NEW: Hide ALL booked/blocked slots for cleaner UX
-    if (slot.is_booked || slot.is_inherited_block) {
-      return false;
-    }
+
+    // ✅ KEEP booked + inherited slots visible for context
     return true;
   });
 
@@ -759,28 +758,40 @@ export default function BookingPage({ useCustomUrl = false }) {
             <p className="text-center text-sm text-gray-400 mb-3 lg:hidden">
               ← Swipe to see more →
             </p>
-            <div className="flex items-stretch">
+            <div className="relative">
+              {/* LEFT ARROW */}
               <button
                 onClick={() => scrollCarousel("left")}
                 disabled={!canScrollLeft}
-                className={`hidden lg:flex items-center justify-center w-12 rounded-l-xl transition-all ${
-                  canScrollLeft
-                    ? "bg-white/10 hover:bg-white/15 border-l border-t border-b border-white/20 text-white"
-                    : "bg-white/5 border-l border-t border-b border-white/10 text-gray-600 cursor-not-allowed"
-                }`}
+                className={`
+      hidden lg:flex
+      absolute left-[-48px] top-1/2 -translate-y-1/2
+      z-20
+      w-10 h-10 rounded-full
+      items-center justify-center
+      transition-all duration-200
+      ${
+        canScrollLeft
+          ? "bg-purple-900 hover:bg-purple-500 text-white shadow-lg hover:scale-110"
+          : "bg-gray-700/50 text-gray-500 cursor-not-allowed opacity-50"
+      }
+    `}
                 aria-label="Scroll left"
               >
-                <span className="text-2xl">←</span>
+                ←
               </button>
 
+              {/* CAROUSEL */}
               <div
                 ref={carouselRef}
                 className="
-    -mx-6               /* ⬅️ BREAK OUT OF main padding */
-    px-6 py-4
-    flex overflow-x-auto gap-4 snap-x snap-mandatory lg:snap-none
-    scrollbar-hide
-  "
+      -mx-6
+      px-6 py-4
+      flex overflow-x-auto gap-4
+      snap-x snap-mandatory lg:snap-none
+      scrollbar-hide
+      rounded-2xl
+    "
                 style={{
                   scrollbarWidth: "none",
                   msOverflowStyle: "none",
@@ -797,12 +808,12 @@ export default function BookingPage({ useCustomUrl = false }) {
                     key={service.id}
                     data-service-id={service.id}
                     className={`snap-center shrink-0 w-72 flex items-stretch transition-all rounded-xl
-                    bg-gradient-to-br from-white/5 to-white/0 shadow-lg shadow-black/20
-                    ${
-                      selectedServiceId === service.id
-                        ? "ring-2 ring-primary scale-[1.02]"
-                        : ""
-                    }`}
+          bg-gradient-to-br from-white/5 to-white/0 shadow-lg shadow-black/20
+          ${
+            selectedServiceId === service.id
+              ? "ring-2 ring-primary scale-[1.02]"
+              : ""
+          }`}
                   >
                     <ServiceCard
                       service={service}
@@ -811,24 +822,33 @@ export default function BookingPage({ useCustomUrl = false }) {
                         setSelectedServiceId(service.id);
                         setSelectedServiceDuration(service.duration_minutes);
                         scrollServiceIntoView(service.id);
-                        setSelectedSlotId(null); // Reset slot when service changes
+                        setSelectedSlotId(null);
                       }}
                     />
                   </div>
                 ))}
               </div>
 
+              {/* RIGHT ARROW */}
               <button
                 onClick={() => scrollCarousel("right")}
                 disabled={!canScrollRight}
-                className={`hidden lg:flex items-center justify-center w-12 rounded-r-xl transition-all ${
-                  canScrollRight
-                    ? "bg-white/10 hover:bg-white/15 border-r border-t border-b border-white/20 text-white"
-                    : "bg-white/5 border-r border-t border-b border-white/10 text-gray-600 cursor-not-allowed"
-                }`}
+                className={`
+      hidden lg:flex
+      absolute right-[-48px] top-1/2 -translate-y-1/2
+      z-20
+      w-10 h-10 rounded-full
+      items-center justify-center
+      transition-all duration-200
+      ${
+        canScrollRight
+          ? "bg-purple-900 hover:bg-purple-500 text-white shadow-lg hover:scale-110"
+          : "bg-gray-700/50 text-gray-500 cursor-not-allowed opacity-50"
+      }
+    `}
                 aria-label="Scroll right"
               >
-                <span className="text-2xl">→</span>
+                →
               </button>
             </div>
           </section>
@@ -1049,13 +1069,15 @@ export default function BookingPage({ useCustomUrl = false }) {
                         const totalDuration =
                           selectedServiceDuration + totalAddonDuration;
                         const requiredBlocks = getRequiredBlocks(totalDuration);
-                        
+
                         // 🔥 FIX: Only check consecutive slots within the SAME TIMEZONE
-                        const slotTimezone = slot.timezone || freelancerTimeZone;
+                        const slotTimezone =
+                          slot.timezone || freelancerTimeZone;
                         const sameTzSlots = filteredSlots.filter(
-                          (s) => (s.timezone || freelancerTimeZone) === slotTimezone
+                          (s) =>
+                            (s.timezone || freelancerTimeZone) === slotTimezone
                         );
-                        
+
                         const actualIndex = sameTzSlots.findIndex(
                           (s) => s.id === slot.id
                         );
@@ -1151,6 +1173,19 @@ export default function BookingPage({ useCustomUrl = false }) {
                                 );
                               })()}
                             </button>
+
+                            {slot.is_booked && (
+                              <div className="text-xs text-red-400 mt-1 text-center">
+                                {slot.service_name ? (
+                                  <>
+                                    Booked: <strong>{slot.service_name}</strong>{" "}
+                                    ({slot.duration_minutes} min)
+                                  </>
+                                ) : (
+                                  <>Booked</>
+                                )}
+                              </div>
+                            )}
 
                             {slot.is_inherited_block && (
                               <div className="text-xs text-purple-400 mt-1 text-center italic">

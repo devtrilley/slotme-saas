@@ -423,24 +423,33 @@ export default function CRM() {
                       <span className="text-gray-300">
                         {a.service || "N/A"}
                       </span>{" "}
-                      <span className="text-gray-500">
-                        ({a.service_duration_minutes || "?"} min)
-                      </span>
+                      {a.service_price !== undefined && (
+                        <span className="text-sm text-gray-400">
+                          (${a.service_price.toFixed(2)} |{" "}
+                          {a.service_duration_minutes || "?"} min)
+                        </span>
+                      )}
                     </p>
 
-                    {/* ✅ NEW: Add-ons display */}
+                    {/* ✅ Add-ons with prices */}
                     {a.selected_addons && a.selected_addons.length > 0 && (
-                      <p>
-                        🎁{" "}
-                        <span className="text-green-400">
-                          {a.selected_addons
-                            .map((addon) => addon.name)
-                            .join(", ")}
-                        </span>
-                      </p>
+                      <div className="text-sm space-y-1">
+                        {a.selected_addons.map((addon) => (
+                          <p key={addon.id}>
+                            🎁{" "}
+                            <span className="text-green-400">{addon.name}</span>{" "}
+                            <span className="text-gray-400">
+                              (+${addon.price_usd.toFixed(2)}
+                              {addon.duration_minutes > 0 &&
+                                ` +${addon.duration_minutes}min`}
+                              )
+                            </span>
+                          </p>
+                        ))}
+                      </div>
                     )}
 
-                    {/* ✅ NEW: Total price & duration */}
+                    {/* ✅ Total (only show if different from base) */}
                     {a.total_price !== undefined && (
                       <p>
                         💰{" "}

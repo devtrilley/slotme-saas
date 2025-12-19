@@ -37,8 +37,6 @@ export default function LogoUploadModal({
         throw new Error("Failed to generate image blob");
       }
 
-      
-
       const contentType = croppedBlob.type || "image/jpeg";
       const fileExt = contentType === "image/png" ? "png" : "jpg";
 
@@ -48,8 +46,6 @@ export default function LogoUploadModal({
         file_extension: fileExt,
         content_type: contentType,
       });
-
-      
 
       // 2. Upload to S3
       await axiosBase.put(data.upload_url, croppedBlob, {

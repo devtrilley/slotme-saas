@@ -24,11 +24,11 @@ export default function ViewBookingModal({ appointment, onClose, onCancel }) {
   } = appointment;
 
   const { freelancer } = useFreelancer();
-const tier = freelancer?.tier;
+  const tier = freelancer?.tier;
 
-const [showAnswers, setShowAnswers] = useState(false);
-const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-const answerRef = useRef(null);
+  const [showAnswers, setShowAnswers] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const answerRef = useRef(null);
 
   // 🔥 Status color mapping
   const getStatusColor = (status) => {
@@ -97,9 +97,12 @@ const answerRef = useRef(null);
           </p>
           <p>
             <strong>Service:</strong> {service || "N/A"}
-          </p>
-          <p>
-            <strong>Duration:</strong> {service_duration_minutes || "?"} min
+            {appointment.service_price !== undefined && (
+              <span className="ml-1 text-sm text-gray-400">
+                (${appointment.service_price.toFixed(2)} |{" "}
+                {service_duration_minutes || "?"} min)
+              </span>
+            )}
           </p>
 
           {/* ✅ Add-ons section */}

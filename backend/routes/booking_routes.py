@@ -801,10 +801,11 @@ def get_appointments():
                 "status": a.status,
                 "service": a.service.name if a.service else None,
                 "service_duration_minutes": base_duration,
+                "service_price": base_price,  # ✅ NEW - SEND BASE PRICE TO FRONTEND
                 "custom_responses": a.custom_responses or {},
-                "selected_addons": addons_list,  # ✅ NEW
-                "total_price": total_price,  # ✅ NEW
-                "total_duration": total_duration,  # ✅ NEW
+                "selected_addons": addons_list,
+                "total_price": total_price,
+                "total_duration": total_duration,
             }
         )
 
@@ -1313,6 +1314,10 @@ def export_appointments_csv():
             "Status",
             "Service",
             "Duration (min)",
+            "Add-Ons",
+            "Add-On Total ($)",
+            "Add-On Duration (min)",
+            "Total Price ($)",
             "Custom Responses",
             "Booked On",
         ]
@@ -1321,6 +1326,36 @@ def export_appointments_csv():
     for a in appointments:
         user = a.user
         slot = a.slot
+
+        # 🔥 Add-ons for CSV
+        addon_names = []
+        addon_total_price = 0.0
+        addon_total_duration = 0
+
+        if a.selected_addons:
+            from models import ServiceAddon
+
+            addons = ServiceAddon.query.filter(
+                ServiceAddon.id.in_(a.selected_addons)
+            ).all()
+
+            for addon in addons:
+                addon_names.append(
+                    f"{addon.name} (+${addon.price_usd:.2f}"
+                    + (
+                        f", +{addon.duration_minutes}min"
+                        if addon.duration_minutes
+                        else ""
+                    )
+                    + ")"
+                )
+                addon_total_price += addon.price_usd
+                addon_total_duration += addon.duration_minutes
+
+        addons_str = "; ".join(addon_names)
+
+        base_price = a.service.price_usd if a.service else 0.0
+        total_price = base_price + addon_total_price
 
         # 🔥 Convert UTC to slot's local timezone
         slot_timezone = slot.timezone or f.timezone or "America/New_York"
@@ -1364,14 +1399,18 @@ def export_appointments_csv():
                 user.last_name,
                 user.email,
                 user.phone or "",
-                local_date,  # 🔥 LOCAL date (Nov 29, not Nov 30)
-                local_time,  # 🔥 LOCAL time (6:00 PM, not 2:00 AM)
-                timezone_abbr,  # 🔥 PST/EST/etc
+                local_date,
+                local_time,
+                timezone_abbr,
                 a.status,
                 a.service.name if a.service else "",
-                a.service.duration_minutes if a.service else "",
-                custom_responses_str,  # 🔥 Custom Q&A
-                booked_on,  # 🔥 When they booked
+                (a.service.duration_minutes if a.service else 0) + addon_total_duration,
+                addons_str,
+                f"{addon_total_price:.2f}",
+                addon_total_duration,
+                f"{total_price:.2f}",
+                custom_responses_str,
+                booked_on,
             ]
         )
 

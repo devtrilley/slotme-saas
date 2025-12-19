@@ -79,10 +79,10 @@ export default function InternalBookingModal({
     } catch (err) {
       console.error("❌ Internal booking failed:", err);
       const msg =
-  err.response?.data?.error ||
-  err.response?.data?.message ||
-  "Booking failed. Check fields and try again.";
-showToast(msg, "error");
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Booking failed. Check fields and try again.";
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }

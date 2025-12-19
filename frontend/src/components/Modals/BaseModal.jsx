@@ -62,8 +62,9 @@ export default function BaseModal({
         role="dialog"
         aria-modal="true"
         className={[
-          "relative z-[101] w-[92%] max-w-sm bg-base-200 rounded-xl",
-          "shadow-2xl border border-white/10 p-5 outline-none",
+          "relative z-[101] w-[92%] max-w-sm rounded-xl",
+          "bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950",
+          "shadow-2xl border border-slate-700 p-5 outline-none",
           className,
         ].join(" ")}
         onMouseDown={(e) => e.stopPropagation()}

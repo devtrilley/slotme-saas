@@ -17,7 +17,10 @@ export default function AddonSelectionModal({
 
   const selectedCount = selectedAddonIds.length;
   const selectedAddons = addons.filter((a) => selectedAddonIds.includes(a.id));
-  const totalAddonPrice = selectedAddons.reduce((sum, a) => sum + a.price_usd, 0);
+  const totalAddonPrice = selectedAddons.reduce(
+    (sum, a) => sum + a.price_usd,
+    0
+  );
   const totalAddonDuration = selectedAddons.reduce(
     (sum, a) => sum + a.duration_minutes,
     0
@@ -30,7 +33,7 @@ export default function AddonSelectionModal({
       title="Select Add-Ons (Optional)"
       className="max-w-lg"
     >
-      <div className="space-y-4">
+      <div className="space-y-4 animate-fadeInFast">
         {/* Add-ons grid */}
         <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-2">
           {addons.map((addon) => {
@@ -62,11 +65,16 @@ export default function AddonSelectionModal({
                       </p>
                     )}
                     <p className="text-sm font-semibold mt-2">
-  <span className="text-green-400">+${addon.price_usd.toFixed(2)}</span>
-  {addon.duration_minutes > 0 && (
-    <span className="text-green-400"> (+{addon.duration_minutes} mins)</span>
-  )}
-</p>
+                      <span className="text-green-400">
+                        +${addon.price_usd.toFixed(2)}
+                      </span>
+                      {addon.duration_minutes > 0 && (
+                        <span className="text-green-400">
+                          {" "}
+                          (+{addon.duration_minutes} mins)
+                        </span>
+                      )}
+                    </p>
                   </div>
                 </div>
               </button>
@@ -75,7 +83,16 @@ export default function AddonSelectionModal({
         </div>
 
         {/* Selection summary */}
-        {selectedCount > 0 && (
+        <div
+          className={`
+    overflow-hidden transition-all duration-200 ease-out
+    ${
+      selectedCount > 0
+        ? "max-h-24 opacity-100 translate-y-0"
+        : "max-h-0 opacity-0 -translate-y-1"
+    }
+  `}
+        >
           <div className="p-3 bg-white/5 rounded-lg border border-white/10">
             <p className="text-sm font-medium text-center">
               {selectedCount} add-on{selectedCount !== 1 ? "s" : ""} selected
@@ -85,7 +102,7 @@ export default function AddonSelectionModal({
               {totalAddonDuration > 0 && ` • +${totalAddonDuration} mins`}
             </p>
           </div>
-        )}
+        </div>
 
         {/* Done button */}
         <button onClick={onClose} className="btn btn-primary w-full">
