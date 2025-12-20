@@ -3,7 +3,16 @@ from flask_cors import cross_origin
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
 from datetime import datetime, timedelta, timezone
-from models import db, Freelancer, Appointment, TimeSlot, MasterTimeSlot, Service, User
+from models import (
+    db,
+    Freelancer,
+    Appointment,
+    TimeSlot,
+    MasterTimeSlot,
+    Service,
+    User,
+    ServiceAddon,
+)
 from utils.time_utils import utc_today
 from utils.jwt_utils import serializer
 from email_utils import send_feedback_submission
@@ -444,7 +453,7 @@ def seed_everything():
             no_show_policy="No-shows result in loss of session credit. Please cancel or reschedule at least 12 hours in advance.",
             faq_items=[
                 {
-                    "question": "What’s your SAT score?",
+                    "question": "What's your SAT score?",
                     "answer": "I scored a 1550 with a perfect 800 in Math.",
                 },
                 {
@@ -453,7 +462,7 @@ def seed_everything():
                 },
                 {
                     "question": "Do you offer group tutoring?",
-                    "answer": "Not right now, but it’s coming soon!",
+                    "answer": "Not right now, but it's coming soon!",
                 },
             ],
             booking_instructions=[
@@ -462,8 +471,20 @@ def seed_everything():
                 "Have a quiet space ready",
             ],
             preferred_payment_methods="Stripe (card), PayPal",
-            location="Raleigh, NC",
+            location="Raleigh, NC (Virtual Sessions)",
             timezone="America/New_York",
+            tier="free",  # 🔥 NEW: Explicitly set FREE tier
+            is_verified=False,  # 🔥 NEW: FREE tier = no verification
+            custom_questions=[
+                {
+                    "question": "What's your current SAT score or last practice test score?",
+                    "required": True,
+                },
+                {
+                    "question": "Which subjects need the most help? (Math, Reading, Writing)",
+                    "required": True,
+                },
+            ],
             services=[
                 {
                     "name": "SAT Diagnostic Session",
@@ -505,8 +526,24 @@ def seed_everything():
                     "jane.doe@mail.com",
                     "01:00 PM",
                     "SAT Diagnostic Session",
+                    {
+                        "What's your current SAT score or last practice test score?": "1180 (last practice test)",
+                        "Which subjects need the most help? (Math, Reading, Writing)": "Math and Reading",
+                    },
+                    None,  # No add-ons (Free tier)
                 ),
-                ("John", "Doe", "john.doe@mail.com", "02:00 PM", "SAT Math Focus"),
+                (
+                    "John",
+                    "Doe",
+                    "john.doe@mail.com",
+                    "02:00 PM",
+                    "SAT Math Focus",
+                    {
+                        "What's your current SAT score or last practice test score?": "1250",
+                        "Which subjects need the most help? (Math, Reading, Writing)": "Just Math",
+                    },
+                    None,  # No add-ons (Free tier)
+                ),
             ],
         )
         # 3. Seed Malik Jones (Pro Tier Barber)
@@ -520,7 +557,7 @@ def seed_everything():
             force_bookings=True,
             bio=(
                 "I'm Malik, a licensed barber with 7+ years of experience specializing in clean fades, sharp lines, and premium grooming. "
-                "Whether you're prepping for an event or just need your weekly fresh cut, I've got you. Located in downtown Atlanta — book ahead to skip the wait."
+                "Whether you're prepping for an event or just need your weekly fresh cut, I've got you. Located in downtown Chicago — book ahead to skip the wait."
             ),
             logo_url="https://images.unsplash.com/photo-1567894340315-735d7c361db0?q=80&w=1474&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
             phone="555-902-3344",
@@ -528,9 +565,9 @@ def seed_everything():
             contact_email="malik@fadekings.com",
             instagram_url="https://instagram.com/fadesbymalik",
             twitter_url="https://twitter.com/malikcuts",
-            no_show_policy="Late by 10+ minutes? Appointment is canceled. No-show once? Full charge. No-show twice? You’ll need to find another barber.",
+            no_show_policy="Late by 10+ minutes? Appointment is canceled. No-show once? Full charge. No-show twice? You'll need to find another barber.",
             faq_items=[
-                {"question": "Do you cut kids’ hair?", "answer": "Yes, age 5 and up."},
+                {"question": "Do you cut kids' hair?", "answer": "Yes, age 5 and up."},
                 {
                     "question": "Do you do mobile visits?",
                     "answer": "Not at this time — in-shop only.",
@@ -547,10 +584,18 @@ def seed_everything():
             ],
             preferred_payment_methods="Cash, Zelle, Apple Pay",
             location="Chicago, IL",
+            business_address="1847 S State Street, Chicago, IL 60616",
             timezone="America/Chicago",
             tier="pro",
             early_access=True,
             is_verified=True,
+            custom_questions=[
+                {"question": "What style are you going for today?", "required": True},
+                {
+                    "question": "Any hair or scalp concerns I should know about?",
+                    "required": False,
+                },
+            ],
             services=[
                 {
                     "name": "Fade + Line Up",
@@ -586,10 +631,55 @@ def seed_everything():
                 "04:45 PM",
             ],
             demo_bookings=[
-                ("Ling", "Po", "ling.po@mail.com", "02:00 PM", "Fade + Line Up"),
-                ("Ron", "Ho", "ron.ho@mail.com", "03:00 PM", "Beard Sculpt + Trim"),
+                (
+                    "Ling",
+                    "Po",
+                    "ling.po@mail.com",
+                    "02:00 PM",
+                    "Fade + Line Up",
+                    {
+                        "What style are you going for today?": "Low taper fade with hard part",
+                        "Any hair or scalp concerns I should know about?": "None",
+                    },
+                    [1, 2],  # Both add-ons (Beard Oil + Hot Towel Shave)
+                ),
+                (
+                    "Ron",
+                    "Ho",
+                    "ron.ho@mail.com",
+                    "03:00 PM",
+                    "Beard Sculpt + Trim",
+                    {
+                        "What style are you going for today?": "Clean up the beard, keep it full",
+                        "Any hair or scalp concerns I should know about?": "",
+                    },
+                    None,  # No add-ons
+                ),
             ],
         )
+
+        # Add Malik's add-ons
+        db.session.add(
+            ServiceAddon(
+                freelancer_id=f2.id,
+                name="Beard Oil Treatment",
+                description="Premium beard oil application with hot towel finish for soft, conditioned facial hair",
+                price_usd=8.00,
+                duration_minutes=0,
+                is_enabled=True,
+            )
+        )
+        db.session.add(
+            ServiceAddon(
+                freelancer_id=f2.id,
+                name="Hot Towel Shave",
+                description="Traditional straight razor shave with hot towel prep and aftershave balm",
+                price_usd=15.00,
+                duration_minutes=15,
+                is_enabled=True,
+            )
+        )
+        db.session.commit()
         # 4. Seed Jade Bryant (Elite Tier Esthetician)
         f3, token3 = seed_freelancer(
             email="jade@glowskinbar.com",
@@ -605,7 +695,7 @@ def seed_everything():
             bio=(
                 "I'm Jade, a licensed esthetician helping women and men achieve glowing, healthy skin with science-backed treatments. "
                 "I specialize in acne correction, hydration facials, and skin barrier restoration — all with a luxe, relaxing experience. "
-                "Located in Houston, TX. Come get your glow on ✨"
+                "Located in West Hollywood, CA. Come get your glow on ✨"
             ),
             logo_url="https://images.pexels.com/photos/8072270/pexels-photo-8072270.jpeg",
             instagram_url="https://instagram.com/glowskinbar.atl",
@@ -632,10 +722,22 @@ def seed_everything():
             ],
             preferred_payment_methods="Card on file, Venmo (business), Cash App",
             location="Los Angeles, CA",
+            business_address="8821 Sunset Boulevard, West Hollywood, CA 90069",
             timezone="America/Los_Angeles",
             tier="elite",
             early_access=True,
             is_verified=True,
+            custom_questions=[
+                {"question": "What are your main skin concerns?", "required": True},
+                {
+                    "question": "Any allergies or product sensitivities?",
+                    "required": True,
+                },
+                {
+                    "question": "Have you had professional facials before?",
+                    "required": False,
+                },
+            ],
             services=[
                 {
                     "name": "Custom Facial",
@@ -673,6 +775,12 @@ def seed_everything():
                     "janet.donasti@mail.com",
                     "06:00 PM",
                     "Custom Facial",
+                    {
+                        "What are your main skin concerns?": "Acne scarring and dryness",
+                        "Any allergies or product sensitivities?": "No known allergies",
+                        "Have you had professional facials before?": "Yes, a few times",
+                    },
+                    [1, 3],  # Deep Exfoliation + Under-Eye Refresh
                 ),
                 (
                     "JonJon",
@@ -680,9 +788,48 @@ def seed_everything():
                     "jonjon.doemitri@mail.com",
                     "07:30 PM",
                     "Brow Sculpt & Tint",
+                    {
+                        "What are your main skin concerns?": "None, just want clean brows",
+                        "Any allergies or product sensitivities?": "Sensitive to fragrances",
+                        "Have you had professional facials before?": "No",
+                    },
+                    None,  # No add-ons
                 ),
             ],
         )
+
+        # Add Jade's add-ons
+        db.session.add(
+            ServiceAddon(
+                freelancer_id=f3.id,
+                name="Deep Exfoliation Add-On",
+                description="Removes dead skin and peach fuzz so your skin feels smoother and makeup sits better.",
+                price_usd=30.00,
+                duration_minutes=15,
+                is_enabled=True,
+            )
+        )
+        db.session.add(
+            ServiceAddon(
+                freelancer_id=f3.id,
+                name="Acne Treatment Add-On",
+                description="Targets breakouts and bacteria to help calm active acne and prevent new ones.",
+                price_usd=20.00,
+                duration_minutes=0,
+                is_enabled=True,
+            )
+        )
+        db.session.add(
+            ServiceAddon(
+                freelancer_id=f3.id,
+                name="Under-Eye Refresh Add-On",
+                description="Helps reduce puffiness and dark circles so you look more rested.",
+                price_usd=15.00,
+                duration_minutes=0,
+                is_enabled=True,
+            )
+        )
+        db.session.commit()
         # 5. Seed Monty Fitness (Free Tier - YOUR REAL ACCOUNT)
         monty, token4 = seed_freelancer(
             email="tamsirrilley@gmail.com",
@@ -786,7 +933,6 @@ def seed_everything():
             ),
             200,
         )
-
     except Exception as e:
         print(f"🔥 SEED FAILED: {str(e)}")
         import traceback
@@ -796,9 +942,557 @@ def seed_everything():
         return jsonify({"error": f"Seed failed: {str(e)}"}), 500
 
 
+# 🔥 PRODUCTION-SAFE: Update demo freelancers without wiping database
+@dev_bp.route("/update-demos", methods=["POST"])
+def update_demo_freelancers():
+    """
+    ✅ PRODUCTION-SAFE: Only updates Emily, Malik, and Jade
+    Does NOT touch other users or wipe the database
+    🔒 Requires X-Dev-Auth header
+    """
+    # 🔒 CRITICAL: Require auth
+    auth_header = request.headers.get("X-Dev-Auth")
+    if auth_header != os.getenv("DEV_PASSWORD"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    from models import MasterTimeSlot, ServiceAddon
+
+    try:
+        print("🔄 Updating demo freelancers only...")
+
+        # Define demo emails (these are the ONLY accounts that will be updated)
+        DEMO_EMAILS = [
+            "emily@sattutorpro.com",
+            "malik@fadekings.com",
+            "jade@glowskinbar.com",
+        ]
+
+        # NOTE: Demo accounts must never have active Stripe subscriptions
+        # This would desync DB vs Stripe if they did
+
+        # 🔒 Safety check: confirm these accounts exist
+        existing_demos = Freelancer.query.filter(
+            Freelancer.email.in_(DEMO_EMAILS)
+        ).all()
+        print(f"📋 Found {len(existing_demos)} demo accounts to update")
+
+        # Delete old data for demo accounts only
+        for email in DEMO_EMAILS:
+            freelancer = Freelancer.query.filter_by(email=email).first()
+            if freelancer:
+                # 🔒 Assert we're only touching demo accounts
+                assert (
+                    freelancer.email in DEMO_EMAILS
+                ), f"Safety check failed: {freelancer.email}"
+
+                print(f"🧹 Cleaning old data for {email}...")
+                Appointment.query.filter_by(freelancer_id=freelancer.id).delete()
+                TimeSlot.query.filter_by(freelancer_id=freelancer.id).delete()
+                Service.query.filter_by(freelancer_id=freelancer.id).delete()
+                ServiceAddon.query.filter_by(freelancer_id=freelancer.id).delete()
+        db.session.commit()
+
+        # Re-seed Emily (Free tier - no add-ons)
+        f1, _ = seed_freelancer(
+            email="emily@sattutorpro.com",
+            first_name="Emily",
+            last_name="Carson",
+            business_name="SmartStart Tutoring",
+            password=os.getenv("EMILY_PASSWORD", "emily123"),
+            tagline="Score higher. Stress less.",
+            force_bookings=True,
+            bio=(
+                "I'm Emily, an experienced SAT tutor passionate about helping high school students boost their scores "
+                "and get into their dream schools. I've helped over 100 students increase their scores by 100+ points "
+                "with personalized strategies and practice plans."
+            ),
+            logo_url="https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=987&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+            phone="555-786-0923",
+            business_phone="111-786-0923",
+            contact_email="emily@sattutorpro.com",
+            instagram_url="https://instagram.com/smartstart.sat",
+            twitter_url="https://twitter.com/satwizemily",
+            no_show_policy="No-shows result in loss of session credit. Please cancel or reschedule at least 12 hours in advance.",
+            faq_items=[
+                {
+                    "question": "What's your SAT score?",
+                    "answer": "I scored a 1550 with a perfect 800 in Math.",
+                },
+                {
+                    "question": "Do you work with students with learning differences?",
+                    "answer": "Absolutely — I tailor my approach for all learning styles.",
+                },
+                {
+                    "question": "Do you offer group tutoring?",
+                    "answer": "Not right now, but it's coming soon!",
+                },
+            ],
+            booking_instructions=[
+                "Bring recent practice scores",
+                "Join Zoom 5 minutes early",
+                "Have a quiet space ready",
+            ],
+            preferred_payment_methods="Stripe (card), PayPal",
+            location="Raleigh, NC (Virtual Sessions)",
+            timezone="America/New_York",
+            tier="free",  # 🔥 NEW: Explicitly set FREE tier
+            is_verified=False,  # 🔥 NEW: FREE tier = no verification
+            custom_questions=[
+                {
+                    "question": "What's your current SAT score or last practice test score?",
+                    "required": True,
+                },
+                {
+                    "question": "Which subjects need the most help? (Math, Reading, Writing)",
+                    "required": True,
+                },
+            ],
+            services=[
+                {
+                    "name": "SAT Diagnostic Session",
+                    "description": "A full evaluation of your strengths and weaknesses across all SAT sections.",
+                    "duration_minutes": 60,
+                    "price_usd": 40.00,
+                },
+                {
+                    "name": "SAT Math Focus",
+                    "description": "Targeted help with algebra, geometry, and problem solving.",
+                    "duration_minutes": 45,
+                    "price_usd": 35.00,
+                },
+                {
+                    "name": "Reading + Writing Boost",
+                    "description": "Focus on critical reading, grammar, and timed writing techniques.",
+                    "duration_minutes": 45,
+                    "price_usd": 35.00,
+                },
+            ],
+            open_slot_labels=[
+                "01:00 PM",
+                "01:15 PM",
+                "01:30 PM",
+                "01:45 PM",
+                "02:00 PM",
+                "02:15 PM",
+                "02:30 PM",
+                "02:45 PM",
+                "03:00 PM",
+                "03:15 PM",
+                "03:30 PM",
+                "03:45 PM",
+            ],
+            demo_bookings=[
+                (
+                    "Jane",
+                    "Doe",
+                    "jane.doe@mail.com",
+                    "01:00 PM",
+                    "SAT Diagnostic Session",
+                    {
+                        "What's your current SAT score or last practice test score?": "1180 (last practice test)",
+                        "Which subjects need the most help? (Math, Reading, Writing)": "Math and Reading",
+                    },
+                    None,
+                ),
+                (
+                    "John",
+                    "Doe",
+                    "john.doe@mail.com",
+                    "02:00 PM",
+                    "SAT Math Focus",
+                    {
+                        "What's your current SAT score or last practice test score?": "1250",
+                        "Which subjects need the most help? (Math, Reading, Writing)": "Just Math",
+                    },
+                    None,
+                ),
+            ],
+        )
+
+        # Re-seed Malik (Pro tier)
+        f2, _ = seed_freelancer(
+            email="malik@fadekings.com",
+            first_name="Malik",
+            last_name="Jones",
+            business_name="Fade Kings",
+            password=os.getenv("MALIK_PASSWORD", "malik123"),
+            tagline="Fresh fades. Clean lines. Always sharp.",
+            force_bookings=True,
+            bio=(
+                "I'm Malik, a licensed barber with 7+ years of experience specializing in clean fades, sharp lines, and premium grooming. "
+                "Whether you're prepping for an event or just need your weekly fresh cut, I've got you. Located in downtown Chicago — book ahead to skip the wait."
+            ),
+            logo_url="https://images.unsplash.com/photo-1567894340315-735d7c361db0?q=80&w=1474&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+            phone="555-902-3344",
+            business_phone="111-902-3344",
+            contact_email="malik@fadekings.com",
+            instagram_url="https://instagram.com/fadesbymalik",
+            twitter_url="https://twitter.com/malikcuts",
+            no_show_policy="Late by 10+ minutes? Appointment is canceled. No-show once? Full charge. No-show twice? You'll need to find another barber.",
+            faq_items=[
+                {"question": "Do you cut kids' hair?", "answer": "Yes, age 5 and up."},
+                {
+                    "question": "Do you do mobile visits?",
+                    "answer": "Not at this time — in-shop only.",
+                },
+                {
+                    "question": "Want a custom design or part?",
+                    "answer": "DM me on IG before booking.",
+                },
+            ],
+            booking_instructions=[
+                "Come with clean, product-free hair",
+                "No guests in the chair",
+                "Show up early, not late",
+            ],
+            preferred_payment_methods="Cash, Zelle, Apple Pay",
+            location="Chicago, IL",
+            business_address="1847 S State Street, Chicago, IL 60616",
+            timezone="America/Chicago",
+            tier="pro",
+            early_access=True,
+            is_verified=True,
+            custom_questions=[
+                {"question": "What style are you going for today?", "required": True},
+                {
+                    "question": "Any hair or scalp concerns I should know about?",
+                    "required": False,
+                },
+            ],
+            services=[
+                {
+                    "name": "Fade + Line Up",
+                    "description": "Classic fade with razor-sharp lineup and detail finish.",
+                    "duration_minutes": 45,
+                    "price_usd": 30.00,
+                },
+                {
+                    "name": "Beard Sculpt + Trim",
+                    "description": "Full beard trim and shaping with straight razor finish.",
+                    "duration_minutes": 30,
+                    "price_usd": 20.00,
+                },
+                {
+                    "name": "Cut + Beard Combo",
+                    "description": "Full haircut and beard package for the cleanest look.",
+                    "duration_minutes": 60,
+                    "price_usd": 45.00,
+                },
+            ],
+            open_slot_labels=[
+                "02:00 PM",
+                "02:15 PM",
+                "02:30 PM",
+                "02:45 PM",
+                "03:00 PM",
+                "03:15 PM",
+                "03:30 PM",
+                "03:45 PM",
+                "04:00 PM",
+                "04:15 PM",
+                "04:30 PM",
+                "04:45 PM",
+            ],
+            demo_bookings=[],  # 🔥 Will add bookings with proper add-on IDs below
+        )
+
+        # 🔥 Create Malik's add-ons FIRST, then query for real IDs
+        beard_oil = ServiceAddon(
+            freelancer_id=f2.id,
+            name="Beard Oil Treatment",
+            description="Premium beard oil application with hot towel finish for soft, conditioned facial hair",
+            price_usd=8.00,
+            duration_minutes=0,
+            is_enabled=True,
+        )
+        hot_towel = ServiceAddon(
+            freelancer_id=f2.id,
+            name="Hot Towel Shave",
+            description="Traditional straight razor shave with hot towel prep and aftershave balm",
+            price_usd=15.00,
+            duration_minutes=15,
+            is_enabled=True,
+        )
+        db.session.add(beard_oil)
+        db.session.add(hot_towel)
+        db.session.commit()
+
+        # Query to get actual IDs
+        beard_oil_id = (
+            ServiceAddon.query.filter_by(
+                freelancer_id=f2.id, name="Beard Oil Treatment"
+            )
+            .first()
+            .id
+        )
+        hot_towel_id = (
+            ServiceAddon.query.filter_by(freelancer_id=f2.id, name="Hot Towel Shave")
+            .first()
+            .id
+        )
+
+        # Create Malik's bookings with REAL add-on IDs
+        today = utc_today()
+
+        user1 = User.query.filter_by(email="ling.po@mail.com").first()
+        if not user1:
+            user1 = User(first_name="Ling", last_name="Po", email="ling.po@mail.com")
+            db.session.add(user1)
+            db.session.commit()
+
+        service1 = Service.query.filter_by(
+            freelancer_id=f2.id, name="Fade + Line Up"
+        ).first()
+        add_appointment(
+            freelancer=f2,
+            user=user1,
+            service=service1,
+            start_label_local="02:00 PM",
+            day=today.isoformat(),
+            custom_responses={
+                "What style are you going for today?": "Low taper fade with hard part",
+                "Any hair or scalp concerns I should know about?": "None",
+            },
+            selected_addons=[beard_oil_id, hot_towel_id],
+        )
+
+        user2 = User.query.filter_by(email="ron.ho@mail.com").first()
+        if not user2:
+            user2 = User(first_name="Ron", last_name="Ho", email="ron.ho@mail.com")
+            db.session.add(user2)
+            db.session.commit()
+
+        service2 = Service.query.filter_by(
+            freelancer_id=f2.id, name="Beard Sculpt + Trim"
+        ).first()
+        add_appointment(
+            freelancer=f2,
+            user=user2,
+            service=service2,
+            start_label_local="03:00 PM",
+            day=today.isoformat(),
+            custom_responses={
+                "What style are you going for today?": "Clean up the beard, keep it full",
+                "Any hair or scalp concerns I should know about?": "",
+            },
+            selected_addons=None,
+        )
+
+        # Re-seed Jade (Elite tier)
+        f3, _ = seed_freelancer(
+            email="jade@glowskinbar.com",
+            first_name="Jade",
+            last_name="Bryant",
+            business_name="Glow Skin Bar",
+            password=os.getenv("JADE_PASSWORD", "jade123"),
+            force_bookings=True,
+            phone="555-982-7782",
+            business_phone="111-982-7782",
+            contact_email="jade@glowskinbar.com",
+            tagline="Glow up. Show up. Repeat.",
+            bio=(
+                "I'm Jade, a licensed esthetician helping women and men achieve glowing, healthy skin with science-backed treatments. "
+                "I specialize in acne correction, hydration facials, and skin barrier restoration — all with a luxe, relaxing experience. "
+                "Located in West Hollywood, CA. Come get your glow on ✨"
+            ),
+            logo_url="https://images.pexels.com/photos/8072270/pexels-photo-8072270.jpeg",
+            instagram_url="https://instagram.com/glowskinbar.atl",
+            twitter_url="https://twitter.com/glowjade",
+            no_show_policy="Deposits are non-refundable. No-shows or cancellations within 24 hours lose their deposit. Please respect my time — I respect yours.",
+            faq_items=[
+                {
+                    "question": "Do you work with sensitive skin?",
+                    "answer": "Yes — I use gentle, pregnancy-safe products.",
+                },
+                {
+                    "question": "Can I wear makeup after a facial?",
+                    "answer": "Wait at least 24 hours to let your skin heal.",
+                },
+                {
+                    "question": "Do you sell products?",
+                    "answer": "DM me or ask after your session — I only recommend what works.",
+                },
+            ],
+            booking_instructions=[
+                "Come with a clean face",
+                "No guests allowed in the studio",
+                "Late = forfeit appointment",
+            ],
+            preferred_payment_methods="Card on file, Venmo (business), Cash App",
+            location="Los Angeles, CA",
+            business_address="8821 Sunset Boulevard, West Hollywood, CA 90069",
+            timezone="America/Los_Angeles",
+            tier="elite",
+            early_access=True,
+            is_verified=True,
+            custom_questions=[
+                {"question": "What are your main skin concerns?", "required": True},
+                {
+                    "question": "Any allergies or product sensitivities?",
+                    "required": True,
+                },
+                {
+                    "question": "Have you had professional facials before?",
+                    "required": False,
+                },
+            ],
+            services=[
+                {
+                    "name": "Custom Facial",
+                    "description": "A full glow-up tailored to your skin needs. Cleanse, extract, hydrate, and glow.",
+                    "duration_minutes": 60,
+                    "price_usd": 60.00,
+                },
+                {
+                    "name": "Brow Sculpt & Tint",
+                    "description": "Perfectly shaped brows with tint for definition and pop.",
+                    "duration_minutes": 30,
+                    "price_usd": 25.00,
+                },
+                {
+                    "name": "Glow Ritual Package",
+                    "description": "Facial + brow sculpt + under-eye refresh. The full Jade experience.",
+                    "duration_minutes": 90,
+                    "price_usd": 80.00,
+                },
+            ],
+            open_slot_labels=[
+                "06:00 PM",
+                "06:15 PM",
+                "06:30 PM",
+                "06:45 PM",
+                "07:00 PM",
+                "07:15 PM",
+                "07:30 PM",
+                "07:45 PM",
+            ],
+            demo_bookings=[],
+        )
+
+        # 🔥 Create Jade's add-ons FIRST, then query for real IDs
+        exfoliation = ServiceAddon(
+            freelancer_id=f3.id,
+            name="Deep Exfoliation Add-On",
+            description="Removes dead skin and peach fuzz so your skin feels smoother and makeup sits better.",
+            price_usd=30.00,
+            duration_minutes=15,
+            is_enabled=True,
+        )
+        acne = ServiceAddon(
+            freelancer_id=f3.id,
+            name="Acne Treatment Add-On",
+            description="Targets breakouts and bacteria to help calm active acne and prevent new ones.",
+            price_usd=20.00,
+            duration_minutes=0,
+            is_enabled=True,
+        )
+        eye_refresh = ServiceAddon(
+            freelancer_id=f3.id,
+            name="Under-Eye Refresh Add-On",
+            description="Helps reduce puffiness and dark circles so you look more rested.",
+            price_usd=15.00,
+            duration_minutes=0,
+            is_enabled=True,
+        )
+        db.session.add(exfoliation)
+        db.session.add(acne)
+        db.session.add(eye_refresh)
+        db.session.commit()
+
+        # Query to get actual IDs
+        exfoliation_id = (
+            ServiceAddon.query.filter_by(
+                freelancer_id=f3.id, name="Deep Exfoliation Add-On"
+            )
+            .first()
+            .id
+        )
+        eye_refresh_id = (
+            ServiceAddon.query.filter_by(
+                freelancer_id=f3.id, name="Under-Eye Refresh Add-On"
+            )
+            .first()
+            .id
+        )
+
+        # Create Jade's bookings with REAL add-on IDs
+        user3 = User.query.filter_by(email="janet.donasti@mail.com").first()
+        if not user3:
+            user3 = User(
+                first_name="Janet", last_name="Donasti", email="janet.donasti@mail.com"
+            )
+            db.session.add(user3)
+            db.session.commit()
+
+        service3 = Service.query.filter_by(
+            freelancer_id=f3.id, name="Custom Facial"
+        ).first()
+        add_appointment(
+            freelancer=f3,
+            user=user3,
+            service=service3,
+            start_label_local="06:00 PM",
+            day=today.isoformat(),
+            custom_responses={
+                "What are your main skin concerns?": "Acne scarring and dryness",
+                "Any allergies or product sensitivities?": "No known allergies",
+                "Have you had professional facials before?": "Yes, a few times",
+            },
+            selected_addons=[exfoliation_id, eye_refresh_id],
+        )
+
+        user4 = User.query.filter_by(email="jonjon.doemitri@mail.com").first()
+        if not user4:
+            user4 = User(
+                first_name="JonJon",
+                last_name="Doemitri",
+                email="jonjon.doemitri@mail.com",
+            )
+            db.session.add(user4)
+            db.session.commit()
+
+        service4 = Service.query.filter_by(
+            freelancer_id=f3.id, name="Brow Sculpt & Tint"
+        ).first()
+        add_appointment(
+            freelancer=f3,
+            user=user4,
+            service=service4,
+            start_label_local="07:30 PM",
+            day=today.isoformat(),
+            custom_responses={
+                "What are your main skin concerns?": "None, just want clean brows",
+                "Any allergies or product sensitivities?": "Sensitive to fragrances",
+                "Have you had professional facials before?": "No",
+            },
+            selected_addons=None,
+        )
+
+        return (
+            jsonify(
+                {
+                    "message": "✅ Demo freelancers updated successfully (Emily, Malik, Jade)",
+                    "updated": [
+                        "emily@sattutorpro.com",
+                        "malik@fadekings.com",
+                        "jade@glowskinbar.com",
+                    ],
+                    "real_users_untouched": True,
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        print(f"🔥 UPDATE FAILED: {str(e)}")
+        import traceback
+
+        print(traceback.format_exc())
+        db.session.rollback()
+        return jsonify({"error": f"Update failed: {str(e)}"}), 500
+
+
 # SEEDME
-
-
 @dev_bp.route("/send-confirmation/<int:freelancer_id>", methods=["POST"])
 @require_dev_auth
 @cross_origin()

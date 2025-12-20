@@ -38,6 +38,7 @@ def load_freelancer():
         "/dev/login",
         "/dev/seed-all",
         "/dev/reset-db",
+        "/dev/update-demos",  # 🔥 NEW: Production-safe demo update
         "/404",
         "/master-times",
         "/freelancer/public-info",

@@ -12,7 +12,15 @@ from utils.timezone_utils import utc_label_to_datetime
 from utils.slug_utils import generate_unique_slug
 
 
-def add_appointment(freelancer, user, service, start_label_local, day):
+def add_appointment(
+    freelancer,
+    user,
+    service,
+    start_label_local,
+    day,
+    custom_responses=None,
+    selected_addons=None,
+):
     """
     Creates a full appointment (booked slot + inherited blocks + appointment record).
     Args:
@@ -21,6 +29,8 @@ def add_appointment(freelancer, user, service, start_label_local, day):
         service: Service object with duration
         start_label_local: Time label in freelancer's local timezone (e.g., "02:00 PM")
         day: LOCAL date string in ISO format (YYYY-MM-DD) in freelancer's timezone
+        custom_responses: Dict of custom question responses (optional)
+        selected_addons: List of add-on IDs (optional)
     """
     # Convert local time label to UTC, including proper date handling
     utc_start_label, utc_day = convert_local_label_to_utc_label(
@@ -108,6 +118,8 @@ def add_appointment(freelancer, user, service, start_label_local, day):
         status="confirmed",
         timestamp=datetime.now(timezone.utc),
         freelancer_timezone=freelancer.timezone,
+        custom_responses=custom_responses,
+        selected_addons=selected_addons,
     )
     db.session.add(appt)
     db.session.commit()
@@ -139,6 +151,8 @@ def seed_freelancer(
     booking_instructions,
     preferred_payment_methods,
     location,
+    business_address=None,  # 🔥 NEW: Add business_address parameter
+    custom_questions=None,  # 🔥 NEW: Add custom_questions parameter
     timezone="America/New_York",
     tier=None,
     early_access=False,
@@ -173,9 +187,18 @@ def seed_freelancer(
     freelancer.booking_instructions = booking_instructions
     freelancer.preferred_payment_methods = preferred_payment_methods
     freelancer.location = location
+    freelancer.business_address = business_address  # 🔥 NEW
     freelancer.email_confirmed = True
     freelancer.tier = tier
     freelancer.early_access = early_access
+
+    # 🔥 NEW: Set custom questions
+    if custom_questions:
+        freelancer.custom_questions_enabled = True
+        freelancer.custom_questions = custom_questions
+    else:
+        freelancer.custom_questions_enabled = False
+        freelancer.custom_questions = None
     # ✅ Generate public_slug if not already set
     if not freelancer.public_slug:
         freelancer.public_slug = generate_unique_slug()
@@ -243,19 +266,37 @@ def seed_freelancer(
         all_times = MasterTimeSlot.query.order_by(MasterTimeSlot.id).all()
 
         for booking_data in demo_bookings:
-            # Handle both old format (duration) and new format (service_name)
-            if len(booking_data) == 5:
+            # Handle new 7-tuple format: (first, last, email, start_label, service_name, custom_responses, selected_addons)
+            if len(booking_data) == 7:
+                (
+                    first,
+                    last,
+                    email,
+                    start_label,
+                    service_name,
+                    custom_responses,
+                    selected_addons,
+                ) = booking_data
+                service = next(
+                    (s for s in demo_services if s.name == service_name), None
+                )
+            # Handle old 5-tuple format for backwards compatibility
+            elif len(booking_data) == 5:
                 if isinstance(booking_data[4], str):
                     first, last, email, start_label, service_name = booking_data
                     service = next(
                         (s for s in demo_services if s.name == service_name), None
                     )
+                    custom_responses = None
+                    selected_addons = None
                 else:
                     first, last, email, start_label, duration = booking_data
                     service = next(
                         (s for s in demo_services if s.duration_minutes == duration),
                         None,
                     )
+                    custom_responses = None
+                    selected_addons = None
             else:
                 print(f"❌ Invalid booking data format: {booking_data}")
                 continue
@@ -316,6 +357,8 @@ def seed_freelancer(
                 service=service,
                 start_label_local=start_label,  # pass local label directly
                 day=today.isoformat(),
+                custom_responses=custom_responses,
+                selected_addons=selected_addons,
             )
 
             if result:
