@@ -30,7 +30,9 @@ export default function Upgrade() {
         { label: "Custom URL (slotme.xyz/yourname)", value: false },
         { label: "Verified Badge", value: false },
         { label: "CSV Export", value: false },
+        { label: "Service Add-Ons", value: false }, // 🔥 NEW
         { label: "Custom Booking Questions", value: false },
+        { label: "Business Address Display", value: false }, // 🔥 NEW
         { label: "Priority Support", value: false },
         { label: "Early Feature Access", value: false },
       ],
@@ -52,7 +54,9 @@ export default function Upgrade() {
         { label: "Custom URL (slotme.xyz/yourname)", value: true },
         { label: "Verified Badge", value: true },
         { label: "CSV Export", value: true },
+        { label: "Service Add-Ons", value: true }, // 🔥 NEW
         { label: "Custom Booking Questions", value: true },
+        { label: "Business Address Display", value: true }, // 🔥 NEW
         { label: "Priority Support", value: false },
         { label: "Early Feature Access", value: false },
       ],
@@ -74,7 +78,9 @@ export default function Upgrade() {
         { label: "Custom URL (slotme.xyz/yourname)", value: true },
         { label: "Verified Badge", value: true },
         { label: "CSV Export", value: true },
+        { label: "Service Add-Ons", value: true }, // 🔥 NEW
         { label: "Custom Booking Questions", value: true },
+        { label: "Business Address Display", value: true }, // 🔥 NEW
         { label: "Priority Support", value: true },
         { label: "Early Feature Access", value: true },
       ],
