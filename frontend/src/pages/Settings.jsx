@@ -62,7 +62,13 @@ export default function Settings() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8 space-y-4">
-      <h1 className="text-2xl font-bold mb-6 text-center">Settings</h1>
+      <header className="space-y-1 pb-2 mb-4">
+        <h1 className="text-xl font-semibold text-white">
+          Settings
+          <span className="text-gray-400 font-normal"> · Account</span>
+        </h1>
+        <div className="w-12 h-0.5 bg-gradient-to-r from-purple-500/70 to-blue-500/70 rounded-full"></div>
+      </header>
 
       {/* 🟢 ACCOUNT INFORMATION */}
       <AccordionSection

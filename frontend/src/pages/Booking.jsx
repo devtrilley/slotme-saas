@@ -358,9 +358,9 @@ export default function BookingPage({ useCustomUrl = false }) {
       const res = await axios.get(
         `${API_BASE}/freelancer/slots/${freelancerId}`
       );
-      console.log("🔍 RAW SLOTS FROM BACKEND:", res.data);
-      console.log("🔍 Total slots:", res.data.length);
-      console.log("🔍 First 5 slots:", res.data.slice(0, 5));
+      // console.log("🔍 RAW SLOTS FROM BACKEND:", res.data);
+      // console.log("🔍 Total slots:", res.data.length);
+      // console.log("🔍 First 5 slots:", res.data.slice(0, 5));
       setSlots(res.data);
     } catch (err) {
       console.error("❌ Failed to fetch slots", err);
@@ -577,12 +577,12 @@ export default function BookingPage({ useCustomUrl = false }) {
     isSlotOnDate(s, selectedDate, s.timezone || freelancerTimeZone)
   );
 
-  console.log("🔍 Selected date:", selectedDate.toLocaleDateString());
-  console.log("🔍 Filtered slots for this date:", filteredSlots.length);
-  console.log(
-    "🔍 Filtered slot details:",
-    filteredSlots.map((s) => ({ day: s.day, time: s.time_24h, tz: s.timezone }))
-  );
+  // console.log("🔍 Selected date:", selectedDate.toLocaleDateString());
+  // console.log("🔍 Filtered slots for this date:", filteredSlots.length);
+  // console.log(
+  //   "🔍 Filtered slot details:",
+  //   filteredSlots.map((s) => ({ day: s.day, time: s.time_24h, tz: s.timezone }))
+  // );
 
   // ⏱ Drop past unbooked slots, keep booked or inherited ones (shows popularity)
   const visibleSlots = filteredSlots.filter((slot) => {
@@ -734,7 +734,12 @@ export default function BookingPage({ useCustomUrl = false }) {
 
         {/* ✅ BOOKING TITLE & REFRESH - ALWAYS VISIBLE */}
         <section className="flex flex-col items-center gap-2">
-          <h2 className="text-2xl font-bold text-center">Book a Time Slot</h2>
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-bold text-white tracking-wide">
+              Book a Time Slot
+            </h2>
+            <div className="w-20 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full mx-auto mb-2"></div>
+          </div>
           <RefreshButton
             onRefresh={handleRefresh}
             toastMessage="Refreshing booking page..."

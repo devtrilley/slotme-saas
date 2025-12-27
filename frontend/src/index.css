@@ -53,58 +53,43 @@ body,
   max-width: 100vw;
 }
 
+/* 🔥 GLOBAL INPUT STYLING - Consistent site-wide */
 /* Prevent iOS zoom on input focus - ALL inputs must be 16px+ */
 input,
 textarea,
 select {
   font-size: 16px !important;
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  backdrop-filter: blur(8px) !important;
-  border-radius: 10px !important;
-  transition: all 0.2s ease !important;
-}
-
-/* 🔥 Date picker matches TIME SLOT BUTTONS */
-.date-picker-input {
   background: rgba(30, 41, 59, 0.7) !important; /* bg-slate-800/70 */
   border: 1px solid rgba(71, 85, 105, 0.6) !important; /* border-slate-600/60 */
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.25),
     0 2px 4px -2px rgba(0, 0, 0, 0.25) !important; /* shadow-md shadow-black/25 */
   border-radius: 0.75rem !important; /* rounded-xl */
-}
-
-.date-picker-input:hover {
-  background: rgba(51, 65, 85, 0.8) !important; /* hover:bg-slate-700/80 */
-  border-color: rgba(
-    139,
-    92,
-    246,
-    0.6
-  ) !important; /* hover:border-primary/60 */
-  box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.2),
-    0 4px 6px -4px rgba(139, 92, 246, 0.2) !important; /* hover:shadow-lg hover:shadow-primary/20 */
-}
-
-.date-picker-input:focus {
-  outline: none !important;
-  border-color: rgba(139, 92, 246, 0.6) !important;
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.4) !important;
+  backdrop-filter: blur(8px) !important;
+  transition: all 0.2s ease !important;
 }
 
 input:hover,
 textarea:hover,
 select:hover {
-  border-color: rgba(255, 255, 255, 0.3) !important;
+  background: rgba(51, 65, 85, 0.8) !important; /* hover:bg-slate-700/80 */
+  border-color: rgba(139, 92, 246, 0.6) !important; /* hover:border-primary/60 */
+  box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.2),
+    0 4px 6px -4px rgba(139, 92, 246, 0.2) !important; /* hover:shadow-lg hover:shadow-primary/20 */
 }
 
 input:focus,
 textarea:focus,
 select:focus {
   outline: none !important;
-  border-color: #6366f1 !important; /* purple */
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.5) !important;
-  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(139, 92, 246, 0.6) !important;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.4) !important;
+  background: rgba(51, 65, 85, 0.8) !important;
+}
+
+/* 🔥 Date picker inherits global styles now */
+.date-picker-input {
+  caret-color: transparent !important;
+  cursor: pointer !important;
 }
 
 body.modal-open {

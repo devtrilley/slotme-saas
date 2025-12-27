@@ -158,11 +158,14 @@ export default function Auth({ clearSession }) {
         </button>
       </div>
 
-      <header>
-        <h1 id="auth-heading" className="text-2xl font-bold text-center">
-          {mode === "login" ? "Log In to" : "Sign Up for"} SlotMe as a
-          Freelancer
+      <header className="text-center space-y-1">
+        <h1
+          id="auth-heading"
+          className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent"
+        >
+          {mode === "login" ? "Log In to" : "Sign Up for"} SlotMe
         </h1>
+        <p className="text-sm text-gray-400">Freelancer access only</p>
       </header>
 
       {showSessionExpired && (

@@ -44,8 +44,15 @@ export default function FreelancerAnalytics() {
     <SafeLoader loading={!stats && !error} error={error} onRetry={fetchStats}>
       <main className="max-w-md mx-auto p-6 space-y-6 text-white">
         {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-bold">Your Analytics</h1>
+        <header className="space-y-1 pb-2">
+          <h1 className="text-xl font-semibold text-white">
+            Analytics
+            <span className="text-gray-400 font-normal"> · Insights</span>
+          </h1>
+          <div className="w-12 h-0.5 bg-gradient-to-r from-purple-500/70 to-blue-500/70 rounded-full"></div>
+        </header>
+        
+        <div className="flex justify-center">
           <RefreshButton
             onRefresh={fetchStats}
             toastMessage="Refreshing stats..."

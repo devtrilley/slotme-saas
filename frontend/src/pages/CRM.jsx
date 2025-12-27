@@ -238,9 +238,14 @@ export default function CRM() {
   return (
     <SafeLoader loading={loading} error={error} onRetry={handleRefresh}>
       <main className="max-w-md mx-auto p-6 space-y-6">
-        <h1 className="text-2xl font-bold text-center">
-          Freelancer CRM: Bookings
-        </h1>
+        <header className="space-y-1 pb-2">
+          <h1 className="text-xl font-semibold text-white">
+            Freelancer CRM
+            <span className="text-gray-400 font-normal"> · Bookings</span>
+          </h1>
+
+          <div className="w-12 h-0.5 bg-gradient-to-r from-purple-500/70 to-blue-500/70 rounded-full"></div>
+        </header>
 
         {/* === Search + Time Filter FIRST === */}
         <div className="space-y-2">

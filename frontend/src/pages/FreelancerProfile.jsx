@@ -8,6 +8,7 @@ import FAQCard from "../components/Cards/FAQCard";
 import { DateTime } from "luxon";
 import { API_BASE } from "../utils/constants";
 import ProfilePhoto from "../components/ProfilePhoto"; // adjust path as
+import AddonCard from "../components/Cards/AddonCard";
 
 import { useFreelancer } from "../context/FreelancerContext";
 import BookingInstructionsCard from "../components/Cards/BookingInstructionsCard";
@@ -255,6 +256,23 @@ export default function FreelancerProfile() {
                     Please reach out to them directly for availability and
                     options.
                   </p>
+                </div>
+              )}
+              {/* Add-ons section */}
+              {freelancerDetails.addons && freelancerDetails.addons.length > 0 && (
+                <div className="mt-8">
+                  <h2 className="text-lg font-semibold text-white text-center mb-4">
+                    Available Add-Ons
+                  </h2>
+                  <ul className="space-y-2 px-4">
+                    {freelancerDetails.addons.map((addon) => (
+                      <AddonCard
+                        key={addon.id}
+                        addon={addon}
+                        isPublicView={true}
+                      />
+                    ))}
+                  </ul>
                 </div>
               )}
               <li className="mt-10 mb-10">

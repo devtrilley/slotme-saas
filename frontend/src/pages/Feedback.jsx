@@ -48,12 +48,15 @@ export default function Feedback() {
 
   return (
     <main className="max-w-md mx-auto p-6 space-y-5 text-white" role="main">
-      <div className="flex items-center space-x-2">
-        <MessageSquare className="text-purple-400" />
-        <h1 className="text-xl font-bold">Feedback</h1>
-      </div>
-      <p className="text-sm text-purple-300 ml-6 -mt-2">
-        We value your thoughts — let us know how we're doing.
+      <header className="space-y-1 pb-2">
+        <h1 className="text-xl font-semibold text-white">
+          Feedback
+          <span className="text-gray-400 font-normal"> · Contact Us</span>
+        </h1>
+        <div className="w-12 h-0.5 bg-gradient-to-r from-purple-500/70 to-blue-500/70 rounded-full"></div>
+      </header>
+      <p className="text-sm text-purple-300 -mt-2">
+        💬 We value your thoughts — let us know how we're doing.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">

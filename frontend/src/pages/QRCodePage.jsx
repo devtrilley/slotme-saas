@@ -72,27 +72,39 @@ export default function QRCodePage() {
   };
 
   return (
-    <main className="max-w-sm mx-auto mt-10 p-6 py-2 bg-base-200 rounded-xl shadow-lg space-y-6 text-center">
-      <h1 className="text-xl font-semibold tracking-tight text-primary">
-        📱 Scan To Book Instantly!
-      </h1>
-
-      <div
-        ref={qrRef}
-        className="inline-block p-4 bg-white rounded-xl shadow border-4 border-primary"
-      >
-        {loading ? (
-          <div className="animate-pulse w-[180px] h-[180px] bg-gray-300 rounded" />
-        ) : (
-          qrUrl && <QRCodeSVG value={qrUrl} size={180} />
-        )}
+    <main className="max-w-sm mx-auto mt-10 p-6 py-2 bg-base-200 rounded-xl shadow-lg space-y-6">
+      <header className="space-y-1 pb-2 text-left">
+        <h1 className="text-xl font-semibold text-white">
+          QR Code
+          <span className="text-gray-400 font-normal"> · Share Link</span>
+        </h1>
+        <div className="w-12 h-0.5 bg-gradient-to-r from-purple-500/70 to-blue-500/70 rounded-full"></div>
+      </header>
+      
+      <div className="text-center space-y-4">
+        <p className="text-md text-purple-400 font-medium">
+          📱 Scan To Book Instantly!
+        </p>
+        
+        <div className="flex justify-center">
+          <div
+            ref={qrRef}
+            className="inline-block p-4 bg-white rounded-xl shadow border-4 border-primary"
+          >
+            {loading ? (
+              <div className="animate-pulse w-[180px] h-[180px] bg-gray-300 rounded" />
+            ) : (
+              qrUrl && <QRCodeSVG value={qrUrl} size={180} />
+            )}
+          </div>
+        </div>
+        
+        <p className="text-sm text-gray-400">Or share this link:</p>
+        <code className="text-sm text-gray-500 break-all block">
+          {loading ? "Loading..." : qrUrl}
+        </code>
       </div>
-
-      <p className="text-xs text-gray-400">Or share this link:</p>
-      <code className="text-sm text-gray-500 break-all block">
-        {loading ? "Loading..." : qrUrl}
-      </code>
-
+      
       <div className="flex gap-2">
         <button
           className="btn btn-primary btn-sm flex-1"

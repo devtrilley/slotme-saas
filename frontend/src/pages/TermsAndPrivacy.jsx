@@ -1,9 +1,18 @@
 export default function TermsAndPrivacy() {
   return (
     <main className="max-w-3xl mx-auto p-6 space-y-10 text-white">
+      {/* Header */}
+      <header className="space-y-1 pb-2">
+        <h1 className="text-xl font-semibold text-white">
+          Legal
+          <span className="text-gray-400 font-normal"> · Terms & Privacy</span>
+        </h1>
+        <div className="w-12 h-0.5 bg-gradient-to-r from-purple-500/70 to-blue-500/70 rounded-full"></div>
+      </header>
+
       {/* Terms of Service */}
       <section>
-        <h1 className="text-3xl font-bold mb-4">Terms of Service</h1>
+        <h2 className="text-2xl font-bold mb-4">Terms of Service</h2>
 
         <p>
           Welcome to SlotMe. By accessing or using our platform, you agree to be
@@ -11,7 +20,7 @@ export default function TermsAndPrivacy() {
           you may not use SlotMe.
         </p>
 
-        <h2 className="text-xl font-semibold mt-6">1. Use of Platform</h2>
+        <h3 className="text-xl font-semibold mt-6">1. Use of Platform</h3>
         <p>
           SlotMe provides a scheduling and booking platform for freelancers and
           their customers. You must be at least 13 years old to use the service.
@@ -19,7 +28,7 @@ export default function TermsAndPrivacy() {
           services, and any transactions outside the platform.
         </p>
 
-        <h2 className="text-xl font-semibold mt-6">2. Account Registration</h2>
+        <h3 className="text-xl font-semibold mt-6">2. Account Registration</h3>
         <p>
           Freelancers must provide accurate and complete information during
           account creation. You are responsible for maintaining the security of
@@ -27,7 +36,7 @@ export default function TermsAndPrivacy() {
           account.
         </p>
 
-        <h2 className="text-xl font-semibold mt-6">3. Appointment Bookings</h2>
+        <h3 className="text-xl font-semibold mt-6">3. Appointment Bookings</h3>
         <p>
           Customers may book available time slots provided by freelancers. All
           bookings are subject to confirmation. SlotMe is not responsible for
@@ -39,7 +48,7 @@ export default function TermsAndPrivacy() {
           time slot will become available for others to book.
         </p>
 
-        <h2 className="text-xl font-semibold mt-6">4. Payments</h2>
+        <h3 className="text-xl font-semibold mt-6">4. Payments</h3>
         <p>
           Payments may be processed through third-party services (e.g., Cash
           App, Zelle, Stripe, etc.). SlotMe does not store or handle payment
@@ -51,13 +60,13 @@ export default function TermsAndPrivacy() {
           please contact the freelancer directly.
         </p>
 
-        <h2 className="text-xl font-semibold mt-6">5. Termination</h2>
+        <h3 className="text-xl font-semibold mt-6">5. Termination</h3>
         <p>
           We reserve the right to suspend or terminate access to SlotMe at any
           time for violating these terms or engaging in harmful conduct.
         </p>
 
-        <h2 className="text-xl font-semibold mt-6">6. Changes</h2>
+        <h3 className="text-xl font-semibold mt-6">6. Changes</h3>
         <p>
           SlotMe may update these Terms of Service at any time. Continued use of
           the platform constitutes acceptance of any changes.
@@ -78,16 +87,16 @@ export default function TermsAndPrivacy() {
 
       {/* Privacy Policy */}
       <section>
-        <h1 className="text-3xl font-bold mb-4">Privacy Policy</h1>
+        <h2 className="text-3xl font-bold mb-4">Privacy Policy</h2>
 
         <p>
           Your privacy is important to us. This Privacy Policy explains how we
           collect, use, and protect your information when you use SlotMe.
         </p>
 
-        <h2 className="text-xl font-semibold mt-6">
+        <h3 className="text-xl font-semibold mt-6">
           1. Information We Collect
-        </h2>
+        </h3>
         <ul className="list-disc list-inside space-y-1">
           <li>
             Name, email, and phone number (from customers and freelancers)
@@ -96,9 +105,9 @@ export default function TermsAndPrivacy() {
           <li>Login and account information (freelancers only)</li>
         </ul>
 
-        <h2 className="text-xl font-semibold mt-6">
+        <h3 className="text-xl font-semibold mt-6">
           2. How We Use Your Information
-        </h2>
+        </h3>
         <p>We use your information to:</p>
         <ul className="list-disc list-inside ml-4 space-y-1">
           <li>Facilitate bookings and appointments</li>
@@ -106,7 +115,7 @@ export default function TermsAndPrivacy() {
           <li>Improve the performance and reliability of our platform</li>
         </ul>
 
-        <h2 className="text-xl font-semibold mt-6">3. Data Sharing</h2>
+        <h3 className="text-xl font-semibold mt-6">3. Data Sharing</h3>
         <p>We do not sell or share your personal info except to:</p>
         <ul className="list-disc list-inside ml-4 space-y-1">
           <li>Facilitate payment processing</li>
@@ -114,13 +123,13 @@ export default function TermsAndPrivacy() {
           <li>Protect against fraud or abuse</li>
         </ul>
 
-        <h2 className="text-xl font-semibold mt-6">4. Security</h2>
+        <h3 className="text-xl font-semibold mt-6">4. Security</h3>
         <p>
           We implement industry-standard measures to protect your data, but no
           method is 100% secure. Use SlotMe at your own risk.
         </p>
 
-        <h2 className="text-xl font-semibold mt-6">5. Your Rights</h2>
+        <h3 className="text-xl font-semibold mt-6">5. Your Rights</h3>
         <p>
           You may request access to or deletion of your personal data by
           contacting us at{" "}

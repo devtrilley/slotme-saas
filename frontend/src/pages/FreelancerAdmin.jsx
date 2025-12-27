@@ -594,29 +594,13 @@ export default function AdminPage() {
       <SafeLoader loading={loading}>
         <main className="max-w-2xl mx-auto px-4 md:px-6 py-6 space-y-6">
           {/* Rest of your admin page */}
-          <div className="flex flex-col gap-2 items-center">
-            <h1 className="text-2xl font-bold text-center">
-              Freelancer Admin Dashboard
+          <header className="space-y-1 pb-2">
+            <h1 className="text-xl font-semibold text-white">
+              Freelancer Admin
+              <span className="text-gray-400 font-normal"> · Dashboard</span>
             </h1>
-
-            <button
-              onClick={() => {
-                localStorage.removeItem("freelancer_logged_in");
-                localStorage.removeItem("access_token");
-                localStorage.removeItem("freelancer_id");
-                localStorage.removeItem("branding_updated");
-                localStorage.removeItem("client_id");
-
-                clearFreelancer(); // 👈 Reset in-memory context
-                navigate("/auth");
-
-                showToast("👋 Logged out successfully", "success");
-              }}
-              className="btn btn-sm btn-outline"
-            >
-              Logout
-            </button>
-          </div>
+            <div className="w-12 h-0.5 bg-gradient-to-r from-purple-500/70 to-blue-500/70 rounded-full"></div>
+          </header>
           {freelancer && (
             <TierStatusCard
               tier={freelancer.tier || "free"}
