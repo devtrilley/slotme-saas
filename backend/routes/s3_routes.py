@@ -1,10 +1,12 @@
 from flask import Blueprint, request, jsonify
 from utils.s3_utils import generate_presigned_url, S3_BUCKET, S3_REGION
+from utils.decorators import require_auth
 
 s3_bp = Blueprint("s3", __name__)
 
 
 @s3_bp.route("/s3/upload-url", methods=["POST"])
+@require_auth
 def get_upload_url():
     data = request.get_json()
     freelancer_id = data.get("freelancer_id")

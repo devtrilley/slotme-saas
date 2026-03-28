@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, g, current_app
 import re  # ✅ for password validation
+import os
 from flask_cors import cross_origin
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -121,7 +122,12 @@ def signup_freelancer():
         return jsonify({"error": "Password too weak"}), 400
 
     if Freelancer.query.filter_by(email=email).first():
-        return jsonify({"error": "This email is already registered. Please log in instead."}), 400
+        return (
+            jsonify(
+                {"error": "This email is already registered. Please log in instead."}
+            ),
+            400,
+        )
 
     hashed = generate_password_hash(password)
 
@@ -273,7 +279,7 @@ def resend_verification():
 # -------------------------------------------------------------
 from itsdangerous import URLSafeTimedSerializer
 
-reset_serializer = URLSafeTimedSerializer("RESET_SECRET_KEY")
+reset_serializer = URLSafeTimedSerializer(os.getenv("RESET_SECRET_KEY"))
 
 
 @auth_bp.route("/forgot-password", methods=["POST"])

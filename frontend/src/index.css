@@ -72,7 +72,12 @@ input:hover,
 textarea:hover,
 select:hover {
   background: rgba(51, 65, 85, 0.8) !important; /* hover:bg-slate-700/80 */
-  border-color: rgba(139, 92, 246, 0.6) !important; /* hover:border-primary/60 */
+  border-color: rgba(
+    139,
+    92,
+    246,
+    0.6
+  ) !important; /* hover:border-primary/60 */
   box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.2),
     0 4px 6px -4px rgba(139, 92, 246, 0.2) !important; /* hover:shadow-lg hover:shadow-primary/20 */
 }

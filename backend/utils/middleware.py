@@ -4,6 +4,7 @@ from flask_jwt_extended.exceptions import NoAuthorizationError, JWTDecodeError
 from jwt.exceptions import ExpiredSignatureError, DecodeError, InvalidTokenError
 from models import Freelancer
 from utils.features import normalize_tier
+from utils.tier_utils import get_effective_tier
 from utils.navigation_utils import is_valid_public_slug
 
 
@@ -53,6 +54,8 @@ def load_freelancer():
         "/download-ics",
         "/preview-cancel",
         "/public-appointment",
+        "/freelancer/delete-confirm",
+        "/freelancer/delete-finalize",
     )
 
     open_paths = [
@@ -126,7 +129,7 @@ def load_freelancer():
         g.user = {
             "id": freelancer.id,
             "freelancer_id": freelancer.id,
-            "tier": normalize_tier(getattr(freelancer, "tier", "free")),
+            "tier": normalize_tier(get_effective_tier(freelancer)),
             "email": getattr(freelancer, "email", None),
         }
 

@@ -51,7 +51,7 @@ export default function FreelancerAnalytics() {
           </h1>
           <div className="w-12 h-0.5 bg-gradient-to-r from-purple-500/70 to-blue-500/70 rounded-full"></div>
         </header>
-        
+
         <div className="flex justify-center">
           <RefreshButton
             onRefresh={fetchStats}

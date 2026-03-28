@@ -1,10 +1,5 @@
-Backend:
-
-backend/routes/freelancer_routes.py - PATCH /freelancer/branding endpoint
-backend/models/__init__.py - Freelancer model schema
-backend/routes/public_routes.py - Public profile data fetch
-
-Frontend:
-
-frontend/src/components/Forms/FreelancerBranding.jsx - The form (current state)
-frontend/src/pages/FreelancerProfile.jsx - Public profile page that displays data
+backend/utils/middleware.py = ```1```
+backend/routes/freelancer_routes.py = ```1```
+backend/routes/auth_routes.py = ```1```
+backend/routes/s3_routes.py = ```1```
+frontend/src/utils/axiosInstance.js = ```1```

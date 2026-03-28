@@ -147,9 +147,7 @@ def get_database_url():
     if not db_url:
         print("⚠️ DATABASE_URL not found - using local SQLite (forced path)")
         db_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "instance",
-            "scheduler.db"
+            os.path.dirname(os.path.abspath(__file__)), "instance", "scheduler.db"
         )
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         return f"sqlite:///{db_path}"

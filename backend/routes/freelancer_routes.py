@@ -12,6 +12,7 @@ from email.mime.multipart import MIMEMultipart
 import smtplib
 from datetime import datetime, timedelta
 from utils.decorators import require_auth, require_tier
+from utils.tier_utils import get_effective_tier
 from utils.features import is_feature_enabled
 import re
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -635,7 +636,7 @@ def reply_to_customer():
     message = data.get("message", "").strip()
 
     freelancer = Freelancer.query.get(freelancer_id)
-    if not freelancer or freelancer.tier != "elite":
+    if not freelancer or get_effective_tier(freelancer) != "elite":
         return jsonify({"error": "Unauthorized"}), 403
 
     try:
@@ -788,8 +789,8 @@ def get_freelancer_info():
                 "public_slug": f.public_slug,
                 "no_show_policy": f.no_show_policy,
                 "faq_items": f.faq_items,
-                "tier": f.tier,
-                "is_verified": f.tier in ["pro", "elite"],
+                "tier": get_effective_tier(f),
+                "is_verified": get_effective_tier(f) in ["pro", "elite"],
                 "location": f.location,
                 "booking_instructions": f.booking_instructions,
                 "preferred_payment_methods": f.preferred_payment_methods,
@@ -1533,33 +1534,45 @@ def add_addon():
     if request.method == "OPTIONS":
         return "", 200
     freelancer_id = int(get_jwt_identity())
-    
+
     # ✅ TIER GATE: Check freelancer tier and addon count
     freelancer = Freelancer.query.get(freelancer_id)
     if not freelancer:
         return jsonify({"error": "Freelancer not found"}), 404
-    
+
     tier = (freelancer.tier or "free").lower()
-    current_addon_count = ServiceAddon.query.filter_by(freelancer_id=freelancer_id).count()
-    
+    current_addon_count = ServiceAddon.query.filter_by(
+        freelancer_id=freelancer_id
+    ).count()
+
     # FREE: No add-ons allowed
     if tier == "free":
-        return jsonify({
-            "error": "Add-ons require PRO or ELITE. Upgrade to unlock this feature.",
-            "tier_required": "pro"
-        }), 403
-    
+        return (
+            jsonify(
+                {
+                    "error": "Add-ons require PRO or ELITE. Upgrade to unlock this feature.",
+                    "tier_required": "pro",
+                }
+            ),
+            403,
+        )
+
     # PRO: Max 5 add-ons
     if tier == "pro" and current_addon_count >= 5:
-        return jsonify({
-            "error": "PRO tier is limited to 5 add-ons. Upgrade to ELITE for unlimited.",
-            "tier_required": "elite",
-            "current_count": current_addon_count,
-            "limit": 5
-        }), 403
-    
+        return (
+            jsonify(
+                {
+                    "error": "PRO tier is limited to 5 add-ons. Upgrade to ELITE for unlimited.",
+                    "tier_required": "elite",
+                    "current_count": current_addon_count,
+                    "limit": 5,
+                }
+            ),
+            403,
+        )
+
     # ELITE: Unlimited (no check needed)
-    
+
     data = request.get_json()
     name = data.get("name", "").strip()
     description = data.get("description", "").strip()
@@ -1593,14 +1606,19 @@ def add_addon():
     )
     db.session.add(addon)
     db.session.commit()
-    return jsonify({
-        "id": addon.id,
-        "name": addon.name,
-        "description": addon.description,
-        "price_usd": addon.price_usd,
-        "duration_minutes": addon.duration_minutes,
-        "is_enabled": addon.is_enabled
-    }), 201
+    return (
+        jsonify(
+            {
+                "id": addon.id,
+                "name": addon.name,
+                "description": addon.description,
+                "price_usd": addon.price_usd,
+                "duration_minutes": addon.duration_minutes,
+                "is_enabled": addon.is_enabled,
+            }
+        ),
+        201,
+    )
 
 
 @freelancer_bp.route("/freelancer/addons/<int:addon_id>", methods=["PATCH", "OPTIONS"])
@@ -1628,14 +1646,16 @@ def update_addon(addon_id):
     if "is_enabled" in data:
         addon.is_enabled = bool(data["is_enabled"])
     db.session.commit()
-    return jsonify({
-        "id": addon.id,
-        "name": addon.name,
-        "description": addon.description,
-        "price_usd": addon.price_usd,
-        "duration_minutes": addon.duration_minutes,
-        "is_enabled": addon.is_enabled
-    })
+    return jsonify(
+        {
+            "id": addon.id,
+            "name": addon.name,
+            "description": addon.description,
+            "price_usd": addon.price_usd,
+            "duration_minutes": addon.duration_minutes,
+            "is_enabled": addon.is_enabled,
+        }
+    )
 
 
 @freelancer_bp.route("/freelancer/addons/<int:addon_id>", methods=["DELETE", "OPTIONS"])

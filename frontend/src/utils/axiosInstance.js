@@ -21,6 +21,7 @@ const publicEndpoints = [
   "/auth/forgot-password",
   "/auth/reset-password",
   "/auth/resend-verification",
+  "/auth/change-email/confirm",
   "/upgrade-success",
   "/upgrade-cancelled",
   "/test-email",

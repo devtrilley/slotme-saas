@@ -139,7 +139,7 @@ def stripe_webhook():
             print(f"❌ No freelancer found for session {session.get('id')}")
             return jsonify({"status": "ignored"}), 200
 
-       # Get subscription details
+        # Get subscription details
         metadata = session.get("metadata", {})
         subscription_id = session.get("subscription")
         customer_id = session.get("customer")
