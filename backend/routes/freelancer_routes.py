@@ -258,9 +258,9 @@ def get_public_freelancer_info(identifier):
             "bio": freelancer.bio,
             "faq_items": freelancer.faq_items,
             "timezone": freelancer.timezone,
-            "is_verified": freelancer.tier in ["pro", "elite"],
+            "is_verified": freelancer.tier in ["pro"],
             "email": freelancer.contact_email,
-            "phone": freelancer.business_phone,  # 🔥 CHANGED: Return business phone only
+            "phone": freelancer.business_phone,
             "instagram_url": freelancer.instagram_url,
             "twitter_url": freelancer.twitter_url,
             "no_show_policy": freelancer.no_show_policy,
@@ -323,7 +323,7 @@ def public_freelancer_profile(identifier):
             "phone": freelancer.business_phone,  # 🔥 CHANGED: Return business phone only
             "instagram_url": freelancer.instagram_url,
             "twitter_url": freelancer.twitter_url,
-            "is_verified": freelancer.tier in ["pro", "elite"],
+            "is_verified": freelancer.tier in ["pro"],
             "joined": freelancer.id,
             "services": service_data,
             "faq_items": freelancer.faq_items,
@@ -636,7 +636,7 @@ def reply_to_customer():
     message = data.get("message", "").strip()
 
     freelancer = Freelancer.query.get(freelancer_id)
-    if not freelancer or get_effective_tier(freelancer) != "elite":
+    if not freelancer or get_effective_tier(freelancer) != "pro":
         return jsonify({"error": "Unauthorized"}), 403
 
     try:
@@ -790,7 +790,7 @@ def get_freelancer_info():
                 "no_show_policy": f.no_show_policy,
                 "faq_items": f.faq_items,
                 "tier": get_effective_tier(f),
-                "is_verified": get_effective_tier(f) in ["pro", "elite"],
+                "is_verified": get_effective_tier(f) in ["pro"],
                 "location": f.location,
                 "booking_instructions": f.booking_instructions,
                 "preferred_payment_methods": f.preferred_payment_methods,
@@ -842,7 +842,7 @@ def public_profile_by_url(custom_url):
             "bio": freelancer.bio,
             "instagram_url": freelancer.instagram_url,
             "twitter_url": freelancer.twitter_url,
-            "is_verified": freelancer.tier in ["pro", "elite"],
+            "is_verified": freelancer.tier in ["pro"],
             "joined": freelancer.created_at.strftime("%-m/%-d/%y"),
             "services": service_data,
             "faq_items": freelancer.faq_items,
@@ -1550,28 +1550,13 @@ def add_addon():
         return (
             jsonify(
                 {
-                    "error": "Add-ons require PRO or ELITE. Upgrade to unlock this feature.",
+                    "error": "Add-ons require a Premium subscription. Upgrade to unlock this feature.",
                     "tier_required": "pro",
                 }
             ),
             403,
         )
-
-    # PRO: Max 5 add-ons
-    if tier == "pro" and current_addon_count >= 5:
-        return (
-            jsonify(
-                {
-                    "error": "PRO tier is limited to 5 add-ons. Upgrade to ELITE for unlimited.",
-                    "tier_required": "elite",
-                    "current_count": current_addon_count,
-                    "limit": 5,
-                }
-            ),
-            403,
-        )
-
-    # ELITE: Unlimited (no check needed)
+    # PRO: Unlimited add-ons
 
     data = request.get_json()
     name = data.get("name", "").strip()

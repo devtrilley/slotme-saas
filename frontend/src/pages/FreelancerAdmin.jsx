@@ -461,14 +461,13 @@ export default function AdminPage() {
     ]);
   };
 
-  const tier = freelancer?.tier || "free";
+  const tier = freelancerDetails?.tier || freelancer?.tier || "free";
 
   function handleTierBlocked() {
     showToast(
       <span>
-        This feature is for <strong>PRO</strong> or <strong>ELITE</strong>{" "}
-        users.{" "}
-        <a href="/upgrade#elite?need=pro" className="underline font-medium">
+        This feature requires <strong>PRO</strong>.{" "}
+        <a href="/upgrade#pro?need=pro" className="underline font-medium">
           Upgrade →
         </a>
       </span>,
@@ -954,23 +953,6 @@ export default function AdminPage() {
               {tier === "pro" && (
                 <div className="text-center text-sm">
                   <span className="text-gray-400">Add-ons: </span>
-                  <span
-                    className={`font-semibold ${
-                      addons.length >= 5 ? "text-warning" : "text-success"
-                    }`}
-                  >
-                    {addons.length} / 5
-                  </span>
-                  {addons.length >= 5 && (
-                    <span className="block text-xs text-warning mt-1">
-                      Limit reached. Upgrade to ELITE for unlimited.
-                    </span>
-                  )}
-                </div>
-              )}
-              {tier === "elite" && (
-                <div className="text-center text-sm">
-                  <span className="text-gray-400">Add-ons: </span>
                   <span className="font-semibold text-primary">
                     {addons.length} (Unlimited)
                   </span>
@@ -989,7 +971,7 @@ export default function AdminPage() {
                   {addonsError
                     ? "Unable to load add-ons. Please check your internet or server status."
                     : tier === "free"
-                    ? "Add-ons require PRO or ELITE. Upgrade to get started!"
+                    ? "Add-ons require PRO. Upgrade to get started!"
                     : "No add-ons available. Add one above!"}
                 </div>
               ) : (

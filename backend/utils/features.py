@@ -1,12 +1,11 @@
 # backend/utils/features.py
 
 FEATURES = {
-    "custom_url": ["pro", "elite"],
-    "csv_export": ["pro", "elite"],
-    "analytics": ["pro", "elite"],
-    "scan": ["elite"],
-    "priority_support": ["elite"],
-    # future: "email", "sms"
+    "custom_url": ["pro"],
+    "csv_export": ["pro"],
+    "analytics": ["pro"],
+    "sms_reminders": ["pro"],
+    "priority_support": ["pro"],
 }
 
 

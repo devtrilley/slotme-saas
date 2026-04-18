@@ -257,7 +257,7 @@ def create_freelancer():
     if not first_name or not last_name or not email or not password:
         return jsonify({"error": "Missing required fields"}), 400
 
-    if tier not in ["free", "pro", "elite"]:
+    if tier not in ["free", "pro"]:
         return jsonify({"error": "Invalid tier"}), 400
 
     if Freelancer.query.filter_by(email=email).first():
@@ -341,7 +341,7 @@ def update_freelancer(freelancer_id):
             setattr(freelancer, field, data[field])
 
     # Auto-verify paid tiers
-    if data.get("tier") in ["pro", "elite"]:
+    if data.get("tier") == "pro":
         freelancer.is_verified = True
     elif data.get("tier") == "free":
         freelancer.is_verified = False
@@ -724,7 +724,7 @@ def seed_everything():
             location="Los Angeles, CA",
             business_address="8821 Sunset Boulevard, West Hollywood, CA 90069",
             timezone="America/Los_Angeles",
-            tier="elite",
+            tier="pro",
             early_access=True,
             is_verified=True,
             custom_questions=[
@@ -882,7 +882,7 @@ def seed_everything():
             preferred_payment_methods="Venmo, CashApp, Zelle",
             location="Charlotte, NC (Virtual Training)",
             timezone="America/New_York",
-            tier="elite",
+            tier="pro",
             early_access=True,
             is_verified=True,
             services=[
@@ -924,7 +924,7 @@ def seed_everything():
         return (
             jsonify(
                 {
-                    "message": "✅ Seeded: Emily (Free), Malik (Pro), Jade (Elite), Monty (Elite)",
+                    "message": "✅ Seeded: Emily (Free), Malik (Pro), Jade (Pro), Monty (Pro)",
                     "emily_token": token,
                     "malik_token": token2,
                     "jade_token": token3,
@@ -1322,7 +1322,7 @@ def update_demo_freelancers():
             location="Los Angeles, CA",
             business_address="8821 Sunset Boulevard, West Hollywood, CA 90069",
             timezone="America/Los_Angeles",
-            tier="elite",
+            tier="pro",
             early_access=True,
             is_verified=True,
             custom_questions=[

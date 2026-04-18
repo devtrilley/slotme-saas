@@ -32,7 +32,7 @@ export default function UpgradeSuccess() {
         );
         const data = res.data;
 
-        if (data.tier === "pro" || data.tier === "elite") {
+        if (data.tier === "pro") {
           // ✅ CRITICAL FIX: Update BOTH tokens from payment verification
           // This prevents "session expired" errors for users who took >15min at Stripe
           if (data.access_token && data.refresh_token) {
@@ -102,12 +102,3 @@ export default function UpgradeSuccess() {
     </main>
   );
 }
-
-// 1.	Backend – Signup Logic & Email Utils
-// 	•	routes/auth_routes.py (freelancer signup endpoint)
-// 	•	email_utils.py (to hook in verification email)
-// 	•	config.py (to confirm FRONTEND/SMTP constants)
-// 	2.	Frontend – Signup Form & Flow
-// 	•	src/pages/Auth.jsx (signup UI + API call)
-// 	•	src/utils/axiosInstance.js (so we can ensure correct base URL for verification link)
-// 	•	src/pages/SignupConfirmed.jsx or EmailConfirmed.jsx (whichever exists for post-verification)

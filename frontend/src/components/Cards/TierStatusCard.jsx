@@ -11,14 +11,12 @@ export default function TierStatusCard({
 
   const tierDisplay = {
     free: "🥉 Free Tier",
-    pro: "🥈 Pro Tier",
-    elite: "🥇 Elite Tier",
+    pro: "🥇 Pro Tier",
   };
 
   const colorClass = {
     free: "bg-base-200 text-gray-300 border-2 border-white/40",
     pro: "metallic-pro",
-    elite: "metallic-elite",
     error: "bg-red-100 text-red-700 border border-red-300",
     loggedOut: "bg-base-200 text-gray-500 border border-dashed border-gray-500",
   };
@@ -27,20 +25,20 @@ export default function TierStatusCard({
     if (notLoggedIn || error) return;
 
     if (location.pathname === "/upgrade") {
-      const eliteSection = document.getElementById("elite-tier");
-      if (eliteSection) {
-        eliteSection.scrollIntoView({ behavior: "smooth", block: "start" });
-        eliteSection.classList.add("ring", "ring-yellow-400", "ring-offset-2");
+      const proSection = document.getElementById("pro-tier");
+      if (proSection) {
+        proSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        proSection.classList.add("ring", "ring-purple-400", "ring-offset-2");
         setTimeout(() => {
-          eliteSection.classList.remove(
+          proSection.classList.remove(
             "ring",
-            "ring-yellow-400",
+            "ring-purple-400",
             "ring-offset-2"
           );
         }, 2000);
       }
     } else {
-      navigate("/upgrade#elite");
+      navigate("/upgrade#pro");
     }
   };
 

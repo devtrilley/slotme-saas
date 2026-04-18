@@ -22,7 +22,7 @@ def create_checkout_session():
     data = request.get_json()
     plan = data.get("plan")  # "pro" or "elite"
 
-    if plan not in ["pro", "elite"]:
+    if plan not in ["pro"]:
         return jsonify({"error": "Invalid plan"}), 400
 
     # Test Price Lookup
@@ -33,10 +33,7 @@ def create_checkout_session():
 
     # REAL PRICE LOOKUP
     price_lookup = {
-        # "pro": "price_1SX3uzCao129FRPLFDvvvRBZ",  # 🟪 LIVE - $0.01 (test price)
-        # "elite": "price_1SX3zeCao129FRPLteY154eF",  # 🟪 LIVE - $0.02 (test price),
-        "pro": "price_1Ra4Q7Cao129FRPLhW781Pum",  # 🟪 LIVE - $5 (real price)
-        "elite": "price_1Ra4SSCao129FRPLofSSMdhl",  # 🟪 LIVE - $10 (real price),
+        "pro": "price_1TG3gtCao129FRPLb7wOnvoV",  # SlotMe Premium $20/mo live
     }
 
     try:
@@ -114,8 +111,9 @@ def stripe_webhook():
 
     # 🔥 PRICE ID → TIER MAPPING (LIVE PRICES ONLY)
     PRICE_TO_TIER = {
-        "price_1Ra4Q7Cao129FRPLhW781Pum": "pro",  # $5/mo
-        "price_1Ra4SSCao129FRPLofSSMdhl": "elite",  # $10/mo
+        "price_1Ra4Q7Cao129FRPLhW781Pum": "pro",  # legacy $5/mo — keep for existing subs
+        "price_1Ra4SSCao129FRPLofSSMdhl": "pro",  # legacy $10/mo — map to pro
+        "price_1TG3gtCao129FRPLb7wOnvoV": "pro",  # SlotMe Premium $20/mo
     }
 
     # ==================== EVENT 1: CHECKOUT COMPLETED ====================
@@ -481,8 +479,9 @@ def sync_subscription():
 
         # Map price_id to tier
         PRICE_TO_TIER = {
-            "price_1Ra4Q7Cao129FRPLhW781Pum": "pro",
-            "price_1Ra4SSCao129FRPLofSSMdhl": "elite",
+            "price_1Ra4Q7Cao129FRPLhW781Pum": "pro",  # legacy $5/mo
+            "price_1Ra4SSCao129FRPLofSSMdhl": "pro",  # legacy $10/mo
+            "price_1TG3gtCao129FRPLb7wOnvoV": "pro",  # SlotMe Premium $20/mo
         }
 
         price_id = sub["items"]["data"][0]["price"]["id"] if sub.get("items") else None

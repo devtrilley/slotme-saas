@@ -23,19 +23,19 @@ export default function TierGateModal({
       </p>
 
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <Link
-          to={{
-            pathname: "/upgrade",
-            hash: "#elite",
-            search: `?need=${encodeURIComponent(
-              need
-            )}&next=${encodeURIComponent(next)}`,
-          }}
-          className="btn btn-primary w-full"
-          replace
-        >
-          Upgrade to ELITE
-        </Link>
+      <Link
+        to={{
+          pathname: "/upgrade",
+          hash: "#pro",
+          search: `?need=${encodeURIComponent(
+            need
+          )}&next=${encodeURIComponent(next)}`,
+        }}
+        className="btn btn-primary w-full"
+        replace
+      >
+        Upgrade to PRO
+      </Link>
 
         <Link to={backHref} className="btn btn-ghost w-full" replace>
           Back to Dashboard

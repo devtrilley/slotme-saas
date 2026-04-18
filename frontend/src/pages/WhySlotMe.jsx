@@ -134,9 +134,9 @@ export default function WhySlotMe() {
               },
               {
                 icon: "💳",
-                title: "Stripe Integrated",
+                title: "Simple Pricing",
                 color: "border-purple-500",
-                text: "Pro ($20/mo) and Elite ($40/mo) tiers. Simple subscription management.",
+                text: "Free forever, or go Pro at $20/mo flat. SlotMe takes 0% of your bookings.",
               },
             ].map(({ icon, title, color, text }, i) => (
               <div

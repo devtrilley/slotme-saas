@@ -1,5 +1,2 @@
-backend/utils/middleware.py = ```1```
-backend/routes/freelancer_routes.py = ```1```
-backend/routes/auth_routes.py = ```1```
-backend/routes/s3_routes.py = ```1```
-frontend/src/utils/axiosInstance.js = ```1```
+frontend/src/context/FreelancerContext.jsx = ```1```
+frontend/src/components/Auth/RequireTier.jsx = ```1```

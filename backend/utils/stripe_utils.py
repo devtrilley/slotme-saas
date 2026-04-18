@@ -6,8 +6,7 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 # Price ID to tier mapping for webhook tier assignment
 PRICE_TO_TIER = {
-    "price_1RaRhqE05eQPvycWs9mHnfIQ": "pro",  # Sandbox Pro price
-    "price_1RaRi8E05eQPvycWOvwxPwpV": "elite",  # Sandbox Elite price
+    "price_1TG3gtCao129FRPLb7wOnvoV": "pro",  # SlotMe Premium $20/mo live
 }
 
 

@@ -25,7 +25,7 @@ export default function CRM() {
   const freelancerTimezone = freelancer?.timezone || "America/New_York";
 
   const tier = (freelancer?.tier || "free").toLowerCase();
-  const canExport = tier === "pro" || tier === "elite";
+  const canExport = tier === "pro";
   const next =
     window.location.pathname + window.location.search + window.location.hash;
 
@@ -518,12 +518,12 @@ export default function CRM() {
 
           {!canExport && (
             <a
-              href={`/upgrade#elite?need=pro&next=${encodeURIComponent(next)}`}
+              href={`/upgrade#pro?need=pro&next=${encodeURIComponent(next)}`}
               className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full
                bg-primary text-white border border-none shadow-inner
                hover:bg-primary transition mb-1.5"
             >
-              🔒 Requires PRO (also in ELITE)
+              🔒 Requires PRO
             </a>
           )}
           <div className="relative">
@@ -535,9 +535,9 @@ export default function CRM() {
                 onClick={() =>
                   showToast(
                     <span>
-                      CSV export is a PRO/ELITE feature.{" "}
+                      CSV export is a PRO feature.{" "}
                       <a
-                        href={`/upgrade#elite?need=pro&next=${encodeURIComponent(
+                        href={`/upgrade#pro?need=pro&next=${encodeURIComponent(
                           next
                         )}`}
                         className="underline font-medium"

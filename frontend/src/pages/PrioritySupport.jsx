@@ -36,13 +36,13 @@ export default function PrioritySupportPage() {
     <main className="max-w-md mx-auto p-6 space-y-5 text-white">
       <header className="space-y-1 pb-2">
         <h1 className="text-xl font-semibold text-white">
-          Priority Support
-          <span className="text-gray-400 font-normal"> · Elite Only</span>
+        Priority Support
+        <span className="text-gray-400 font-normal"> · Pro Only</span>
         </h1>
         <div className="w-12 h-0.5 bg-gradient-to-r from-purple-500/70 to-blue-500/70 rounded-full"></div>
       </header>
       <p className="text-sm text-purple-300 -mt-2 italic">
-        💬 Exclusive access for Elite members only
+        💬 Exclusive access for Pro members
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">

@@ -13,9 +13,9 @@ def has_paid_access(freelancer):
     if freelancer.tier == "free":
         return False
 
-    # If no subscription, no access
+    # No Stripe subscription — could be demo/dev account, trust the DB tier
     if not freelancer.stripe_subscription_id:
-        return False
+        return True
 
     # Check subscription status
     status = freelancer.subscription_status

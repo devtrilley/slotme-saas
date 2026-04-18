@@ -1,6 +1,6 @@
 # SlotMe — Developer Context
 
-# Last updated: v1.10.0 — pre-2.0 planning (COMPLETE)
+# Last updated: v1.10.1 — Phase 1 security fixes (COMPLETE)
 
 ---
 
@@ -19,6 +19,22 @@
 
 ---
 
+## Commit Message Format
+
+Always use this format — copy-paste ready:
+
+```
+git add -A && git commit -m "vX.Y.Z: Short description of what changed" && git tag vX.Y.Z && git push origin main --tags
+```
+
+Examples:
+
+```
+git add -A && git commit -m "v1.10.1: Patch Phase 1 security fixes — reset serializer, tier enforcement, S3 auth, delete routes, axios public endpoints" && git tag v1.10.1 && git push origin main --tags
+```
+
+---
+
 ## Domain Migration Checklist (slotme.xyz → slotme.io)
 
 1. Update FRONTEND_URL + BACKEND_ORIGIN env vars (Vercel + Render)
@@ -33,7 +49,7 @@
 
 ## Current Version
 
-v1.10.0 (main branch)
+v1.10.1 (main branch)
 
 ---
 
@@ -98,13 +114,13 @@ v1.10.0 (main branch)
 - [ ] features.py: update analytics/csv_export/custom_url → ["pro"] only
 - [ ] features.py: add sms_reminders → ["pro"]
 - [ ] features.py: remove scan, priority_support (elite-only, gone)
-- [ ] middleware.py: use get_effective_tier(freelancer) instead of freelancer.tier
-- [ ] freelancer_routes.py: fix /freelancer-info to return get_effective_tier()
-- [ ] freelancer_routes.py: fix /freelancer/reply raw elite check → @require_tier
+- [x] middleware.py: use get_effective_tier(freelancer) instead of freelancer.tier ✅ v1.10.1
+- [x] freelancer_routes.py: fix /freelancer-info to return get_effective_tier() ✅ v1.10.1
+- [x] freelancer_routes.py: fix /freelancer/reply raw elite check ✅ v1.10.1
 - [ ] freelancer_routes.py: update is_verified → tier in ["pro"] only
 - [ ] freelancer_routes.py add_addon: remove elite branch, pro = unlimited
-- [ ] middleware.py: add /freelancer/delete-confirm + /freelancer/delete-finalize to open_prefixes
-- [ ] auth_routes.py: fix reset_serializer hardcoded secret (security critical)
+- [x] middleware.py: add /freelancer/delete-confirm + /freelancer/delete-finalize to open_prefixes ✅ v1.10.1
+- [x] auth_routes.py: fix reset_serializer hardcoded secret ✅ v1.10.1
 - [ ] seed_helpers.py: update Jade + Monty to pro tier (Monty = Tom's real account)
 - [ ] dev_routes.py: update tier validation to ["free", "pro"] only
 
@@ -132,23 +148,21 @@ v1.10.0 (main branch)
 1. Request → middleware.py load_freelancer()
 2. JWT verified → g.freelancer = Freelancer from DB
 3. g.user = { id, freelancer_id, tier, email }
-   ⚠️ BUG: tier = freelancer.tier (raw) — not get_effective_tier()
-   Risk: cancelled subscriber keeps access until webhook fires
-   Fix: middleware.py → normalize_tier(get_effective_tier(freelancer))
+   ✅ FIXED v1.10.1: tier = normalize_tier(get_effective_tier(freelancer))
 4. @require_auth → checks g.user and g.freelancer exist
 5. @require_tier("feature_key") → checks g.user["tier"] vs features.py FEATURES dict
-6. Some routes bypass with raw tier checks (/freelancer/reply ← BUG)
+6. All routes now use get_effective_tier() — no raw tier checks remain
 7. GET /auth/me/features → full feature map for logged-in user
 
 ### /freelancer-info (GET) — most-used auth endpoint:
 
 - Called by: RequireTier.jsx, FreelancerAdmin.jsx, Settings.jsx, Upgrade.jsx
-- Returns raw f.tier ← same bug as middleware
-- Fix: return get_effective_tier(f) instead
+- ✅ FIXED v1.10.1: returns get_effective_tier(f) instead of raw f.tier
 
 ### /freelancer/me (GET) — Settings.jsx only:
 
 - Returns: id, first_name, last_name, email, phone, business_name, tier, show_footer_navbar
+- Note: still returns raw f.tier — acceptable, Settings.jsx doesn't gate features on this
 
 ### Frontend tier data flow:
 
@@ -241,22 +255,22 @@ v1.10.0 (main branch)
 
 ## Security Issues
 
-### 🔴 Critical — fix before 2.0 launch:
+### ✅ Fixed in v1.10.1:
 
-- auth_routes.py: `reset_serializer = URLSafeTimedSerializer("RESET_SECRET_KEY")`
-  Hardcoded string — anyone with source access can forge password reset tokens.
-  Fix: `URLSafeTimedSerializer(os.getenv("SECRET_KEY"))`
+- auth_routes.py: reset_serializer now uses os.getenv("RESET_SECRET_KEY") — dedicated env var
+- middleware.py: now uses normalize_tier(get_effective_tier(freelancer)) — cancelled subs downgrade correctly
+- freelancer_routes.py: /freelancer-info returns get_effective_tier(f) — same fix
+- freelancer_routes.py: /freelancer/reply uses get_effective_tier() — no more raw tier check
+- s3_routes.py: /s3/upload-url now has @require_auth decorator
+- middleware.py: /freelancer/delete-confirm + /freelancer/delete-finalize added to open_prefixes
+- axiosInstance.js: /auth/change-email/confirm added to publicEndpoints
 
-### 🟡 Medium:
+### 🟡 Medium (still open):
 
 - Two serializers, two env vars, neither validated at startup:
   - jwt_utils.py → FLASK_SECRET_KEY (falls back to "changeme")
   - booking_routes.py → SECRET_KEY
-- middleware.py uses freelancer.tier not get_effective_tier()
-- /freelancer-info returns raw f.tier
-- /freelancer/reply: raw `tier != "elite"` check instead of @require_tier
-- /freelancer/delete-confirm + /freelancer/delete-finalize NOT in middleware open_prefixes
-- /s3/upload-url has NO auth decorator — any caller with a valid freelancer_id can get a presigned S3 URL
+- /freelancer/me still returns raw f.tier — acceptable for now (Settings.jsx only, no feature gating)
 
 ### 🟡 Tech Debt:
 
@@ -351,7 +365,7 @@ v1.10.0 (main branch)
 
 ### Authenticated:
 
-- GET /freelancer-info → full profile ← returns raw tier BUG
+- GET /freelancer-info → full profile ← ✅ returns get_effective_tier() v1.10.1
 - GET /freelancer/me → minimal (Settings.jsx only)
 - PATCH /freelancer/branding → profile fields update
 - PATCH /freelancer/account → email, password, phone, custom_url
@@ -359,13 +373,13 @@ v1.10.0 (main branch)
 - GET/POST/PATCH/DELETE /freelancer/services → service CRUD
 - GET /freelancer/analytics → @require_tier("analytics")
 - POST /freelancer/priority-support → @require_tier("priority_support")
-- POST /freelancer/reply → raw `tier != "elite"` ← BUG
+- POST /freelancer/reply → ✅ uses get_effective_tier() v1.10.1
 - GET/PATCH /freelancer/questions → custom questions CRUD
 - GET/POST/PATCH/DELETE /freelancer/addons → add-on CRUD (inline tier gate)
 - POST /freelancer/batch-slots-v2 → bulk slot creation
 - POST /freelancer/delete-initiate → step 1: verify + send email
-- GET /freelancer/delete-confirm/<token> → step 2 ← needs middleware whitelist
-- POST /freelancer/delete-finalize/<token> → step 3 ← needs middleware whitelist
+- GET /freelancer/delete-confirm/<token> → step 2 ✅ in middleware open_prefixes v1.10.1
+- POST /freelancer/delete-finalize/<token> → step 3 ✅ in middleware open_prefixes v1.10.1
 
 ### Add-on inline tier gate (freelancer_routes.py — NOT features.py):
 
@@ -506,12 +520,12 @@ Standardize on setStoredFreelancer().
 
 ### Serializer map:
 
-| Use case        | File           | Secret                | Salt              | Expiry |
-| --------------- | -------------- | --------------------- | ----------------- | ------ |
-| Email verify    | jwt_utils.py   | FLASK_SECRET_KEY      | "email-confirm"   | 1hr    |
-| Password reset  | auth_routes.py | "RESET_SECRET_KEY" ⚠️ | "password-reset"  | 1hr    |
-| Email change    | jwt_utils.py   | FLASK_SECRET_KEY      | "email-change"    | 1hr    |
-| Booking confirm | booking_routes | SECRET_KEY            | "booking-confirm" | 15min  |
+| Use case        | File           | Secret           | Salt              | Expiry |
+| --------------- | -------------- | ---------------- | ----------------- | ------ |
+| Email verify    | jwt_utils.py   | FLASK_SECRET_KEY | "email-confirm"   | 1hr    |
+| Password reset  | auth_routes.py | RESET_SECRET_KEY | "password-reset"  | 1hr    |
+| Email change    | jwt_utils.py   | FLASK_SECRET_KEY | "email-change"    | 1hr    |
+| Booking confirm | booking_routes | SECRET_KEY       | "booking-confirm" | 15min  |
 
 ---
 
@@ -721,13 +735,13 @@ verifiedBadge, emailReminders, smsReminders, addons, calendarSync, earlyAccess
 
 Add new public routes to BOTH lists:
 
-### Backend open_prefixes (middleware.py) — ⚠️ MISSING:
+### Backend open_prefixes (middleware.py) — ✅ COMPLETE as of v1.10.1:
 
-/freelancer/delete-confirm, /freelancer/delete-finalize
+/freelancer/delete-confirm, /freelancer/delete-finalize — added v1.10.1
 
-### Frontend publicEndpoints (axiosInstance.js) — ⚠️ MISSING:
+### Frontend publicEndpoints (axiosInstance.js) — ✅ COMPLETE as of v1.10.1:
 
-/auth/change-email/confirm
+/auth/change-email/confirm — added v1.10.1
 
 ---
 
@@ -766,11 +780,11 @@ seed_helpers.py + dev_routes.py: seed_freelancer() manages all demo data.
 
 STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET,
 BREVO_SMTP_LOGIN, BREVO_SMTP_PASSWORD, BREVO_SMTP_SERVER, BREVO_SMTP_PORT,
-SUPPORT_EMAIL, JWT_SECRET_KEY, SECRET_KEY, FLASK_SECRET_KEY,
+SUPPORT_EMAIL, JWT_SECRET_KEY, SECRET_KEY, FLASK_SECRET_KEY, RESET_SECRET_KEY,
 FRONTEND_URL, BACKEND_ORIGIN, DATABASE_URL, FLASK_ENV,
 EMILY_PASSWORD, MALIK_PASSWORD, JADE_PASSWORD, MONTY_PASSWORD, DEV_PASSWORD
 
-⚠️ SECRET_KEY ≠ FLASK_SECRET_KEY — both must be set, neither validated at startup
+⚠️ SECRET_KEY ≠ FLASK_SECRET_KEY ≠ RESET_SECRET_KEY — all three must be set, none validated at startup
 
 ### Frontend:
 
@@ -794,6 +808,7 @@ TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
 - Timezone functions → timezoneHelpers.js on FE, timezone_utils.py on BE
 - Password rules → validatePassword.js and is_strong_password() must stay in sync
 - Smoke test locally before every prod deploy
-- Semantic versioning on every commit (vX.Y.Z)
+- Semantic versioning on every commit (vX.Y.Z) — format:
+  git add -A && git commit -m "vX.Y.Z: description" && git tag vX.Y.Z && git push origin main --tags
 - Never modify demo accounts in production
 - Add-on tier gates: inline in freelancer_routes.py — update that + FreelancerAdmin.jsx display
