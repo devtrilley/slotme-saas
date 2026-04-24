@@ -174,6 +174,12 @@ class Appointment(db.Model):
     # ✅ Selected add-ons (list of add-on IDs)
     selected_addons = db.Column(JSON, nullable=True)  # [1, 3, 5]
 
+    # 🔔 Reminder tracking (v2.1.0)
+    reminder_sent = db.Column(db.Boolean, default=False)
+    reminder_sent_at = db.Column(db.DateTime, nullable=True)
+    sms_reminder_sent = db.Column(db.Boolean, default=False)
+    customer_timezone = db.Column(db.String(50), nullable=True)
+
     def to_dict(self):
         return {
             "id": self.id,

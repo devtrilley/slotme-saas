@@ -394,3 +394,96 @@ def send_customer_cancellation_confirmation(appointment, cancelled_by="freelance
         customer_email=user.email,
     )
     print(f"✅ Cancellation confirmation sent to customer {user.email}")
+
+
+def send_appointment_reminder(appointment):
+    """
+    Send 24-hour reminder email to customer (all tiers)
+    and SMS to customer if freelancer is Pro and customer has phone.
+    """
+    from email_utils import send_branded_customer_reply
+    from zoneinfo import ZoneInfo
+    from datetime import datetime
+
+    freelancer = appointment.freelancer
+    user = appointment.user
+    slot = appointment.slot
+    service = appointment.service
+
+    # Time conversion
+    frozen_tz = ZoneInfo(appointment.freelancer_timezone or "America/New_York")
+    slot_date = datetime.strptime(slot.day, "%Y-%m-%d").date()
+    utc_time = datetime.strptime(slot.master_time.time_24h, "%H:%M").time()
+    utc_dt = datetime.combine(slot_date, utc_time).replace(tzinfo=ZoneInfo("UTC"))
+    local_dt = utc_dt.astimezone(frozen_tz)
+
+    local_time_display = local_dt.strftime("%I:%M %p").lstrip("0")
+    timezone_abbr = local_dt.tzname()
+    local_date_display = local_dt.strftime("%A, %B %d, %Y")
+
+    cancel_link = ""
+    if appointment.cancel_token:
+        from config import BACKEND_ORIGIN
+
+        cancel_link = f"\n\n🔗 Need to cancel?\n{BACKEND_ORIGIN}/cancel-booking/{appointment.cancel_token}"
+
+    # ✉️ Email — all tiers
+    body = f"""Hi {user.first_name},
+
+This is a friendly reminder about your upcoming appointment tomorrow! 📅
+
+📋 APPOINTMENT DETAILS:
+Service: {service.name}
+Date: {local_date_display}
+Time: {local_time_display} {timezone_abbr}
+
+👤 WITH:
+{freelancer.first_name} {freelancer.last_name}
+Business: {freelancer.business_name or 'N/A'}{cancel_link}
+
+See you soon!
+
+— The SlotMe Team
+https://slotme.xyz
+"""
+
+    send_branded_customer_reply(
+        subject=f"⏰ Reminder: Your appointment tomorrow with {freelancer.business_name or freelancer.first_name}",
+        body=body,
+        customer_email=user.email,
+    )
+    print(f"✅ Reminder email sent to {user.email}")
+
+    # 📱 SMS — Pro tier only, only if customer has phone
+    from utils.tier_utils import get_effective_tier
+
+    if get_effective_tier(freelancer) == "pro" and user.phone:
+        try:
+            from twilio.rest import Client
+
+            account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+            auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+            from_number = os.getenv("TWILIO_PHONE_NUMBER")
+
+            if not all([account_sid, auth_token, from_number]):
+                print("⚠️ Twilio env vars missing — skipping SMS")
+                return
+
+            client = Client(account_sid, auth_token)
+            sms_body = (
+                f"Reminder: You have an appointment tomorrow at "
+                f"{local_time_display} {timezone_abbr} with "
+                f"{freelancer.business_name or freelancer.first_name}. "
+                f"Service: {service.name}."
+            )
+            client.messages.create(
+                body=sms_body,
+                from_=from_number,
+                to=user.phone,
+            )
+            print(f"✅ Reminder SMS sent to {user.phone}")
+            return True  # SMS was sent
+        except Exception as e:
+            print(f"❌ SMS reminder failed for {user.phone}: {e}")
+
+    return False  # SMS not sent

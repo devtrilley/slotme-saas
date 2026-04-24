@@ -1,2 +1,4 @@
-frontend/src/context/FreelancerContext.jsx = ```1```
-frontend/src/components/Auth/RequireTier.jsx = ```1```
+backend/requirements.txt
+backend/services/email_service.py
+backend/app.py 
+backend/routes/reminder_routes.py

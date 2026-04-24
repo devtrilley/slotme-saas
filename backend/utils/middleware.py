@@ -56,6 +56,8 @@ def load_freelancer():
         "/public-appointment",
         "/freelancer/delete-confirm",
         "/freelancer/delete-finalize",
+        "/reminder/trigger",
+        "/reminder/status",
     )
 
     open_paths = [

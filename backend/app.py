@@ -249,8 +249,48 @@ def handle_404(e):
     return response
 
 
+def start_reminder_loop():
+    def run():
+        with app.app_context():
+            while True:
+                try:
+                    from datetime import date, timedelta
+                    from models import Appointment
+                    from services.email_service import send_appointment_reminder
+
+                    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+                    due = Appointment.query.filter_by(
+                        status="confirmed",
+                        reminder_sent=False,
+                    ).all()
+
+                    due_tomorrow = [a for a in due if a.slot and a.slot.day == tomorrow]
+
+                    print(f"🔔 Reminder loop: {len(due_tomorrow)} reminders to send")
+
+                    for appt in due_tomorrow:
+                        try:
+                            sms_sent = send_appointment_reminder(appt)
+                            appt.reminder_sent = True
+                            appt.reminder_sent_at = datetime.now(timezone.utc)
+                            if sms_sent:
+                                appt.sms_reminder_sent = True
+                            db.session.commit()
+                        except Exception as e:
+                            print(f"❌ Reminder failed for appointment {appt.id}: {e}")
+                            db.session.rollback()
+
+                except Exception as e:
+                    print(f"❌ Reminder loop error: {e}")
+
+                time.sleep(3600)  # Run every hour
+
+    threading.Thread(target=run, daemon=True).start()
+
+
 # Call this BEFORE app.run()
 start_pending_cleanup_loop()
+start_reminder_loop()
 
 # Run once at startup
 purge_old_pending()
