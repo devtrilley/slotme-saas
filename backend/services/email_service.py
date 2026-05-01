@@ -470,6 +470,9 @@ https://slotme.xyz
                 return
 
             client = Client(account_sid, auth_token)
+            raw_phone = user.phone.strip().replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
+            if not raw_phone.startswith("+"):
+                raw_phone = "+1" + raw_phone
             sms_body = (
                 f"Reminder: You have an appointment tomorrow at "
                 f"{local_time_display} {timezone_abbr} with "
@@ -479,9 +482,9 @@ https://slotme.xyz
             client.messages.create(
                 body=sms_body,
                 from_=from_number,
-                to=user.phone,
+                to=raw_phone,
             )
-            print(f"✅ Reminder SMS sent to {user.phone}")
+            print(f"✅ Reminder SMS sent to {raw_phone}")
             return True  # SMS was sent
         except Exception as e:
             print(f"❌ SMS reminder failed for {user.phone}: {e}")

@@ -12,6 +12,7 @@ def require_dev_auth(f):
         if auth != os.getenv("DEV_PASSWORD"):
             return jsonify({"error": "Unauthorized"}), 401
         return f(*args, **kwargs)
+
     return decorated
 
 
@@ -44,24 +45,33 @@ def trigger_reminders():
                 if sms_sent:
                     appt.sms_reminder_sent = True
                 db.session.commit()
-                results.append({
-                    "appointment_id": appt.id,
-                    "email": appt.user.email,
-                    "sms_sent": sms_sent,
-                    "status": "sent",
-                })
+                results.append(
+                    {
+                        "appointment_id": appt.id,
+                        "email": appt.user.email,
+                        "sms_sent": sms_sent,
+                        "status": "sent",
+                    }
+                )
             except Exception as e:
                 db.session.rollback()
-                results.append({
-                    "appointment_id": appt.id,
-                    "status": "failed",
-                    "error": str(e),
-                })
+                results.append(
+                    {
+                        "appointment_id": appt.id,
+                        "status": "failed",
+                        "error": str(e),
+                    }
+                )
 
-        return jsonify({
-            "processed": len(results),
-            "results": results,
-        }), 200
+        return (
+            jsonify(
+                {
+                    "processed": len(results),
+                    "results": results,
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -78,13 +88,24 @@ def reminder_status():
     from models import Appointment
 
     total_confirmed = Appointment.query.filter_by(status="confirmed").count()
-    reminded = Appointment.query.filter_by(status="confirmed", reminder_sent=True).count()
-    pending = Appointment.query.filter_by(status="confirmed", reminder_sent=False).count()
-    sms_sent = Appointment.query.filter_by(status="confirmed", sms_reminder_sent=True).count()
+    reminded = Appointment.query.filter_by(
+        status="confirmed", reminder_sent=True
+    ).count()
+    pending = Appointment.query.filter_by(
+        status="confirmed", reminder_sent=False
+    ).count()
+    sms_sent = Appointment.query.filter_by(
+        status="confirmed", sms_reminder_sent=True
+    ).count()
 
-    return jsonify({
-        "total_confirmed": total_confirmed,
-        "reminder_sent": reminded,
-        "reminder_pending": pending,
-        "sms_sent": sms_sent,
-    }), 200
+    return (
+        jsonify(
+            {
+                "total_confirmed": total_confirmed,
+                "reminder_sent": reminded,
+                "reminder_pending": pending,
+                "sms_sent": sms_sent,
+            }
+        ),
+        200,
+    )
